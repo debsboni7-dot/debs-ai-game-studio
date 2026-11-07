@@ -48,6 +48,8 @@ begin
  update public.agent_work_tasks t set status='failed',lease_until=null,updated_at=now(),
  last_error=coalesce(t.last_error,'Worker lease expired too many times.')
  where t.status='running' and t.lease_until<now() and t.attempt>=t.max_attempts;
+ update public.agent_work_sessions s set status='failed',last_summary='Une étape a expiré après plusieurs tentatives.',updated_at=now()
+ where s.status in ('queued','running') and exists(select 1 from public.agent_work_tasks t where t.session_id=s.id and t.status='failed');
  select t.* into v_task from public.agent_work_tasks t join public.agent_work_sessions s on s.id=t.session_id
  where t.status='queued' and t.available_at<=now() and s.status in ('queued','running')
  and s.deadline_at>now() and s.step_count<s.max_steps
