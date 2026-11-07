@@ -1,13 +1,22 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
+import { LogIn, LogOut, MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
 import { Logo } from "./ui";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const navigate = useNavigate();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => { if (active) setUserEmail(data.session?.user.email ?? null); });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUserEmail(session?.user.email ?? null));
+    return () => { active = false; listener.subscription.unsubscribe(); };
+  }, []);
+  const signOut = async () => { await supabase.auth.signOut(); setUserEmail(null); await navigate({ to: "/chat" }); };
   const createConversation = () => {
     const id = uid("t_");
     setThreads((items) => [{ id, title: "Nouvelle conversation", updatedAt: Date.now(), messages: [] }, ...items]);
@@ -32,6 +41,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </div>
+        {userEmail ? (
+          <div className="mt-3 space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+            <p className="truncate text-xs text-slate-500">{userEmail}</p>
+            <button onClick={signOut} className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-700"><LogOut className="size-4" /> Déconnexion</button>
+          </div>
+        ) : (
+          <Link to="/connexion" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"><LogIn className="size-4" /> Connexion / Inscription</Link>
+        )}
         <Link to="/parametres" className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200/80 px-3 py-3 text-sm text-slate-600 transition hover:border-blue-300 hover:text-blue-700">
           <Settings2 className="size-4" /> Paramètres
         </Link>
@@ -46,6 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="flex items-center gap-2">
             <button onClick={createConversation} aria-label="Nouvelle conversation" className="glow-icon rounded-xl p-2"><MessageSquarePlus className="size-5" /></button>
+            {userEmail ? <button onClick={signOut} aria-label="Déconnexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogOut className="size-5" /></button> : <Link to="/connexion" aria-label="Connexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogIn className="size-5" /></Link>}
             <Link to="/parametres" aria-label="Paramètres" className="rounded-xl border border-slate-200 p-2 text-slate-600"><Settings2 className="size-5" /></Link>
           </div>
         </header>
