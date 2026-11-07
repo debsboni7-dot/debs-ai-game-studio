@@ -105,22 +105,22 @@ export function AppShell({ children }: { children: ReactNode }) {
         {isMobile ? (
           <button onClick={() => setMobileOpen(false)} aria-label="Fermer le menu" className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X className="size-5" /></button>
         ) : (
-          <button onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Développer la barre latérale" : "Réduire la barre latérale"} className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-50 hover:text-blue-700">
+          <button onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Développer la barre latérale" : "Réduire la barre latérale"} className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-700">
             {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
           </button>
         )}
       </div>
 
       <div className={`px-3 ${collapsed && !isMobile ? "px-2" : ""}`}>
-        <button onClick={createConversation} title="Nouvelle conversation" className={`flex w-full items-center gap-3 rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 shadow-[0_2px_12px_-8px_rgba(37,99,235,.5)] transition hover:border-blue-400 hover:bg-blue-50/60 ${collapsed && !isMobile ? "justify-center px-2" : ""}`}>
-          <MessageSquarePlus className="size-[18px] shrink-0 text-blue-600" />
+        <button onClick={createConversation} title="Nouvelle conversation" className={`flex w-full items-center gap-3 rounded-xl border border-red-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 shadow-[0_2px_12px_-8px_rgba(220,38,38,.5)] transition hover:border-red-400 hover:bg-red-50/60 ${collapsed && !isMobile ? "justify-center px-2" : ""}`}>
+          <MessageSquarePlus className="size-[18px] shrink-0 text-red-600" />
           {(!collapsed || isMobile) && "Nouveau chat"}
         </button>
       </div>
 
       {(!collapsed || isMobile) && (
         <div className="px-3 pt-3">
-          <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-slate-400 focus-within:border-blue-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+          <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-slate-400 focus-within:border-red-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-red-100">
             <Search className="size-4 shrink-0" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un chat" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" />
             {search && <button onClick={() => setSearch("")} aria-label="Effacer la recherche"><X className="size-3.5" /></button>}
@@ -139,7 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   const active = pathname.endsWith("/" + thread.id);
                   return (
                     <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} onClick={() => setMobileOpen(false)}
-                      className={`mb-0.5 block truncate rounded-lg px-3 py-2.5 text-[13px] transition ${active ? "bg-blue-50 font-semibold text-blue-800" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}>
+                      className={`mb-0.5 block truncate rounded-lg px-3 py-2.5 text-[13px] transition ${active ? "bg-red-50 font-semibold text-red-800" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}>
                       {thread.title || "Nouvelle conversation"}
                     </Link>
                   );
@@ -150,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : (
           <div className="flex flex-col items-center gap-3 pt-2">
             {filteredThreads.slice(0, 8).map((thread) => (
-              <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} title={thread.title} className={`flex size-10 items-center justify-center rounded-xl text-xs font-semibold ${pathname.endsWith("/" + thread.id) ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500 hover:bg-blue-50"}`}>
+              <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} title={thread.title} className={`flex size-10 items-center justify-center rounded-xl text-xs font-semibold ${pathname.endsWith("/" + thread.id) ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500 hover:bg-red-50"}`}>
                 {(thread.title || "N").slice(0, 1).toUpperCase()}
               </Link>
             ))}
@@ -160,27 +160,27 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="shrink-0 border-t border-slate-100 p-3">
         <div className={`mb-1 flex flex-col gap-1 ${collapsed && !isMobile ? "items-center" : ""}`}>
-          <Link to="/integrations" onClick={() => setMobileOpen(false)} title="Outils et intégrations" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-blue-700">
+          <Link to="/integrations" onClick={() => setMobileOpen(false)} title="Outils et intégrations" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
             <GitBranch className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Outils et intégrations"}
           </Link>
-          <Link to="/missions" onClick={() => setMobileOpen(false)} title="Missions autonomes" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-blue-700">
+          <Link to="/missions" onClick={() => setMobileOpen(false)} title="Missions autonomes" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
             <Clock3 className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Missions autonomes"}
           </Link>
-          <Link to="/parametres" onClick={() => setMobileOpen(false)} title="Paramètres" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-blue-700">
+          <Link to="/parametres" onClick={() => setMobileOpen(false)} title="Paramètres" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
             <Settings2 className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Paramètres"}
           </Link>
         </div>
         {userEmail ? (
           <div className={`mt-2 flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 ${collapsed && !isMobile ? "justify-center" : ""}`}>
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">{userEmail.slice(0, 1).toUpperCase()}</div>
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">{userEmail.slice(0, 1).toUpperCase()}</div>
             {(!collapsed || isMobile) && <><span className="min-w-0 flex-1 truncate text-xs text-slate-600">{userEmail}</span><button onClick={signOut} aria-label="Déconnexion" title="Déconnexion" className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"><LogOut className="size-4" /></button></>}
           </div>
         ) : (
-          <Link to="/connexion" onClick={() => setMobileOpen(false)} title="Connexion / Inscription" className={`mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 ${collapsed && !isMobile ? "justify-center" : ""}`}>
+          <Link to="/connexion" onClick={() => setMobileOpen(false)} title="Connexion / Inscription" className={`mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-slate-600 hover:bg-red-50 hover:text-red-700 ${collapsed && !isMobile ? "justify-center" : ""}`}>
             <LogIn className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Connexion / Inscription"}
           </Link>
         )}
-        {(!collapsed || isMobile) && <div className="mt-3 flex items-center gap-2 px-2 text-[10px] text-slate-400"><Sparkles className="size-3 text-blue-500" /> Assistant de création</div>}
+        {(!collapsed || isMobile) && <div className="mt-3 flex items-center gap-2 px-2 text-[10px] text-slate-400"><Sparkles className="size-3 text-red-500" /> Assistant de création</div>}
       </div>
     </div>
   );
@@ -205,9 +205,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"><Menu className="size-5" /></button>
               <button onClick={() => setCollapsed((value) => !value)} aria-label="Afficher ou masquer la barre latérale" className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:inline-flex"><PanelLeftOpen className="size-4" /></button>
               <Link to="/chat" className="truncate text-sm font-semibold tracking-tight text-slate-800">DEBS AI</Link>
-              <span className="hidden rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 sm:inline-flex">Assistant IA</span>
+              <span className="hidden rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 sm:inline-flex">Assistant IA</span>
             </div>
-            <button onClick={createConversation} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+            <button onClick={createConversation} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-700">
               <MessageSquarePlus className="size-4" /><span className="hidden sm:inline">Nouveau chat</span>
             </button>
           </header>
