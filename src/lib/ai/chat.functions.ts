@@ -12,7 +12,11 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[] } {
   const messages = msgs.map((m) => {
     const role = (m as ChatTurn | null)?.role;
     const content = (m as ChatTurn | null)?.content;
-    if ((role !== "user" && role !== "assistant") || typeof content !== "string" || content.length > MAX_CHARS) {
+    if (
+      (role !== "user" && role !== "assistant") ||
+      typeof content !== "string" ||
+      content.length > MAX_CHARS
+    ) {
       throw new Error("Requête invalide : message mal formé.");
     }
     return { role, content };

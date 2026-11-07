@@ -2,7 +2,10 @@ import { APICallError } from "ai";
 
 /** Only deliberately sanitized Gateway errors may cross the server boundary. */
 export class GatewayError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
     super(message);
     this.name = "GatewayError";
   }
@@ -26,7 +29,12 @@ export function safeGatewayError(error: unknown): GatewayError {
       const sanitized = key ? message.split(key).join("[secret masqué]") : message;
       return new GatewayError(sanitized.slice(0, 1000), error.statusCode);
     }
-    return new GatewayError(`Lovable AI a refusé la requête (HTTP ${error.statusCode}).`, error.statusCode);
+    return new GatewayError(
+      `Lovable AI a refusé la requête (HTTP ${error.statusCode}).`,
+      error.statusCode,
+    );
   }
-  return new GatewayError("Impossible d'obtenir une réponse de Lovable AI. Aucun nouvel essai automatique n'a été effectué.");
+  return new GatewayError(
+    "Impossible d'obtenir une réponse de Lovable AI. Aucun nouvel essai automatique n'a été effectué.",
+  );
 }

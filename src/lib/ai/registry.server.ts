@@ -13,7 +13,8 @@ const lovableProvider: CodeModelProvider = {
     const apiKey = process.env.LOVABLE_API_KEY?.trim();
     if (!apiKey) throw new GatewayError("Lovable AI n'est pas configuré sur le serveur.");
     const messages = req.messages.map((message) => {
-      if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
+      if (message.role === "system")
+        throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
       return { role: message.role, content: message.content };
     });
     try {
@@ -31,7 +32,10 @@ const lovableProvider: CodeModelProvider = {
       }
       if (streamError) throw streamError;
       const text = await result.text;
-      if (!text.trim()) throw new GatewayError("Lovable AI n'a renvoyé aucun texte (réponse vide ou refus). Aucun nouvel essai automatique n'a été effectué.");
+      if (!text.trim())
+        throw new GatewayError(
+          "Lovable AI n'a renvoyé aucun texte (réponse vide ou refus). Aucun nouvel essai automatique n'a été effectué.",
+        );
       const response = await result.response;
       return { text, model: response.modelId };
     } catch (error) {
