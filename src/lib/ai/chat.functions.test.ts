@@ -3,7 +3,7 @@ import type { ChatResult, ChatTurn, CodeModelProvider } from "./types";
 
 const state = vi.hoisted(() => ({
   handler: undefined as
-    undefined | ((input: { data: { messages: ChatTurn[] } }) => Promise<ChatResult>),
+    undefined | ((input: { data: { messages: ChatTurn[]; task: "chat" | "code" | "search" | "game-design" | "debug" | "review" } }) => Promise<ChatResult>),
   resolveProvider: vi.fn(),
 }));
 vi.mock("@tanstack/react-start", () => ({
@@ -23,7 +23,7 @@ import { GatewayError } from "./gateway-error.server";
 const messages: ChatTurn[] = [{ role: "user", content: "Hi" }];
 async function invoke() {
   if (!state.handler) throw new Error("Missing server handler");
-  return state.handler({ data: { messages } });
+  return state.handler({ data: validateChatInput({ messages }) });
 }
 
 describe("chat validation", () => {
