@@ -95,7 +95,7 @@ export async function updateMissionPullRequestBranch(branch: string, files: Prop
     if (!response.ok) throw new Error("GitHub " + response.status + ": " + String(data.message ?? "requête refusée").slice(0, 200));
     return data;
   };
-  const ref = await call("/git/ref/heads/" + encodeURIComponent(branch));
+  const ref = await call("/git/ref/heads/" + branch);
   const parentSha = String(ref.object.sha);
   const parent = await call("/git/commits/" + parentSha);
   const entries = [];
@@ -105,7 +105,7 @@ export async function updateMissionPullRequestBranch(branch: string, files: Prop
   }
   const tree = await call("/git/trees", { base_tree: parent.tree.sha, tree: entries });
   const commit = await call("/git/commits", { message: "DEBS AI: correction CI - " + title.slice(0, 70), tree: tree.sha, parents: [parentSha] });
-  const updateResponse = await fetch(api + "/git/refs/heads/" + encodeURIComponent(branch), { method: "PATCH", headers, body: JSON.stringify({ sha: commit.sha, force: false }) });
+  const updateResponse = await fetch(api + "/git/refs/heads/" + branch, { method: "PATCH", headers, body: JSON.stringify({ sha: commit.sha, force: false }) });
   if (!updateResponse.ok) {
     const errorData = await updateResponse.json().catch(() => ({}));
     throw new Error("Mise à jour de la branche GitHub impossible (HTTP " + updateResponse.status + ") : " + String(errorData.message ?? "").slice(0, 180));
