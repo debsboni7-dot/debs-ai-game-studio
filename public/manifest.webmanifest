@@ -1,0 +1,11 @@
+{
+  "name": "DEBS AI",
+  "short_name": "DEBS AI",
+  "description": "Atelier IA pour programmer et créer des jeux vidéo.",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1f2128",
+  "theme_color": "#1f2128",
+  "icons": [{ "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" }]
+}
