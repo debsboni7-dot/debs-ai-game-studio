@@ -77,7 +77,7 @@ Deno.serve(async(request)=>{
   const goal=typeof body.goal==="string"?body.goal.trim():"",hours=Number(body.hours??1),maxSteps=Number(body.max_steps??100);
   if(goal.length<8||goal.length>12000)return json({error:"Objectif : 8 à 12 000 caractères."},400);
   if(!Number.isInteger(hours)||hours<1||hours>168)return json({error:"Durée : 1 à 168 heures."},400);
-  if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>1000)return json({error:"Nombre d'étapes invalide."},400);
+  if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>2000)return json({error:"Nombre d'étapes invalide."},400);
   const title=(typeof body.title==="string"&&body.title.trim()?body.title.trim():goal.slice(0,80)).slice(0,120);
   const {data:session,error}=await userClient.from("agent_work_sessions").insert({user_id:userId,title,goal,requested_hours:hours,deadline_at:new Date(Date.now()+hours*3600000).toISOString(),max_steps:maxSteps,status:"queued"}).select("id,title,status,requested_hours,deadline_at,step_count,max_steps,created_at").single();
   if(error||!session)return json({error:"Création impossible.",detail:error?.message},500);
