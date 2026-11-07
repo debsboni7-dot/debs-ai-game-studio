@@ -69,7 +69,7 @@ Deno.serve(async(request)=>{
     "Résultat précédent / diagnostics CI : "+JSON.stringify(task.input??{}),"TÂCHE DE RÉPARATION : "+(task.task_type==="github_ci_repair"?"Tu dois corriger uniquement les causes des contrôles CI échoués. Lis les fichiers de la branche du PR, corrige les erreurs indiquées par les annotations, ne touche pas aux workflows ni aux secrets, et ne fais pas de refonte sans rapport. Retourne uniquement les fichiers modifiés nécessaires.":"Mission normale."),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
     "Contexte du dépôt GitHub (arborescence et extraits réels) : "+JSON.stringify(await (async()=>{try{
-      const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY"),branch=env("GITHUB_BASE_BRANCH")||"main";
+      const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY"),branch=(task.task_type==="github_ci_repair"&&typeof task.input?.branch==="string"?task.input.branch:env("GITHUB_BASE_BRANCH")||"main");
       if(!token||!repo)return {files:[],contents:[]};
       const headers={Authorization:"Bearer "+token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
       const treeResponse=await fetch("https://api.github.com/repos/"+repo+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1",{headers});
