@@ -175,7 +175,7 @@ function ThreadPage() {
       const updateAssistant = (patch: Partial<ChatMessage>) => setThreads((previous) => previous.map((item) => item.id === threadId
         ? { ...item, updatedAt: Date.now(), messages: item.messages.map((message) => message.id === assistantId ? { ...message, ...patch } : message) }
         : item));
-      push({ id: assistantId, kind: "assistant", content: "", provider: "DEBS AI", createdAt: Date.now(), activity: [] });
+      push({ id: assistantId, kind: "assistant", content: "", provider: "DEBS 1.1", createdAt: Date.now(), activity: [] });
       if (repositoryContext) {
         activityEvents = [{ id: "github-context", connector: "GitHub", action: "Contexte du dépôt", status: "completed", summary: contextFiles.length + " fichier(s) du dépôt " + (selectedRepository?.fullName ?? "importé") + " transmis au modèle en lecture seule." }];
         setWorkingActivity(activityEvents);
@@ -206,7 +206,7 @@ function ThreadPage() {
               setWorkingActivity(activityEvents);
               updateAssistant({ activity: activityEvents });
             } else if (event.type === "done") {
-              updateAssistant({ provider: event.provider || "DEBS AI" });
+              updateAssistant({ provider: event.provider || "DEBS 1.1" });
             } else if (event.type === "error") {
               streamError = event.message || "La génération a échoué.";
             }
@@ -247,7 +247,7 @@ function ThreadPage() {
     <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div className="flex min-w-0 items-center gap-2"><Link to="/chat" aria-label="Retour" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><ArrowLeft className="size-4" /></Link><h1 className="truncate text-sm font-medium text-slate-700">{thread.title}</h1></div>
-        <span className="hidden text-[11px] text-slate-400 sm:block">DEBS AI · Assistant de création</span>
+        <span className="hidden text-[11px] text-slate-400 sm:block">DEBS 1.1 · Modèle IA</span>
       </div>
       <div className="flex-1 space-y-4">
         {thread.messages.length === 0 && (
