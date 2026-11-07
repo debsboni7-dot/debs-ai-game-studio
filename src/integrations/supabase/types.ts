@@ -10,6 +10,24 @@ export type Database = {
   __InternalSupabase: { PostgrestVersion: "14.18" };
   public: {
     Tables: {
+      agent_work_sessions: {
+        Row: { id: string; user_id: string; title: string; goal: string; status: string; requested_hours: number; deadline_at: string; heartbeat_at: string | null; next_run_at: string; checkpoint: Json; last_summary: string | null; step_count: number; max_steps: number; created_at: string; updated_at: string };
+        Insert: { id?: string; user_id: string; title: string; goal: string; status?: string; requested_hours: number; deadline_at: string; heartbeat_at?: string | null; next_run_at?: string; checkpoint?: Json; last_summary?: string | null; step_count?: number; max_steps?: number; created_at?: string; updated_at?: string };
+        Update: { id?: string; user_id?: string; title?: string; goal?: string; status?: string; requested_hours?: number; deadline_at?: string; heartbeat_at?: string | null; next_run_at?: string; checkpoint?: Json; last_summary?: string | null; step_count?: number; max_steps?: number; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      agent_work_tasks: {
+        Row: { id: string; session_id: string; status: string; task_type: string; input: Json; result: Json | null; attempt: number; max_attempts: number; available_at: string; lease_until: string | null; last_error: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; session_id: string; status?: string; task_type?: string; input?: Json; result?: Json | null; attempt?: number; max_attempts?: number; available_at?: string; lease_until?: string | null; last_error?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; session_id?: string; status?: string; task_type?: string; input?: Json; result?: Json | null; attempt?: number; max_attempts?: number; available_at?: string; lease_until?: string | null; last_error?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      agent_work_events: {
+        Row: { id: number; session_id: string; task_id: string | null; event_type: string; message: string; metadata: Json; created_at: string };
+        Insert: { id?: number; session_id: string; task_id?: string | null; event_type: string; message: string; metadata?: Json; created_at?: string };
+        Update: { id?: number; session_id?: string; task_id?: string | null; event_type?: string; message?: string; metadata?: Json; created_at?: string };
+        Relationships: [];
+      };
       conversations: {
         Row: { id: string; user_id: string; title: string; created_at: string; updated_at: string };
         Insert: { id?: string; user_id: string; title?: string; created_at?: string; updated_at?: string };
