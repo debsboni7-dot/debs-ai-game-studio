@@ -27,7 +27,8 @@ Deno.serve(async(request)=>{
     "Tu es le worker autonome de DEBS AI. Avance une mission en une seule étape courte, vérifiable et récupérable.",
     "Ne prétends jamais avoir modifié un dépôt, exécuté un test ou appelé un outil externe sans l'avoir réellement fait.",
     "Réponds uniquement avec un JSON valide : { \"done\": boolean, \"summary\": string, \"checkpoint\": object, \"next_action\": string, \"files\": [{ \"path\": string, \"content\": string }] }.",
-    "Si des changements de code sont demandés et que GitHub est configuré, propose les fichiers complets dans files (maximum 12). N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Sinon files doit être [].",
+    "Étudie d'abord les extraits de fichiers fournis. Respecte les conventions et l'architecture existantes ; ne remplace pas un fichier entier sans nécessité. Si le contexte est insuffisant, explique-le et ne propose pas de code spéculatif.",
+    "Pour une mission de programmation, prépare une seule proposition cohérente et finale dans files (maximum 12 fichiers), puis mets done=true. Une proposition de fichiers clôt cette mission et crée un unique PR brouillon. N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Si aucun changement concret n'est prêt, files doit être [].",
     "Objectif : "+session.goal,"Checkpoint : "+JSON.stringify(session.checkpoint??{}),
     "Résultat précédent : "+JSON.stringify(task.input??{}),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
@@ -75,10 +76,11 @@ Deno.serve(async(request)=>{
    let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string;files?:ProposedFile[]};
    try{parsed=JSON.parse(outputText);}catch{parsed={done:false,summary:outputText.slice(0,4000),checkpoint:{raw:outputText.slice(0,12000)},next_action:"Reprendre depuis ce résultat."};}
    const now=new Date().toISOString(),steps=Number(session.step_count??0)+1,expired=Date.now()>=new Date(session.deadline_at).getTime();
-   const completed=parsed.done===true||expired||steps>=Number(session.max_steps),summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
+   const hasFiles=Array.isArray(parsed.files)&&parsed.files.length>0;
+   const completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps),summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
    let githubProposal:Record<string,unknown>|null=null;
-   if(Array.isArray(parsed.files)&&parsed.files.length){githubProposal=await createMissionPullRequest(parsed.files,String(session.title??"Mission DEBS AI"),summary);}
+   if(hasFiles){githubProposal=await createMissionPullRequest(parsed.files!,String(session.title??"Mission DEBS AI"),summary);}
    const {error:taskError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,checkpoint,next_action:parsed.next_action??""},lease_until:null,updated_at:now}).eq("id",task.id);
    if(taskError)throw taskError;
    const {data:latestSession}=await admin.from("agent_work_sessions").select("status").eq("id",session.id).single();
