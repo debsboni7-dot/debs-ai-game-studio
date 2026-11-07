@@ -1,6 +1,6 @@
 /** Provider-agnostic contract for code models. Adapters live server-side only. */
 export type ChatRole = "user" | "assistant" | "system";
-export type ChatTask = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
+export type ChatTask = "chat" | "code" | "game-dev" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
 
 export interface ChatActivityEvent {
   id: string;
