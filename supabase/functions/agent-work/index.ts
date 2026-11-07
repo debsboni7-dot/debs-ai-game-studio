@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { createMissionPullRequest, inspectPullRequestChecks, type ProposedFile } from "./github-executor.ts";
+import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch, type ProposedFile } from "./github-executor.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -43,9 +43,17 @@ Deno.serve(async(request)=>{
      await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},last_summary:"Pull Request créé ; vérifications CI en cours.",heartbeat_at:new Date().toISOString(),next_run_at:nextAt,updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
      return json({ok:true,claimed:true,ci_state:"pending",session_id:session.id,poll_count:pollCount});
     }
-    const finalStatus=checks.state==="success"?"completed":"failed";
     const finalSummary=checks.state==="success"?"Les vérifications GitHub ont réussi.":"Les vérifications GitHub ont échoué : "+(checks.failed_checks.join(", ")||"résultat incomplet ou délai de suivi atteint.");
     await admin.from("agent_work_tasks").update({status:"completed",result:{checks},lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
+    if(checks.state==="failure"&&Number(proposal.repair_count??0)<2){
+     const annotations=await readCheckAnnotations(proposal.head_sha);
+     const {error:repairError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_repair",max_attempts:2,input:{...proposal,repair_count:Number(proposal.repair_count??0)+1,checks,annotations}});
+     if(repairError)throw repairError;
+     await admin.from("agent_work_sessions").update({status:"queued",last_summary:"Échec CI détecté ; préparation d'une correction contrôlée.",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),next_run_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
+     await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"github_ci_repair_started",message:"Échec CI détecté ; l'agent prépare une correction (tentative "+(Number(proposal.repair_count??0)+1)+"/2).",metadata:{...eventMetadata,annotations}});
+     return json({ok:true,claimed:true,ci_state:"failure",repair_scheduled:true,session_id:session.id});
+    }
+    const finalStatus=checks.state==="success"?"completed":"failed";
     await admin.from("agent_work_sessions").update({status:finalStatus,last_summary:finalSummary,checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
     await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:checks.state==="success"?"github_ci_passed":"github_ci_failed",message:finalSummary,metadata:eventMetadata});
     return json({ok:true,claimed:true,ci_state:checks.state,session_id:session.id});
@@ -58,7 +66,7 @@ Deno.serve(async(request)=>{
     "Étudie d'abord les extraits de fichiers fournis. Respecte les conventions et l'architecture existantes ; ne remplace pas un fichier entier sans nécessité. Si le contexte est insuffisant, explique-le et ne propose pas de code spéculatif.",
     "Pour une mission de programmation, prépare une seule proposition cohérente et finale dans files (maximum 12 fichiers), puis mets done=true. Une proposition de fichiers clôt cette mission et crée un unique PR brouillon. N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Si aucun changement concret n'est prêt, files doit être [].",
     "Objectif : "+session.goal,"Checkpoint : "+JSON.stringify(session.checkpoint??{}),
-    "Résultat précédent : "+JSON.stringify(task.input??{}),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
+    "Résultat précédent / diagnostics CI : "+JSON.stringify(task.input??{}),"TÂCHE DE RÉPARATION : "+(task.task_type==="github_ci_repair"?"Tu dois corriger uniquement les causes des contrôles CI échoués. Lis les fichiers de la branche du PR, corrige les erreurs indiquées par les annotations, ne touche pas aux workflows ni aux secrets, et ne fais pas de refonte sans rapport. Retourne uniquement les fichiers modifiés nécessaires.":"Mission normale."),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
     "Contexte du dépôt GitHub (arborescence et extraits réels) : "+JSON.stringify(await (async()=>{try{
       const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY"),branch=env("GITHUB_BASE_BRANCH")||"main";
@@ -109,13 +117,18 @@ Deno.serve(async(request)=>{
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
    let githubProposal:Record<string,unknown>|null=null;
    if(hasFiles){
-    githubProposal=await createMissionPullRequest(parsed.files!,String(session.title??"Mission DEBS AI"),summary);
-    const proposal=githubProposal as {url?:string;number?:number;branch?:string;head_sha?:string;checks?:{state?:string}};
-    if(proposal.checks?.state==="pending"&&proposal.head_sha){
+    if(task.task_type==="github_ci_repair"){
+     const repairInput=task.input as {branch?:string;url?:string;number?:number;repair_count?:number};
+     if(!repairInput.branch)throw new Error("Branche du PR absente pour la correction.");
+     const update=await updateMissionPullRequestBranch(repairInput.branch,parsed.files!,String(session.title??"Mission DEBS AI"));
+     githubProposal={...repairInput,...update,url:repairInput.url,number:repairInput.number,repair_count:repairInput.repair_count};
+    }else{
+     githubProposal=await createMissionPullRequest(parsed.files!,String(session.title??"Mission DEBS AI"),summary);
+    }
+    const proposal=githubProposal as {url?:string;number?:number;branch?:string;head_sha?:string;checks?:{state?:string};repair_count?:number};
+    if(proposal.checks?.state==="pending"||proposal.checks?.state==="failure"){
      completed=false;
-    }else if(proposal.checks?.state==="failure"){
-     ciFailure=true;
-     const {error:ciTaskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,input:{url:proposal.url,number:proposal.number,branch:proposal.branch,head_sha:proposal.head_sha,poll_count:0}});
+     const {error:ciTaskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,input:{url:proposal.url,number:proposal.number,branch:proposal.branch,head_sha:proposal.head_sha,poll_count:0,repair_count:proposal.repair_count??0}});
      if(ciTaskError)throw ciTaskError;
     }
    }
