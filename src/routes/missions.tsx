@@ -8,7 +8,7 @@ type Mission = {
  deadline_at: string; heartbeat_at: string | null; last_summary: string | null;
  step_count: number; max_steps: number; created_at: string;
 };
-type MissionEvent = { id: number; event_type: string; message: string; metadata?: { github_proposal?: { url?: string; number?: number; branch?: string } }; created_at: string };
+type MissionEvent = { id: number; event_type: string; message: string; metadata?: { github_proposal?: { url?: string; number?: number; branch?: string; checks?: { state?: string; failed_checks?: string[]; checks?: Array<{ name: string; status: string; conclusion: string | null; details_url: string | null; output_title?: string | null; output_summary?: string | null }> } } }; created_at: string };
 const statusLabels: Record<string,string> = { queued:"En attente", running:"En cours", paused:"En pause", completed:"Terminée", failed:"Échec", cancelled:"Annulée", expired:"Durée écoulée" };
 const statusStyles: Record<string,string> = { queued:"bg-slate-100 text-slate-700", running:"bg-blue-100 text-blue-700", paused:"bg-amber-100 text-amber-700", completed:"bg-emerald-100 text-emerald-700", failed:"bg-red-100 text-red-700", cancelled:"bg-slate-100 text-slate-500", expired:"bg-orange-100 text-orange-700" };
 
@@ -34,7 +34,7 @@ function MissionsPage() {
   const rows=(data??[]) as Mission[];setMissions(rows);
   const next:Record<string,MissionEvent[]>={};
   await Promise.all(rows.slice(0,10).map(async mission=>{
-   const {data:items}=await supabase.from("agent_work_events").select("id,event_type,message,created_at").eq("session_id",mission.id).order("created_at",{ascending:false}).limit(5);
+   const {data:items}=await supabase.from("agent_work_events").select("id,event_type,message,metadata,created_at").eq("session_id",mission.id).order("created_at",{ascending:false}).limit(5);
    next[mission.id]=(items??[]) as MissionEvent[];
   }));
   setEvents(next);setLoading(false);
@@ -104,7 +104,7 @@ function MissionsPage() {
      {mission.status==="paused"&&<button disabled={busy===mission.id} onClick={()=>void command(mission.id,"resume")} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700"><Play className="size-3.5"/>Reprendre</button>}
      {["queued","running","paused"].includes(mission.status)&&<button disabled={busy===mission.id} onClick={()=>void command(mission.id,"cancel")} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600"><Square className="size-3"/>Annuler</button>}
     </div>
-    {events[mission.id]?.length>0&&<details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-slate-500">Journal récent ({events[mission.id].length})</summary><ol className="mt-2 space-y-2 border-l border-blue-100 pl-3">{events[mission.id].map(event=><li key={event.id} className="text-xs text-slate-600"><span className="font-semibold">{formatDate(event.created_at)}</span> — {event.message}{event.metadata?.github_proposal?.url&&<a href={event.metadata.github_proposal.url} target="_blank" rel="noreferrer" className="ml-2 inline-flex font-semibold text-blue-700 underline">Voir le PR #{event.metadata.github_proposal.number??""}</a>}</li>)}</ol></details>}
+    {events[mission.id]?.length>0&&<details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-slate-500">Journal récent ({events[mission.id].length})</summary><ol className="mt-2 space-y-2 border-l border-blue-100 pl-3">{events[mission.id].map(event=><li key={event.id} className="text-xs text-slate-600"><span className="font-semibold">{formatDate(event.created_at)}</span> — {event.message}{event.metadata?.github_proposal?.url&&<a href={event.metadata.github_proposal.url} target="_blank" rel="noreferrer" className="ml-2 inline-flex font-semibold text-blue-700 underline">Voir le PR #{event.metadata.github_proposal.number??""}</a>}{event.metadata?.github_proposal?.checks&&<div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2"><p className="font-semibold text-slate-700">Vérifications CI : {event.metadata.github_proposal.checks.state==="success"?"Réussies":event.metadata.github_proposal.checks.state==="failure"?"Échec":event.metadata.github_proposal.checks.state==="pending"?"En attente":"État inconnu"}</p>{event.metadata.github_proposal.checks.checks?.map((check,index)=><div key={check.name+index} className="mt-1"><p>{check.name} — {check.status==="completed"?(check.conclusion??"terminé"):"en cours"}</p>{check.output_title&&<p className="font-medium text-red-700">{check.output_title}</p>}{check.output_summary&&<p className="mt-1 whitespace-pre-wrap text-slate-500">{check.output_summary}</p>}{check.details_url&&<a href={check.details_url} target="_blank" rel="noreferrer" className="text-blue-700 underline">Détails du contrôle</a>}</div>)}</div>}</li>)}</ol></details>}
    </article>)}
   </section>
   <p className="text-xs leading-5 text-slate-400">Important : cette interface ne lance pas un processus 24 h dans le navigateur. La migration Supabase, la fonction Edge et un planificateur serveur doivent être déployés et configurés pour que les étapes s'enchaînent automatiquement.</p>
