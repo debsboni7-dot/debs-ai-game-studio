@@ -42,6 +42,17 @@ export function GameArtifact({ markdown }: { markdown: string }) {
   const preview = useMemo(() => buildPreview(files), [files]);
   if (!files.length) return null;
 
+  const downloadHtml = () => {
+    if (!preview) return;
+    const blob = new Blob([preview], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "debs-ai-game.html";
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const download = async () => {
     setDownloadError("");
     try {
@@ -62,7 +73,10 @@ export function GameArtifact({ markdown }: { markdown: string }) {
   return <section className="my-3 space-y-3 rounded-2xl border border-blue-200 bg-white p-3 shadow-sm">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Gamepad2 className="size-4 text-blue-600" /> Projet de jeu généré <span className="text-xs font-normal text-slate-500">{files.length} fichier(s)</span></div>
-      <button type="button" onClick={() => void download()} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"><Download className="size-3.5" /> Télécharger le jeu (.zip)</button>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={() => void download()} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"><Download className="size-3.5" /> Projet complet (.zip)</button>
+        {preview && <button type="button" onClick={downloadHtml} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50"><Download className="size-3.5" /> Fichier Chrome (.html)</button>}
+      </div>
     </div>
     <div className="flex flex-wrap gap-1.5">{files.map((file) => <span key={file.path} className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[10px] text-slate-600">{file.path}</span>)}</div>
     {preview ? <>
