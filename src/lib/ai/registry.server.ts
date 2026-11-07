@@ -20,6 +20,15 @@ const lovableProvider: CodeModelProvider = {
     const messages = req.messages.map((message) => {
       if (message.role === "system")
         throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
+      if (message.role === "user" && message.attachments?.length) {
+        const content = [
+          { type: "text" as const, text: message.content || "Please inspect the attached file(s)." },
+          ...message.attachments.map((file) => file.kind === "image"
+            ? { type: "image" as const, image: file.data, mediaType: file.mediaType }
+            : { type: "file" as const, data: file.data, mediaType: file.mediaType, filename: file.filename }),
+        ];
+        return { role: "user" as const, content };
+      }
       return { role: message.role, content: message.content };
     });
     try {
@@ -37,7 +46,7 @@ const lovableProvider: CodeModelProvider = {
         request,
         { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL },
         messages,
-        `You are DEBS AI, an assistant for creating video games and software. Answer in the user's language. Be accurate, useful, and concise. ${modeInstructions[task]} Never claim to have executed code, edited files, browsed the web, or connected tools unless the runtime actually confirms it. Clearly distinguish examples from verified results.`,
+        `You are DEBS AI, an assistant for creating video games and software. When images or PDF files are attached, inspect their contents and answer based on them. Answer in the user's language. Be accurate, useful, and concise. ${modeInstructions[task]} Never claim to have executed code, edited files, browsed the web, or connected tools unless the runtime actually confirms it. Clearly distinguish examples from verified results.`,
         task === "search",
       );
       // Consume the real stream on the server; the existing UI keeps its final-only contract.
