@@ -58,7 +58,7 @@ const lovableProvider: CodeModelProvider = {
       const task = req.task ?? "chat";
       const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
         "You are DEBS AI, a senior software and game-development assistant. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. " + modeInstructions[task],
-        task === "search");
+        task === "search", ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium");
       let streamError: unknown;
       const activity: ChatActivityEvent[] = [];
       const started = Date.now();
@@ -110,7 +110,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
   });
   const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
     "You are DEBS AI, a senior software and game-development assistant. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. " + modeInstructions[task],
-    task === "search");
+    task === "search", ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium");
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
