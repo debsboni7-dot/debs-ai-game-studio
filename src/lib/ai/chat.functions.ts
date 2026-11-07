@@ -3,7 +3,7 @@ import type { ChatResult, ChatTask, ChatTurn } from "./types";
 
 const MAX_TURNS = 50;
 const MAX_CHARS = 20_000;
-const TASKS: ChatTask[] = ["chat", "code", "search", "game-design", "debug", "review", "github", "unity", "unreal", "godot", "blender", "threejs", "architect", "test", "refactor", "security", "performance", "api", "devops"];
+const TASKS: ChatTask[] = ["chat", "code", "game-dev", "search", "game-design", "debug", "review", "github", "unity", "unreal", "godot", "blender", "threejs", "architect", "test", "refactor", "security", "performance", "api", "devops"];
 
 export function validateChatInput(input: unknown): { messages: ChatTurn[]; task: ChatTask; attachments: NonNullable<ChatTurn["attachments"]> } {
   const msgs = (input as { messages?: unknown })?.messages;

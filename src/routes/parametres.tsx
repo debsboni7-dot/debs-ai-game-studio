@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Monitor, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,6 @@ export const Route = createFileRoute("/parametres")({
   component: Settings,
 });
 
-const sel = "h-9 w-full rounded-md border bg-transparent px-3 text-sm";
 
 function Settings() {
   const [profile, setProfile] = usePersistentState(STORAGE_KEYS.profile, { name: "" });
@@ -32,13 +31,20 @@ function Settings() {
     <div className="space-y-4">
       <PageHeader title="Réglages" />
       <Panel className="space-y-3">
-        <h2 className="font-semibold">Profil</h2>
-        <label className="block text-sm">Nom affiché<Input value={profile.name} onChange={(e) => setProfile({ name: e.target.value })} placeholder="Votre nom" /></label>
-        <p className="text-xs text-muted-foreground">Enregistré dans ce navigateur (pas encore de compte).</p>
+        <h2 className="flex items-center gap-2 font-semibold"><UserRound className="size-4 text-primary" /> Profil</h2>
+        <label className="block space-y-1.5 text-sm">Nom affiché<Input value={profile.name} onChange={(e) => setProfile({ name: e.target.value })} placeholder="Votre nom" /></label>
+        <p className="text-xs text-muted-foreground">Ce nom est enregistré localement sur cet appareil. Il ne modifie pas ton identité de compte.</p>
       </Panel>
-      <Panel className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">Langue<select className={sel} defaultValue="fr"><option value="fr" className="bg-popover">Français</option><option disabled className="bg-popover">English (bientôt)</option></select></label>
-        <label className="text-sm">Thème<select className={sel} defaultValue="graphite"><option value="graphite" className="bg-popover">Graphite (par défaut)</option></select></label>
+      <Panel className="space-y-3">
+        <h2 className="flex items-center gap-2 font-semibold"><Monitor className="size-4 text-primary" /> Apparence et langue</h2>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-white p-3 shadow-[0_6px_24px_-20px_rgba(220,38,38,.65)]">
+          <div><p className="text-sm font-medium text-slate-800">Thème clair lumineux</p><p className="text-xs text-muted-foreground">Fond blanc, panneaux clairs et contours lumineux rouges.</p></div>
+          <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-700">Actif</span>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+          <div><p className="text-sm font-medium text-slate-800">Langue de l’interface</p><p className="text-xs text-muted-foreground">Français · les autres langues ne sont pas encore intégralement traduites.</p></div>
+          <span className="text-xs font-semibold text-slate-600">Français</span>
+        </div>
       </Panel>
       <Panel className="space-y-2">
         <h2 className="flex items-center gap-2 font-semibold"><KeyRound className="size-4 text-primary" /> Clés API</h2>

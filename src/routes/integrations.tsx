@@ -9,6 +9,7 @@ import { useIntegrations } from "@/lib/integrations/context";
 import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
 import { createMeshyPreview, getMeshyTask } from "@/lib/integrations/meshy.functions";
 import { createTripoTask, getTripoTask, createRodinTask, getRodinTask } from "@/lib/integrations/generators.functions";
+import { GitHubAgentPanel } from "@/components/debs/github-agent-panel";
 
 export const Route = createFileRoute("/integrations")({
   head: () => ({ meta: [
@@ -179,6 +180,8 @@ function IntegrationsPage() {
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <p className="flex items-start gap-2 border-t pt-3 text-xs text-muted-foreground"><LockKeyhole className="mt-0.5 size-4 shrink-0" /> Le jeton n'est ni enregistré dans le compte, ni placé dans les messages, ni envoyé au modèle IA. Il est transmis au serveur uniquement pour appeler l'API GitHub et disparaît au rechargement.</p>
       </Panel>
+
+      <GitHubAgentPanel />
 
       <Panel className="space-y-4 border-blue-200 bg-white">
         <div className="flex items-center gap-3"><span className="glow-icon flex size-11 items-center justify-center rounded-2xl"><Box className="size-5" /></span><div><h2 className="font-semibold">Meshy AI — génération 3D</h2><p className="text-xs text-muted-foreground">Premier connecteur API opérationnel · prévisualisation GLB</p></div></div>

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowLeft, ChevronDown, Clock3, ExternalLink, Globe2, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,13 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { DemoBadge, EmptyState } from "@/components/debs/ui";
 import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
+import { GameArtifact } from "@/components/debs/game-artifact";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
+import { takePendingAttachments } from "@/lib/chat/pending-attachments";
+import { CREATOR_CREDIT } from "@/lib/brand";
 
 const COMMANDS = [
   { command: "/code", label: "Programmation", description: "Développement logiciel général" },
+  { command: "/game-dev", label: "Game development", description: "Créer des jeux complets avec architecture et contrôles qualité" },
   { command: "/github", label: "GitHub", description: "Analyser un dépôt importé et préparer des modifications" },
   { command: "/unity", label: "Unity", description: "C#, scripts, scènes, prefabs et architecture Unity" },
   { command: "/unreal", label: "Unreal", description: "C++, Blueprints, Gameplay Framework et réplication" },
@@ -33,9 +37,9 @@ const COMMANDS = [
   { command: "/help", label: "Commandes", description: "Afficher les commandes disponibles" },
 ] as const;
 
-type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
+type Task = "chat" | "code" | "game-dev" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
 function parseCommand(raw: string): { task: Task; prompt: string; help: boolean } {
-  const match = raw.match(/^\/(code|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs|architect|test|refactor|security|performance|api|devops)(?:\s+([\s\S]*))?$/i);
+  const match = raw.match(/^\/(code|game-dev|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs|architect|test|refactor|security|performance|api|devops)(?:\s+([\s\S]*))?$/i);
   if (!match) return { task: "chat", prompt: raw, help: false };
   const command = match[1].toLowerCase();
   return { task: command === "help" ? "chat" : command as Task, prompt: (match[2] ?? "").trim(), help: command === "help" };
@@ -45,6 +49,7 @@ const HELP_TEXT = [
   "### Commandes DEBS AI",
   "",
   "- `/code` — programmation générale",
+  "- `/game-dev` — ingénierie complète de jeux vidéo (architecture, systèmes, tests)",
   "- `/github` — analyse d'un dépôt GitHub importé (lecture seule)",
   "- `/unity` — développement Unity / C#",
   "- `/unreal` — Unreal Engine / C++ / Blueprints",
@@ -67,6 +72,7 @@ const HELP_TEXT = [
 ].join("\n");
 
 export const Route = createFileRoute("/chat/$threadId")({
+  validateSearch: (search: Record<string, unknown>) => ({ draft: typeof search.draft === "string" ? search.draft : "" }),
   head: () => ({ meta: [
     { title: "Conversation — DEBS AI" },
     { name: "description", content: "Assistant spécialisé en programmation et création de jeux vidéo." },
@@ -78,9 +84,11 @@ export const Route = createFileRoute("/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
+  const { draft } = Route.useSearch();
   const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const [input, setInput] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);
+  useEffect(() => { if (draft) setInput(draft); }, [draft]);
+  const [attachments, setAttachments] = useState<File[]>(() => takePendingAttachments());
   const [attachmentResetKey, setAttachmentResetKey] = useState(0);
   const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
   const [loading, setLoading] = useState(false);
@@ -169,7 +177,7 @@ function ThreadPage() {
       const updateAssistant = (patch: Partial<ChatMessage>) => setThreads((previous) => previous.map((item) => item.id === threadId
         ? { ...item, updatedAt: Date.now(), messages: item.messages.map((message) => message.id === assistantId ? { ...message, ...patch } : message) }
         : item));
-      push({ id: assistantId, kind: "assistant", content: "", provider: "DEBS AI", createdAt: Date.now(), activity: [] });
+      push({ id: assistantId, kind: "assistant", content: "", provider: "DEBS 1.1", createdAt: Date.now(), activity: [] });
       if (repositoryContext) {
         activityEvents = [{ id: "github-context", connector: "GitHub", action: "Contexte du dépôt", status: "completed", summary: contextFiles.length + " fichier(s) du dépôt " + (selectedRepository?.fullName ?? "importé") + " transmis au modèle en lecture seule." }];
         setWorkingActivity(activityEvents);
@@ -200,7 +208,7 @@ function ThreadPage() {
               setWorkingActivity(activityEvents);
               updateAssistant({ activity: activityEvents });
             } else if (event.type === "done") {
-              updateAssistant({ provider: event.provider || "DEBS AI" });
+              updateAssistant({ provider: event.provider || "DEBS 1.1" });
             } else if (event.type === "error") {
               streamError = event.message || "La génération a échoué.";
             }
@@ -238,44 +246,46 @@ function ThreadPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-9rem)] flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <Link to="/chat" aria-label="Retour" className="rounded p-1 text-muted-foreground hover:text-foreground"><ArrowLeft className="size-5" /></Link>
-        <h1 className="truncate text-lg font-semibold">{thread.title}</h1>
+    <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex min-w-0 items-center gap-2"><Link to="/chat" aria-label="Retour" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><ArrowLeft className="size-4" /></Link><h1 className="truncate text-sm font-medium text-slate-700">{thread.title}</h1></div>
+        <span className="hidden text-[11px] text-slate-400 sm:block">DEBS 1.1 · Modèle IA</span>
       </div>
       <div className="flex-1 space-y-4">
         {thread.messages.length === 0 && (
           <div className="mx-auto flex max-w-xl flex-col items-center gap-3 py-12 text-center">
-            <div className="text-2xl font-semibold tracking-tight">Que veux-tu créer aujourd'hui ?</div>
+            <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-3 py-1 text-[11px] font-semibold text-red-700"><span className="size-1.5 rounded-full bg-red-500" /> DEBS 1.1 · Assistant IA</div><div className="text-2xl font-semibold tracking-tight">Bienvenue sur DEBS AI 1.1</div>
             <p className="text-sm text-muted-foreground">Pose une question librement ou commence par une commande spécialisée.</p>
+            <p className="text-xs font-medium text-red-500">{CREATOR_CREDIT}</p>
             <p className="text-xs text-muted-foreground">Exemple : <code className="rounded bg-muted px-2 py-1 text-primary">/unity</code> Crée un système de combat C#.</p>
           </div>
         )}
         {thread.messages.map((message) =>
           message.kind === "user" ? (
-            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">{message.content}</div>
+            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-red-100 bg-red-50/80 px-4 py-3 text-sm leading-6 text-slate-800">{message.content}</div>
           ) : message.kind === "notice" ? (
             <div key={message.id} role="status" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"><AlertTriangle className="size-4 shrink-0" /> {message.content}</div>
           ) : (
-            <div key={message.id} className="space-y-2">
-              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="text-xs text-muted-foreground">{message.provider}</span>}
+            <div key={message.id} className="mx-auto w-full max-w-3xl space-y-3 py-2">
+              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600"><span className="flex size-6 items-center justify-center rounded-lg bg-red-50 text-red-600">✦</span>{message.provider}</span>}
               {message.activity && message.activity.length > 0 && <ActivityPanel events={message.activity} />}
-              <Markdown>{message.content}</Markdown>
+              <GameArtifact markdown={message.content} />
+              <Markdown>{message.content.replace(new RegExp("\\x60\\x60\\x60file:[^\\n]*\\n[\\s\\S]*?\\n\\x60\\x60\\x60", "g"), "")}</Markdown>
             </div>
           ),
         )}
-        {loading && <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-[0_12px_36px_-28px_rgba(37,99,235,.5)]">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Loader2 className="size-4 animate-spin text-blue-600" /> DEBS AI travaille sur ta demande…</div>
+        {loading && <div className="rounded-2xl border border-red-100 bg-white p-3 shadow-[0_12px_36px_-28px_rgba(220,38,38,.5)]">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Loader2 className="size-4 animate-spin text-red-600" /> DEBS AI travaille sur ta demande…</div>
           <p className="mt-1 text-xs text-slate-500">Les opérations et les outils confirmés apparaissent ici pendant le travail.</p>
           {workingActivity.length > 0 && <div className="mt-2"><ActivityPanel events={workingActivity} /></div>}
           {workingSince && <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400"><Clock3 className="size-3" /> Démarré à {new Date(workingSince).toLocaleTimeString()}</p>}
         </div>}
       </div>
-      <form className="glass sticky bottom-20 z-20 flex flex-col gap-2 rounded-2xl border p-2 shadow-lg md:bottom-4" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <form className="sticky bottom-2 z-20 mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-red-200 bg-white p-2 shadow-[0_10px_36px_-22px_rgba(220,38,38,.5)] ring-1 ring-red-50" onSubmit={(event) => { event.preventDefault(); submit(); }}>
         {repositoryContext && (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-800">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-xs text-red-800">
             <span className="min-w-0 truncate">GitHub · {selectedRepository?.fullName ?? "Dépôt importé"} · {contextFiles.length} fichier(s) en contexte</span>
-            <button type="button" aria-label="Retirer le contexte GitHub" onClick={clearRepositoryContext} className="shrink-0 rounded-lg p-1 hover:bg-blue-100"><X className="size-4" /></button>
+            <button type="button" aria-label="Retirer le contexte GitHub" onClick={clearRepositoryContext} className="shrink-0 rounded-lg p-1 hover:bg-red-100"><X className="size-4" /></button>
           </div>
         )}
         {suggestions.length > 0 && (
@@ -288,12 +298,12 @@ function ThreadPage() {
             ))}
           </div>
         )}
-        <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
         <div className="flex items-end gap-2">
-          <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
+          <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS AI…" rows={2} className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
+          <VoiceAndFiles initialFiles={attachments} onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
         </div>
-        <div className="px-2 pb-1 text-[11px] text-muted-foreground">Chat général · spécialisations moteur avec / · Entrée pour envoyer</div>
+        <div className="px-2 pb-1 text-center text-[10px] text-slate-400">DEBS AI peut faire des erreurs. Vérifie les informations importantes.</div>
       </form>
     </div>
   );
@@ -306,22 +316,22 @@ function ActivityPanel({ events }: { events: ChatActivityEvent[] }) {
   }).filter(Boolean))];
   const duration = events.reduce((sum, event) => sum + (event.durationMs ?? 0), 0);
   return (
-    <details className="group rounded-xl border border-blue-100 bg-white text-sm shadow-[0_8px_28px_-24px_rgba(37,99,235,.5)]">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-blue-50/60">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><Globe2 className="size-4" /></span>
+    <details className="group rounded-xl border border-red-100 bg-white text-sm shadow-[0_8px_28px_-24px_rgba(220,38,38,.5)]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-red-50/60">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-red-50 text-red-700"><Globe2 className="size-4" /></span>
         <span className="font-semibold">Activité de DEBS AI</span>
         <span className="text-xs text-slate-500">{events.length} opération(s) · {sites.length} site(s)</span>
         {duration > 0 && <span className="ml-auto text-[11px] text-slate-400">{(duration / 1000).toFixed(1)} s</span>}
         <ChevronDown className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
       </summary>
-      <div className="space-y-2 border-t border-blue-50 px-3 py-3">
+      <div className="space-y-2 border-t border-red-50 px-3 py-3">
         {events.map((event) => (
           <div key={event.id} className="flex items-start gap-2">
-            <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg ${event.status === "failed" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-700"}`}><CheckActivityStatus status={event.status} /></span>
+            <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg ${event.status === "failed" ? "bg-red-50 text-red-600" : "bg-red-50 text-red-700"}`}><CheckActivityStatus status={event.status} /></span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-slate-800">{event.connector}</strong><span className="text-[11px] text-slate-400">{event.action}</span>{event.durationMs !== undefined && <span className="ml-auto text-[10px] text-slate-400">{(event.durationMs / 1000).toFixed(1)} s</span>}</div>
               <p className="text-xs leading-5 text-slate-500">{event.summary}</p>
-              {event.urls && event.urls.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{event.urls.slice(0, 12).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700 hover:bg-blue-100">{(() => { try { return new URL(url).hostname; } catch { return url; } })()} <ExternalLink className="size-2.5 shrink-0" /></a>)}</div>}
+              {event.urls && event.urls.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{event.urls.slice(0, 12).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 hover:bg-red-100">{(() => { try { return new URL(url).hostname; } catch { return url; } })()} <ExternalLink className="size-2.5 shrink-0" /></a>)}</div>}
             </div>
           </div>
         ))}

@@ -1,1 +1,5 @@
 project_id = "gibwnsqrwoealtlcjifz"
+
+[functions.agent-work]
+# The function validates user JWTs itself and protects scheduler calls with AGENT_WORKER_SECRET.
+verify_jwt = false
