@@ -12,6 +12,7 @@ export function createResponsesCall(
   config: { baseURL: string; apiKey: string; model: string },
   messages: ModelMessage[],
   instructions?: string,
+  enableWebSearch = false,
 ) {
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
@@ -21,11 +22,15 @@ export function createResponsesCall(
     fetch: runIdFetch.fetch,
   });
   const reasoning = config.model !== "openai/chat-latest";
+  const webSearch = enableWebSearch
+    ? provider.tools.webSearch({ externalWebAccess: true, searchContextSize: "medium" })
+    : undefined;
   const result = streamText({
     model: provider.responses(config.model),
     // AI SDK 6 lacks `instructions`: rename this key to `system` there.
     ...(instructions ? { instructions } : {}),
     messages,
+    ...(webSearch ? { tools: { web_search: webSearch }, toolChoice: { type: "tool", toolName: "web_search" } } : {}),
     abortSignal: request.signal,
     maxRetries: 0,
     providerOptions: {
