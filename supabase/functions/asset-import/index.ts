@@ -122,7 +122,8 @@ Deno.serve(async (request) => {
 
   try {
     const archive = await downloadZip(sourceUrl);
-    inspectZipLimits(archive);\n    const entries = unzipSync(archive);
+    inspectZipLimits(archive);
+    const entries = unzipSync(archive);
     const slug = assetSlug(packName);
     const files: Array<{ path: string; bytes: Uint8Array }> = [];
     let total = 0;
