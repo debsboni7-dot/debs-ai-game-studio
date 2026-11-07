@@ -3,7 +3,7 @@ import { APICallError } from "ai";
 
 const state = vi.hoisted(() => ({ call: vi.fn() }));
 vi.mock("./responses.server", () => ({ createResponsesCall: state.call }));
-import { resolveProvider } from "./registry.server";
+import { resolveProvider, streamChatResponse } from "./registry.server";
 import { safeGatewayError } from "./gateway-error.server";
 
 afterEach(() => {
@@ -50,6 +50,21 @@ describe("managed Gateway adapter", () => {
     });
     expect(state.call.mock.calls[0]?.[2]).toEqual(input.messages);
     expect(state.call).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps creator identity consistent in normal and streamed prompts", () => {
+    configuredProvider();
+    state.call.mockReturnValue(result("Hello"));
+    const provider = resolveProvider();
+    if (!provider) throw new Error("Expected configured provider");
+    void provider.complete(input);
+    const normalPrompt = state.call.mock.calls[0]?.[3] as string;
+    expect(normalPrompt).toContain("Mon créateur est Debs Boni. J’ai été développé par DEBS AI Studio.");
+
+    state.call.mockClear();
+    streamChatResponse(input as never, new Request("https://debs.internal/chat"));
+    const streamedPrompt = state.call.mock.calls[0]?.[3] as string;
+    expect(streamedPrompt).toContain("Mon créateur est Debs Boni. J’ai été développé par DEBS AI Studio.");
   });
   it("rejects empty output without fabricated answers or retries", async () => {
     const provider = configuredProvider();
