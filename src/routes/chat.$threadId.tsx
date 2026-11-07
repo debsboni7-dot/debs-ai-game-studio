@@ -12,6 +12,7 @@ import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type 
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
 import { takePendingAttachments } from "@/lib/chat/pending-attachments";
+import { CREATOR_CREDIT } from "@/lib/brand";
 
 const COMMANDS = [
   { command: "/code", label: "Programmation", description: "Développement logiciel général" },
@@ -255,6 +256,7 @@ function ThreadPage() {
           <div className="mx-auto flex max-w-xl flex-col items-center gap-3 py-12 text-center">
             <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-3 py-1 text-[11px] font-semibold text-red-700"><span className="size-1.5 rounded-full bg-red-500" /> DEBS 1.1 · Assistant IA</div><div className="text-2xl font-semibold tracking-tight">Bienvenue sur DEBS AI 1.1</div>
             <p className="text-sm text-muted-foreground">Pose une question librement ou commence par une commande spécialisée.</p>
+            <p className="text-xs font-medium text-red-500">{CREATOR_CREDIT}</p>
             <p className="text-xs text-muted-foreground">Exemple : <code className="rounded bg-muted px-2 py-1 text-primary">/unity</code> Crée un système de combat C#.</p>
           </div>
         )}
