@@ -70,9 +70,9 @@ Deno.serve(async(request)=>{
   const title=(typeof body.title==="string"&&body.title.trim()?body.title.trim():goal.slice(0,80)).slice(0,120);
   const {data:session,error}=await userClient.from("agent_work_sessions").insert({user_id:userId,title,goal,requested_hours:hours,deadline_at:new Date(Date.now()+hours*3600000).toISOString(),max_steps:maxSteps,status:"queued"}).select("id,title,status,requested_hours,deadline_at,step_count,max_steps,created_at").single();
   if(error||!session)return json({error:"Création impossible.",detail:error?.message},500);
-  const {error:taskError}=await userClient.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{initial:true}});
-  if(taskError){await userClient.from("agent_work_sessions").delete().eq("id",session.id);return json({error:"Insertion dans la file impossible."},500);}
-  await userClient.from("agent_work_events").insert({session_id:session.id,event_type:"mission_created",message:"Mission créée et placée dans la file.",metadata:{hours,max_steps:maxSteps}});
+  const {error:taskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{initial:true}});
+  if(taskError){await admin.from("agent_work_sessions").delete().eq("id",session.id);return json({error:"Insertion dans la file impossible."},500);}
+  await admin.from("agent_work_events").insert({session_id:session.id,event_type:"mission_created",message:"Mission créée et placée dans la file.",metadata:{hours,max_steps:maxSteps}});
   return json({ok:true,session});
  }
  const id=typeof body.session_id==="string"?body.session_id:"";if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:"Identifiant invalide."},400);
@@ -88,15 +88,15 @@ Deno.serve(async(request)=>{
   const status=action==="pause"?"paused":action==="resume"?"queued":"cancelled";
   if(action==="resume"&&new Date(session.deadline_at).getTime()<=Date.now())return json({error:"Durée de mission dépassée."},409);
   if(["completed","failed","cancelled","expired"].includes(session.status))return json({error:"Mission déjà terminée."},409);
-  const {error}=await userClient.from("agent_work_sessions").update({status,next_run_at:new Date().toISOString()}).eq("id",id);
+  const {error}=await admin.from("agent_work_sessions").update({status,next_run_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId);
   if(error)return json({error:"Modification impossible."},500);
-  if(action==="cancel")await userClient.from("agent_work_tasks").update({status:"cancelled",lease_until:null}).eq("session_id",id).in("status",["queued","running"]);
-  if(action==="pause")await userClient.from("agent_work_tasks").update({status:"queued",lease_until:null}).eq("session_id",id).eq("status","running");
+  if(action==="cancel")await admin.from("agent_work_tasks").update({status:"cancelled",lease_until:null}).eq("session_id",id).in("status",["queued","running"]);
+  if(action==="pause")await admin.from("agent_work_tasks").update({status:"queued",lease_until:null}).eq("session_id",id).eq("status","running");
   if(action==="resume"){
-   const {count}=await userClient.from("agent_work_tasks").select("id",{count:"exact",head:true}).eq("session_id",id).eq("status","queued");
-   if(!count)await userClient.from("agent_work_tasks").insert({session_id:id,status:"queued",task_type:"agent_step",input:{resume:true}});
+   const {count}=await admin.from("agent_work_tasks").select("id",{count:"exact",head:true}).eq("session_id",id).eq("status","queued");
+   if(!count)await admin.from("agent_work_tasks").insert({session_id:id,status:"queued",task_type:"agent_step",input:{resume:true}});
   }
-  await userClient.from("agent_work_events").insert({session_id:id,event_type:"mission_"+action,message:action==="pause"?"Mission en pause.":action==="resume"?"Mission reprise.":"Mission annulée."});
+  await admin.from("agent_work_events").insert({session_id:id,event_type:"mission_"+action,message:action==="pause"?"Mission en pause.":action==="resume"?"Mission reprise.":"Mission annulée."});
   return json({ok:true,session_id:id,status});
  }
  return json({error:"Action inconnue."},400);
