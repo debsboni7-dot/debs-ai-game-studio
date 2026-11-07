@@ -73,14 +73,14 @@ export function VoiceAndFiles({ onInsertText, onAttachmentsChange, resetKey, ini
 
   return <div className="flex min-w-0 flex-col items-end gap-1">
     <div className="flex items-center gap-1">
-      <button type="button" onClick={toggleVoice} title={listening ? "Arrêter la dictée" : "Dicter un message"} aria-label={listening ? "Arrêter la dictée" : "Dicter un message"} className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition ${listening ? "border-red-300 bg-red-50 text-red-700" : "border-blue-200 bg-white text-slate-700 hover:bg-blue-50"}`}>
+      <button type="button" onClick={toggleVoice} title={listening ? "Arrêter la dictée" : "Dicter un message"} aria-label={listening ? "Arrêter la dictée" : "Dicter un message"} className={`flex size-10 shrink-0 items-center justify-center rounded-xl border transition ${listening ? "border-red-300 bg-red-50 text-red-700" : "border-red-200 bg-white text-slate-700 hover:bg-red-50"}`}>
         {listening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
       </button>
-      <button type="button" onClick={() => fileInput.current?.click()} title="Joindre un fichier" aria-label="Joindre un fichier" className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white text-slate-700 hover:bg-blue-50"><Paperclip className="size-4" /></button>
+      <button type="button" onClick={() => fileInput.current?.click()} title="Joindre un fichier" aria-label="Joindre un fichier" className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-white text-slate-700 hover:bg-red-50"><Paperclip className="size-4" /></button>
       <input ref={fileInput} type="file" multiple accept="image/*,.pdf,.txt,.md,.json,.js,.ts,.tsx,.jsx,.html,.css,.xml,.csv,.py,.java,.c,.cpp,.h,.cs,.gd,.sql" className="hidden" onChange={(event) => { void handleFiles(event.target.files); event.currentTarget.value = ""; }} />
     </div>
     {(listening || files.length > 0 || voiceError || fileError) && <div className="max-w-56 space-y-1 text-right">
-      {listening && <p className="text-[10px] text-blue-600">Écoute en cours…</p>}
+      {listening && <p className="text-[10px] text-red-600">Écoute en cours…</p>}
       {files.length > 0 && <div className="flex flex-wrap justify-end gap-1">{files.map((file, index) => <span key={file.name + index} className="inline-flex max-w-36 items-center gap-1 rounded-md bg-slate-100 px-1.5 py-1 text-[10px] text-slate-600"><FileText className="size-3 shrink-0" /><span className="truncate">{file.name}</span><button type="button" aria-label={"Retirer " + file.name} onClick={() => removeFile(index)}><X className="size-3" /></button></span>)}</div>}
       {voiceError && <p role="status" className="text-[10px] text-red-600">{voiceError}</p>}
       {fileError && <p role="status" className="text-[10px] text-amber-700">{fileError}</p>}
