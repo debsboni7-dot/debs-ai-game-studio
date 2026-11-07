@@ -32,8 +32,9 @@ drop policy if exists "Users read own agent sessions" on public.agent_work_sessi
 create policy "Users read own agent sessions" on public.agent_work_sessions for select to authenticated using(auth.uid()=user_id);
 drop policy if exists "Users create own agent sessions" on public.agent_work_sessions;
 create policy "Users create own agent sessions" on public.agent_work_sessions for insert to authenticated with check(auth.uid()=user_id);
+-- Session state is changed only by the trusted Edge Function using the service role.
+-- Authenticated users may read their sessions, but cannot directly rewrite status or checkpoints.
 drop policy if exists "Users update own agent sessions" on public.agent_work_sessions;
-create policy "Users update own agent sessions" on public.agent_work_sessions for update to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
 drop policy if exists "Users read own agent tasks" on public.agent_work_tasks;
 create policy "Users read own agent tasks" on public.agent_work_tasks for select to authenticated using(exists(select 1 from public.agent_work_sessions s where s.id=session_id and s.user_id=auth.uid()));
 drop policy if exists "Users read own agent events" on public.agent_work_events;
@@ -53,7 +54,7 @@ begin
  select t.* into v_task from public.agent_work_tasks t join public.agent_work_sessions s on s.id=t.session_id
  where t.status='queued' and t.available_at<=now() and s.status in ('queued','running')
  and s.deadline_at>now() and (s.step_count<s.max_steps or t.task_type in ('github_ci_check','github_ci_repair'))
- order by t.available_at,t.created_at for update of t skip locked limit 1;
+ order by t.available_at,t.created_at for update of t,s skip locked limit 1;
  if not found then return; end if;
  update public.agent_work_tasks set status='running',attempt=attempt+1,
  lease_until=now()+make_interval(secs=>greatest(30,least(p_lease_seconds,600))),updated_at=now()
