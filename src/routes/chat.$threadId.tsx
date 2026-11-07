@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const COMMANDS = [
   { command: "/code", label: "Programmation", description: "Développement logiciel général" },
+  { command: "/game-dev", label: "Game development", description: "Créer des jeux complets avec architecture et contrôles qualité" },
   { command: "/github", label: "GitHub", description: "Analyser un dépôt importé et préparer des modifications" },
   { command: "/unity", label: "Unity", description: "C#, scripts, scènes, prefabs et architecture Unity" },
   { command: "/unreal", label: "Unreal", description: "C++, Blueprints, Gameplay Framework et réplication" },
@@ -34,9 +35,9 @@ const COMMANDS = [
   { command: "/help", label: "Commandes", description: "Afficher les commandes disponibles" },
 ] as const;
 
-type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
+type Task = "chat" | "code" | "game-dev" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
 function parseCommand(raw: string): { task: Task; prompt: string; help: boolean } {
-  const match = raw.match(/^\/(code|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs|architect|test|refactor|security|performance|api|devops)(?:\s+([\s\S]*))?$/i);
+  const match = raw.match(/^\/(code|game-dev|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs|architect|test|refactor|security|performance|api|devops)(?:\s+([\s\S]*))?$/i);
   if (!match) return { task: "chat", prompt: raw, help: false };
   const command = match[1].toLowerCase();
   return { task: command === "help" ? "chat" : command as Task, prompt: (match[2] ?? "").trim(), help: command === "help" };
@@ -46,6 +47,7 @@ const HELP_TEXT = [
   "### Commandes DEBS AI",
   "",
   "- `/code` — programmation générale",
+  "- `/game-dev` — ingénierie complète de jeux vidéo (architecture, systèmes, tests)",
   "- `/github` — analyse d'un dépôt GitHub importé (lecture seule)",
   "- `/unity` — développement Unity / C#",
   "- `/unreal` — Unreal Engine / C++ / Blueprints",
