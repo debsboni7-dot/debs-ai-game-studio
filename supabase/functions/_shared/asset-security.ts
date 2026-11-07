@@ -39,7 +39,7 @@ export function isAllowedAssetFile(path: string): boolean {
   const safe = safeAssetPath(path);
   if (!safe) return false;
   const ext = safe.split(".").pop()?.toLowerCase() ?? "";
-  return ALLOWED_EXTENSIONS.has(ext) && !/(^|\\/)(license|licence|readme|credits?)(\\.|$)/i.test(safe);
+  return ALLOWED_EXTENSIONS.has(ext);
 }
 
 export function assetSlug(value: string): string {
