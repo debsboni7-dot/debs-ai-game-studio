@@ -39,8 +39,8 @@ Deno.serve(async(request)=>{
       if(!treeResponse.ok)return {files:[],contents:[],warning:"Lecture de l'arborescence impossible (HTTP "+treeResponse.status+")."};
       const treeData=await treeResponse.json();
       const paths=(treeData.tree??[]).filter((x:{type:string;path:string;size?:number})=>x.type==="blob"&&
-        !/(^|\\/)(node_modules|dist|build|coverage|\.git|\.next|vendor)(\\/|$)/i.test(x.path)&&
-        !/(^|\\/)(\.env[^/]*|secrets?[^/]*|id_rsa(\.pub)?|.*\.lock)$/i.test(x.path)&&
+        !/(^|[/])(node_modules|dist|build|coverage|[.]git|[.]next|vendor)([/]|$)/i.test(x.path)&&
+        !/(^|[/])([.]env[^/]*|secrets?[^/]*|id_rsa([.]pub)?|.*[.]lock)([/]|$)/i.test(x.path)&&
         /[.](tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
       const ranked=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:
         (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
