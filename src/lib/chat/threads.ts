@@ -1,11 +1,22 @@
 export type MessageKind = "user" | "assistant" | "notice" | "example";
 
+export interface ChatActivityEvent {
+  id: string;
+  connector: string;
+  action: string;
+  status: "completed" | "failed" | "running";
+  summary: string;
+  urls?: string[];
+  durationMs?: number;
+}
+
 export interface ChatMessage {
   id: string;
   kind: MessageKind;
   content: string;
   createdAt: number;
   provider?: string;
+  activity?: ChatActivityEvent[];
 }
 
 export interface Thread {
@@ -29,8 +40,7 @@ export const seedThreads: Thread[] = [
         id: "d2",
         kind: "example",
         createdAt: 0,
-        content:
-          "Voici une approche simple avec `CharacterBody2D` :\n\n```python\nextends CharacterBody2D\n\nconst SPEED := 200.0\n\nfunc _physics_process(_delta):\n    var dir := Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\")\n    velocity = dir * SPEED\n    move_and_slide()\n```\n\n- `get_vector` normalise la direction\n- `move_and_slide` gère les collisions",
+        content: "Voici une approche simple avec `CharacterBody2D` :\n\n```gdscript\nextends CharacterBody2D\n\nconst SPEED := 200.0\n\nfunc _physics_process(_delta):\n    var dir := Input.get_vector(\"ui_left\", \"ui_right\", \"ui_up\", \"ui_down\")\n    velocity = dir * SPEED\n    move_and_slide()\n```\n\n- `get_vector` normalise la direction\n- `move_and_slide` gère les collisions",
       },
     ],
   },
