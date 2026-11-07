@@ -1,7 +1,7 @@
 export type ConnectorCategory = "3d" | "engines" | "code" | "ai" | "assets" | "design" | "audio" | "cloud" | "automation" | "productivity";
 export type Connector = {
   id: string; name: string; category: ConnectorCategory; description: string;
-  website: string; integration: "api" | "oauth" | "local-agent" | "import";
+  website: string; integration: "api" | "api-connected" | "oauth" | "local-agent" | "import";
   priority?: boolean; note?: string;
 };
 
@@ -19,9 +19,9 @@ export const connectorCategories: { id: ConnectorCategory; label: string }[] = [
 ];
 
 export const connectors: Connector[] = [
-  { id:"meshy",name:"Meshy AI",category:"3d",description:"Génération 3D, textures, retopologie, rigging et exports.",website:"https://www.meshy.ai",integration:"api",priority:true,note:"Priorité — clé API Meshy requise" },
-  { id:"tripo",name:"Tripo AI",category:"3d",description:"Text-to-3D, image-to-3D et génération d'assets.",website:"https://www.tripo3d.ai",integration:"api",priority:true },
-  { id:"hyper3d",name:"Hyper3D / Rodin",category:"3d",description:"Génération de modèles 3D détaillés avec Rodin.",website:"https://hyper3d.ai",integration:"api",priority:true },
+  { id:"meshy",name:"Meshy AI",category:"3d",description:"Génération 3D, textures, retopologie, rigging et exports.",website:"https://www.meshy.ai",integration:"api-connected",priority:true,note:"API intégrée — clé serveur Meshy requise" },
+  { id:"tripo",name:"Tripo AI",category:"3d",description:"Text-to-3D, image-to-3D et génération d'assets.",website:"https://www.tripo3d.ai",integration:"api-connected",priority:true,note:"API intégrée — clé serveur Tripo requise" },
+  { id:"hyper3d",name:"Hyper3D / Rodin",category:"3d",description:"Génération de modèles 3D détaillés avec Rodin.",website:"https://hyper3d.ai",integration:"api-connected",priority:true,note:"API intégrée — clé serveur Rodin requise" },
   { id:"blender",name:"Blender",category:"3d",description:"Création, modification et export via scripts Python et agent local.",website:"https://www.blender.org",integration:"local-agent" },
   { id:"mixamo",name:"Adobe Mixamo",category:"3d",description:"Rigging automatique et bibliothèque d'animations.",website:"https://www.mixamo.com",integration:"import" },
   { id:"sketchfab",name:"Sketchfab",category:"3d",description:"Recherche et import de modèles 3D selon leurs licences.",website:"https://sketchfab.com",integration:"api" },
@@ -62,5 +62,5 @@ export const connectors: Connector[] = [
 ];
 
 export function connectorIntegrationLabel(type: Connector["integration"]) {
-  return ({ api: "API à connecter", oauth: "OAuth à configurer", "local-agent": "Agent local requis", import: "Import / téléchargement" })[type];
+  return ({ api: "API à connecter", "api-connected": "API intégrée · clé requise", oauth: "OAuth à configurer", "local-agent": "Agent local requis", import: "Import / téléchargement" })[type];
 }
