@@ -13,7 +13,7 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 ## Activation obligatoire avant toute exécution continue
 1. Appliquer la migration SQL du dossier migrations.
 2. Déployer la fonction Edge agent-work.
-3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY, AGENT_WORKER_SECRET, GITHUB_TOKEN, GITHUB_REPOSITORY et GITHUB_BASE_BRANCH. Le jeton GitHub doit être limité au dépôt autorisé avec Contents: Read and write et Pull requests: Read and write. Ne jamais le placer dans le navigateur.
+3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY, AGENT_WORKER_SECRET, GITHUB_TOKEN, GITHUB_REPOSITORY et GITHUB_BASE_BRANCH. Le jeton GitHub doit être limité au dépôt autorisé avec Contents: Read and write, Pull requests: Read and write et Checks: Read. Ne jamais le placer dans le navigateur.
 4. Configurer un scheduler fiable qui envoie chaque minute un POST avec le corps {"action":"worker"} et l'en-tête x-agent-worker-secret. Conserver le secret côté serveur, idéalement dans Vault.
 5. L'interface /missions est ajoutée au projet et appelle les actions create/status/pause/resume/cancel avec la session Supabase de l'utilisateur connecté.
 
