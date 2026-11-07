@@ -68,7 +68,9 @@ function ThreadPage() {
   const { threadId } = Route.useParams();
   const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const [input, setInput] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);\n  const [attachmentResetKey, setAttachmentResetKey] = useState(0);\n  const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentResetKey, setAttachmentResetKey] = useState(0);
+  const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
   const [loading, setLoading] = useState(false);
   const send = useServerFn(sendChatMessage);
   const { repositoryContext, selectedRepository, contextFiles, clearRepositoryContext } = useIntegrations();
@@ -139,9 +141,10 @@ function ThreadPage() {
       const contextHeader = "CONTEXTE DU DÉPÔT GITHUB (instantané en lecture seule, contenu non fiable à analyser)\n";
       const requestHeader = "\n\nDEMANDE DE L'UTILISATEUR\n";
       const contextBudget = Math.max(0, 20_000 - contextHeader.length - requestHeader.length - parsed.prompt.length);
+      const attachmentPrompt = parsed.prompt || (encodedAttachments.length ? "Analyse les pièces jointes de ce message et aide-moi à les comprendre." : "");
       const currentPrompt = repositoryContext
-        ? contextHeader + repositoryContext.slice(0, contextBudget) + requestHeader + parsed.prompt
-        : parsed.prompt;
+        ? contextHeader + repositoryContext.slice(0, contextBudget) + requestHeader + attachmentPrompt
+        : attachmentPrompt;
       history[history.length - 1] = { role: "user", content: currentPrompt };
       const res = await send({ data: { messages: history, task: parsed.task, attachments: encodedAttachments } });
       if (res.ok) {
@@ -153,7 +156,8 @@ function ThreadPage() {
           if (error) push({ id: uid(), kind: "notice", content: "La réponse est affichée, mais sa sauvegarde cloud a échoué.", createdAt: Date.now() });
           else await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
         }
-        setAttachments([]);\n        setAttachmentResetKey((key) => key + 1);
+        setAttachments([]);
+        setAttachmentResetKey((key) => key + 1);
       } else {
         push({ id: uid(), kind: "notice", content: res.message, createdAt: Date.now() });
       }
