@@ -36,7 +36,7 @@ Deno.serve(async(request)=>{
    ].join("\n\n");
    const response=await fetch("https://ai.gateway.lovable.dev/v1/responses",{method:"POST",signal:controller.signal,
     headers:{"Authorization":"Bearer "+env("LOVABLE_API_KEY"),"Content-Type":"application/json"},
-    body:JSON.stringify({model:"openai/gpt-6-astra",instructions:"Réponds en français, JSON strict, sans markdown. Une étape utile et honnête.",input:[{role:"user",content:[{type:"input_text",text:prompt}]}],max_output_tokens:1800,store:false})});
+    body:JSON.stringify({model:"openai/gpt-6-astra",instructions:"Réponds en français, JSON strict, sans markdown. Une étape utile et honnête.",input:[{role:"user",content:[{type:"input_text",text:prompt}]}],max_output_tokens:10000,store:false})});
    clearTimeout(timeout);if(!response.ok)throw new Error("Passerelle IA HTTP "+response.status+".");
    const payload=await response.json();const outputText=typeof payload.output_text==="string"?payload.output_text:
     (payload.output??[]).flatMap((item:{content?:Array<{text?:string}>})=>item.content??[]).map((part:{text?:string})=>part.text??"").join("\n");
