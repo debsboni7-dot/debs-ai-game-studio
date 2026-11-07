@@ -1,5 +1,6 @@
 import type { ChatActivityEvent, ChatTask, CodeModelProvider } from "./types";
 import { ACTIVE_MODEL_RELEASE } from "./model-release";
+import { CREATOR_IDENTITY_REPLY } from "../brand";
 import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
@@ -110,7 +111,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
     return { role: message.role, content: message.content };
   });
   const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
-    `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: "Mon créateur est Debs Boni. J’ai été développé par DEBS AI Studio." Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. ${modeInstructions[task]}`,
+    `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. ${modeInstructions[task]}`,
     task === "search", ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium");
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
