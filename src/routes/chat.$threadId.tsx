@@ -9,6 +9,7 @@ import { Markdown } from "@/components/debs/markdown";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { sendChatMessage } from "@/lib/ai/chat.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 const COMMANDS = [
   { command: "/code", label: "Programmation", description: "Code, architecture et implémentation" },
@@ -84,7 +85,27 @@ function ThreadPage() {
     if (!parsed.help && !parsed.prompt) return;
     setInput("");
     const userMsg: ChatMessage = { id: uid(), kind: "user", content: raw, createdAt: Date.now() };
-    push(userMsg, thread.messages.length === 0 ? titleFrom(raw) : undefined);
+    const nextTitle = thread.messages.length === 0 ? titleFrom(raw) : thread.title;
+    push(userMsg, thread.messages.length === 0 ? nextTitle : undefined);
+
+    let cloudUserId: string | null = null;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(threadId)) {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        if (auth.user) {
+          cloudUserId = auth.user.id;
+          const { error } = await supabase.from("chat_messages").insert({
+            conversation_id: threadId, user_id: auth.user.id, role: "user", content: parsed.prompt,
+          });
+          if (error) throw error;
+          await supabase.from("conversations").update({
+            title: nextTitle, updated_at: new Date().toISOString(),
+          }).eq("id", threadId);
+        }
+      } catch {
+        push({ id: uid(), kind: "notice", content: "La sauvegarde cloud du message a échoué. Le message reste conservé sur cet appareil.", createdAt: Date.now() });
+      }
+    }
 
     if (parsed.help) {
       push({ id: uid(), kind: "assistant", content: HELP_TEXT, provider: "Aide DEBS AI", createdAt: Date.now() });
@@ -98,9 +119,18 @@ function ThreadPage() {
         .map((m) => ({ role: m.kind as "user" | "assistant", content: m.content }));
       history[history.length - 1] = { role: "user", content: parsed.prompt };
       const res = await send({ data: { messages: history, task: parsed.task } });
-      push(res.ok
-        ? { id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now() }
-        : { id: uid(), kind: "notice", content: res.message, createdAt: Date.now() });
+      if (res.ok) {
+        push({ id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now() });
+        if (cloudUserId) {
+          const { error } = await supabase.from("chat_messages").insert({
+            conversation_id: threadId, user_id: cloudUserId, role: "assistant", content: res.text,
+          });
+          if (error) push({ id: uid(), kind: "notice", content: "La réponse est affichée, mais sa sauvegarde cloud a échoué.", createdAt: Date.now() });
+          else await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
+        }
+      } else {
+        push({ id: uid(), kind: "notice", content: res.message, createdAt: Date.now() });
+      }
     } catch {
       push({ id: uid(), kind: "notice", content: "Erreur réseau : impossible de joindre le serveur.", createdAt: Date.now() });
     } finally {
