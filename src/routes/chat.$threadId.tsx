@@ -35,7 +35,7 @@ const COMMANDS = [
   { command: "/help", label: "Commandes", description: "Afficher les commandes disponibles" },
 ] as const;
 
-type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs";
+type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
 function parseCommand(raw: string): { task: Task; prompt: string; help: boolean } {
   const match = raw.match(/^\/(code|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs|architect|test|refactor|security|performance|api|devops)(?:\s+([\s\S]*))?$/i);
   if (!match) return { task: "chat", prompt: raw, help: false };
@@ -179,7 +179,7 @@ function ThreadPage() {
       }
     } catch {
       push({ id: uid(), kind: "notice", content: "Erreur réseau : impossible de joindre le serveur.", createdAt: Date.now() });
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setWorkingSince(null); }
   };
 
   return (
