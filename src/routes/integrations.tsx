@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Box, Check, CheckCircle2, Code2, ExternalLink, FileCode2, GitBranch, Gamepad2, Layers3, Loader2, LockKeyhole, PlugZap, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
+import { Box, Check, CheckCircle2, Code2, ExternalLink, FileCode2, GitBranch, Gamepad2, Layers3, Loader2, LockKeyhole, PlugZap, RefreshCw, ShieldCheck, Sparkles, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, Panel } from "@/components/debs/ui";
@@ -8,7 +8,6 @@ import { connectGitHub, listGitHubRepositoryFiles, readGitHubRepositoryFiles } f
 import { useIntegrations } from "@/lib/integrations/context";
 import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
 import { createMeshyPreview, getMeshyTask } from "@/lib/integrations/meshy.functions";
-import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
 
 export const Route = createFileRoute("/integrations")({
   head: () => ({ meta: [
@@ -46,13 +45,6 @@ function IntegrationsPage() {
   const [meshyBusy, setMeshyBusy] = useState(false);
   const [meshyError, setMeshyError] = useState("");
   const filteredConnectors = useMemo(() => connectors.filter((item) => (connectorCategory === "all" || item.category === connectorCategory) && (item.name + " " + item.description).toLowerCase().includes(connectorSearch.toLowerCase())), [connectorCategory, connectorSearch]);
-  const [connectorSearch, setConnectorSearch] = useState("");
-  const [connectorCategory, setConnectorCategory] = useState<ConnectorCategory | "all">("all");
-  const filteredConnectors = useMemo(() => connectors.filter((item) =>
-    (connectorCategory === "all" || item.category === connectorCategory) &&
-    (item.name + " " + item.description).toLowerCase().includes(connectorSearch.toLowerCase())
-  ), [connectorCategory, connectorSearch]);
-
   const doConnect = async () => {
     setBusy("connect"); setError("");
     try {
