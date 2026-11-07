@@ -6,11 +6,17 @@ on:
       project_path:
         description: "Repository folder containing the browser game"
         required: true
+        default: "games/my-game"
         type: string
       entry_file:
-        description: "HTML entry file, relative to the project folder"
+        description: "HTML entry file relative to the project folder"
         required: true
         default: "index.html"
+        type: string
+      test_plan_path:
+        description: "Optional JSON interaction test plan path relative to repository root"
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -19,46 +25,43 @@ permissions:
 jobs:
   chromium-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Validate game project path
+      - name: Validate game project and optional test plan
         id: project
         shell: bash
         env:
-          PROJECT_PATH: ${{ inputs.project_path }}
-          ENTRY_FILE: ${{ inputs.entry_file }}
+          PROJECT_PATH: \${{ inputs.project_path }}
+          ENTRY_FILE: \${{ inputs.entry_file }}
+          TEST_PLAN_PATH: \${{ inputs.test_plan_path }}
         run: |
           set -euo pipefail
           PROJECT_DIR="$(realpath "$PROJECT_PATH")"
-          case "$PROJECT_DIR/" in
-            "$GITHUB_WORKSPACE/"*) ;;
-            *) echo "Project folder must be inside the checked-out repository."; exit 1 ;;
-          esac
+          case "$PROJECT_DIR/" in "$GITHUB_WORKSPACE/"*) ;; *) echo "Project folder must be inside the repository."; exit 1 ;; esac
           ENTRY_PATH="$(realpath "$PROJECT_DIR/$ENTRY_FILE")"
-          case "$ENTRY_PATH" in
-            "$PROJECT_DIR/"*) ;;
-            *) echo "Entry file must stay inside the selected project folder."; exit 1 ;;
-          esac
+          case "$ENTRY_PATH" in "$PROJECT_DIR/"*) ;; *) echo "Entry file must stay inside the project folder."; exit 1 ;; esac
           test -f "$ENTRY_PATH"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
           echo "entry_file=$(realpath --relative-to="$PROJECT_DIR" "$ENTRY_PATH")" >> "$GITHUB_OUTPUT"
-
+          if [ -n "$TEST_PLAN_PATH" ]; then
+            PLAN_PATH="$(realpath "$TEST_PLAN_PATH")"
+            case "$PLAN_PATH" in "$GITHUB_WORKSPACE/"*) ;; *) echo "Test plan must be inside the repository."; exit 1 ;; esac
+            test -f "$PLAN_PATH"
+            echo "test_plan_path=$PLAN_PATH" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install Chromium and Playwright
         run: |
           npm install --global playwright@1.58.2
           playwright install --with-deps chromium
-
       - name: Start local game server
         env:
-          PROJECT_DIR: ${{ steps.project.outputs.project_dir }}
+          PROJECT_DIR: \${{ steps.project.outputs.project_dir }}
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 --directory "$PROJECT_DIR" > /tmp/debs-game-server.log 2>&1 &
           echo $! > /tmp/debs-game-server.pid
@@ -68,20 +71,22 @@ jobs:
           done
           cat /tmp/debs-game-server.log
           exit 1
-
-      - name: Launch game in Chromium
+      - name: Run desktop and mobile Chromium checks
         env:
-          GAME_URL: http://127.0.0.1:4173/${{ steps.project.outputs.entry_file }}
-          GAME_SCREENSHOT_PATH: browser-game-smoke.png
+          GAME_URL: http://127.0.0.1:4173/\${{ steps.project.outputs.entry_file }}
+          GAME_TEST_PLAN_PATH: \${{ steps.project.outputs.test_plan_path }}
         run: |
           export NODE_PATH="$(npm root -g)"
           node scripts/browser-game-smoke.cjs
-
-      - name: Upload browser evidence
+      - name: Upload browser evidence and reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-game-chromium-smoke
-          path: browser-game-smoke.png
-          if-no-files-found: ignore
-          retention-days: 7
+          name: debs-browser-runtime-evidence
+          path: |
+            browser-game-desktop.png
+            browser-game-mobile.png
+            browser-game-report.json
+            browser-game-report.md
+          if-no-files-found: warn
+          retention-days: 14
