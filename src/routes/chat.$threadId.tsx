@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, Loader2, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DemoBadge, EmptyState } from "@/components/debs/ui";
@@ -10,54 +10,57 @@ import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { sendChatMessage } from "@/lib/ai/chat.functions";
+import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
 
 const COMMANDS = [
-  { command: "/code", label: "Programmation", description: "Code, architecture et implémentation" },
-  { command: "/search", label: "Recherche", description: "Recherche web (si l'outil est disponible)" },
+  { command: "/code", label: "Programmation", description: "Développement logiciel général" },
+  { command: "/github", label: "GitHub", description: "Analyser un dépôt importé et préparer des modifications" },
+  { command: "/unity", label: "Unity", description: "C#, scripts, scènes, prefabs et architecture Unity" },
+  { command: "/unreal", label: "Unreal", description: "C++, Blueprints, Gameplay Framework et réplication" },
+  { command: "/godot", label: "Godot", description: "GDScript, nœuds, scènes et signaux Godot 4" },
+  { command: "/blender", label: "Blender", description: "Python bpy, matériaux, rigging et export 3D" },
+  { command: "/threejs", label: "Three.js", description: "3D WebGL et jeux dans le navigateur" },
+  { command: "/search", label: "Recherche", description: "Recherche web si l'outil est disponible" },
   { command: "/game-design", label: "Game design", description: "Mécaniques, progression et équilibrage" },
   { command: "/debug", label: "Debug", description: "Diagnostiquer et corriger un problème" },
   { command: "/review", label: "Code review", description: "Analyser la qualité et les risques du code" },
   { command: "/help", label: "Commandes", description: "Afficher les commandes disponibles" },
 ] as const;
 
-type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review";
-
+type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs";
 function parseCommand(raw: string): { task: Task; prompt: string; help: boolean } {
-  const match = raw.match(/^\/(code|search|game-design|debug|review|help)(?:\s+([\s\S]*))?$/i);
+  const match = raw.match(/^\/(code|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs)(?:\s+([\s\S]*))?$/i);
   if (!match) return { task: "chat", prompt: raw, help: false };
   const command = match[1].toLowerCase();
-  return {
-    task: command === "help" ? "chat" : command as Task,
-    prompt: (match[2] ?? "").trim(),
-    help: command === "help",
-  };
+  return { task: command === "help" ? "chat" : command as Task, prompt: (match[2] ?? "").trim(), help: command === "help" };
 }
 
 const HELP_TEXT = [
   "### Commandes DEBS AI",
   "",
-  "- `/code` — programmation et architecture",
-  "- `/search` — demande de recherche web",
-  "- `/game-design` — conception des mécaniques et systèmes de jeu",
-  "- `/debug` — diagnostic et correction de bugs",
+  "- `/code` — programmation générale",
+  "- `/github` — analyse d'un dépôt GitHub importé (lecture seule)",
+  "- `/unity` — développement Unity / C#",
+  "- `/unreal` — Unreal Engine / C++ / Blueprints",
+  "- `/godot` — Godot 4 / GDScript",
+  "- `/blender` — Blender Python / création 3D",
+  "- `/threejs` — Three.js / WebGL",
+  "- `/search` — recherche web",
+  "- `/game-design` — conception de jeu",
+  "- `/debug` — diagnostic de bugs",
   "- `/review` — revue de code",
-  "- `/help` — afficher cette aide",
   "",
-  "Sans commande slash, DEBS AI répond en mode général. Écris la commande, ajoute un espace, puis ton message. Exemple : `/debug Mon personnage traverse le sol...`",
-  "",
-  "Note : le mode recherche ne prétendra jamais avoir consulté le Web si aucun outil de recherche réel n'est disponible.",
+  "Ajoute un espace après la commande puis décris ton objectif. Exemple : `/unity` Crée un système d'inventaire sauvegardé.",
 ].join("\n");
 
 export const Route = createFileRoute("/chat/$threadId")({
-  head: () => ({
-    meta: [
-      { title: "Conversation — DEBS AI" },
-      { name: "description", content: "Conversation avec DEBS AI, assistant général et spécialisé en création de jeux." },
-      { property: "og:title", content: "Conversation — DEBS AI" },
-      { property: "og:description", content: "Conversation avec DEBS AI." },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "Conversation — DEBS AI" },
+    { name: "description", content: "Assistant spécialisé en programmation et création de jeux vidéo." },
+    { property: "og:title", content: "Conversation — DEBS AI" },
+    { property: "og:description", content: "Conversation avec DEBS AI." },
+  ] }),
   component: ThreadPage,
 });
 
@@ -68,17 +71,18 @@ function ThreadPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const send = useServerFn(sendChatMessage);
-  const thread = threads.find((t) => t.id === threadId);
+  const { repositoryContext, selectedRepository, contextFiles, clearRepositoryContext } = useIntegrations();
+  const thread = threads.find((item) => item.id === threadId);
   const commandQuery = input.startsWith("/") && !/\s/.test(input) ? input.toLowerCase() : null;
-  const suggestions = commandQuery === null
-    ? []
-    : COMMANDS.filter((item) => item.command.startsWith(commandQuery));
+  const suggestions = commandQuery === null ? [] : COMMANDS.filter((item) => item.command.startsWith(commandQuery));
 
   if (!ready) return <Loader2 className="mx-auto mt-10 animate-spin text-primary" />;
   if (!thread) return <EmptyState icon={<AlertTriangle />} title="Conversation introuvable" text="Elle a peut-être été supprimée." action={<Link to="/chat" className="text-primary">Retour</Link>} />;
 
-  const push = (m: ChatMessage, title?: string) =>
-    setThreads((p) => p.map((t) => (t.id === threadId ? { ...t, title: title ?? t.title, updatedAt: Date.now(), messages: [...t.messages, m] } : t)));
+  const push = (message: ChatMessage, title?: string) =>
+    setThreads((previous) => previous.map((item) => item.id === threadId
+      ? { ...item, title: title ?? item.title, updatedAt: Date.now(), messages: [...item.messages, message] }
+      : item));
 
   const submit = async () => {
     const raw = input.trim();
@@ -86,7 +90,11 @@ function ThreadPage() {
     const parsed = parseCommand(raw);
     if (!parsed.help && !parsed.prompt) return;
     setInput("");
-    const userMsg: ChatMessage = { id: uid(), kind: "user", content: raw + (attachments.length ? "\n\n[Pièces jointes : " + attachments.map((file) => file.name).join(", ") + "]" : ""), createdAt: Date.now() };
+    const userMsg: ChatMessage = {
+      id: uid(), kind: "user",
+      content: raw + (attachments.length ? "\n\n[Pièces jointes : " + attachments.map((file) => file.name).join(", ") + "]" : ""),
+      createdAt: Date.now(),
+    };
     const nextTitle = thread.messages.length === 0 ? titleFrom(raw) : thread.title;
     push(userMsg, thread.messages.length === 0 ? nextTitle : undefined);
 
@@ -100,9 +108,7 @@ function ThreadPage() {
             conversation_id: threadId, user_id: auth.user.id, role: "user", content: parsed.prompt,
           });
           if (error) throw error;
-          await supabase.from("conversations").update({
-            title: nextTitle, updated_at: new Date().toISOString(),
-          }).eq("id", threadId);
+          await supabase.from("conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", threadId);
         }
       } catch {
         push({ id: uid(), kind: "notice", content: "La sauvegarde cloud du message a échoué. Le message reste conservé sur cet appareil.", createdAt: Date.now() });
@@ -128,9 +134,12 @@ function ThreadPage() {
         }),
       })));
       const history = [...thread.messages, userMsg]
-        .filter((m) => m.kind === "user" || m.kind === "assistant")
-        .map((m) => ({ role: m.kind as "user" | "assistant", content: m.content }));
-      history[history.length - 1] = { role: "user", content: parsed.prompt };
+        .filter((message) => message.kind === "user" || message.kind === "assistant")
+        .map((message) => ({ role: message.kind as "user" | "assistant", content: message.content }));
+      const currentPrompt = repositoryContext
+        ? "CONTEXTE DU DÉPÔT GITHUB (instantané en lecture seule)\n" + repositoryContext + "\n\nDEMANDE DE L'UTILISATEUR\n" + parsed.prompt
+        : parsed.prompt;
+      history[history.length - 1] = { role: "user", content: currentPrompt };
       const res = await send({ data: { messages: history, task: parsed.task, attachments: encodedAttachments } });
       if (res.ok) {
         push({ id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now() });
@@ -141,14 +150,13 @@ function ThreadPage() {
           if (error) push({ id: uid(), kind: "notice", content: "La réponse est affichée, mais sa sauvegarde cloud a échoué.", createdAt: Date.now() });
           else await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
         }
+        setAttachments([]);
       } else {
         push({ id: uid(), kind: "notice", content: res.message, createdAt: Date.now() });
       }
     } catch {
       push({ id: uid(), kind: "notice", content: "Erreur réseau : impossible de joindre le serveur.", createdAt: Date.now() });
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
@@ -161,27 +169,31 @@ function ThreadPage() {
         {thread.messages.length === 0 && (
           <div className="mx-auto flex max-w-xl flex-col items-center gap-3 py-12 text-center">
             <div className="text-2xl font-semibold tracking-tight">Que veux-tu créer aujourd'hui ?</div>
-            <p className="text-sm text-muted-foreground">Pose une question librement ou commence par une commande slash.</p>
-            <p className="text-xs text-muted-foreground">Exemple : <code className="rounded bg-muted px-2 py-1 text-primary">/game-design</code> Définis le système de combat de mon jeu.</p>
+            <p className="text-sm text-muted-foreground">Pose une question librement ou commence par une commande spécialisée.</p>
+            <p className="text-xs text-muted-foreground">Exemple : <code className="rounded bg-muted px-2 py-1 text-primary">/unity</code> Crée un système de combat C#.</p>
           </div>
         )}
-        {thread.messages.map((m) =>
-          m.kind === "user" ? (
-            <div key={m.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">{m.content}</div>
-          ) : m.kind === "notice" ? (
-            <div key={m.id} role="status" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
-              <AlertTriangle className="size-4 shrink-0" /> {m.content}
-            </div>
+        {thread.messages.map((message) =>
+          message.kind === "user" ? (
+            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">{message.content}</div>
+          ) : message.kind === "notice" ? (
+            <div key={message.id} role="status" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"><AlertTriangle className="size-4 shrink-0" /> {message.content}</div>
           ) : (
-            <div key={m.id} className="space-y-2">
-              {m.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="text-xs text-muted-foreground">{m.provider}</span>}
-              <Markdown>{m.content}</Markdown>
+            <div key={message.id} className="space-y-2">
+              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="text-xs text-muted-foreground">{message.provider}</span>}
+              <Markdown>{message.content}</Markdown>
             </div>
           ),
         )}
         {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> DEBS AI réfléchit…</div>}
       </div>
-      <form className="glass sticky bottom-20 z-20 flex flex-col gap-2 rounded-2xl border p-2 shadow-lg md:bottom-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      <form className="glass sticky bottom-20 z-20 flex flex-col gap-2 rounded-2xl border p-2 shadow-lg md:bottom-4" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+        {repositoryContext && (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-800">
+            <span className="min-w-0 truncate">GitHub · {selectedRepository?.fullName ?? "Dépôt importé"} · {contextFiles.length} fichier(s) en contexte</span>
+            <button type="button" aria-label="Retirer le contexte GitHub" onClick={clearRepositoryContext} className="shrink-0 rounded-lg p-1 hover:bg-blue-100"><X className="size-4" /></button>
+          </div>
+        )}
         {suggestions.length > 0 && (
           <div className="max-h-52 overflow-y-auto border-b border-border/70 pb-2">
             {suggestions.map((item) => (
@@ -194,10 +206,10 @@ function ThreadPage() {
         )}
         <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={setAttachments} />
         <div className="flex items-end gap-2">
-          <Textarea autoFocus value={input} onChange={(e) => setInput(e.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }} />
+          <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || !input.trim()} aria-label="Envoyer"><Send /></Button>
         </div>
-        <div className="px-2 pb-1 text-[11px] text-muted-foreground">Mode général par défaut · Tape / pour choisir un domaine · Entrée pour envoyer</div>
+        <div className="px-2 pb-1 text-[11px] text-muted-foreground">Chat général · spécialisations moteur avec / · Entrée pour envoyer</div>
       </form>
     </div>
   );

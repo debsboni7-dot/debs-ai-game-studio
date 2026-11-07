@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { ChatResult, ChatTurn } from "./types";
+import type { ChatResult, ChatTask, ChatTurn } from "./types";
 
 const MAX_TURNS = 50;
 const MAX_CHARS = 20_000;
-const TASKS = ["chat", "code", "search", "game-design", "debug", "review"] as const;
+const TASKS: ChatTask[] = ["chat", "code", "search", "game-design", "debug", "review", "github", "unity", "unreal", "godot", "blender", "threejs"];
 
-export function validateChatInput(input: unknown): { messages: ChatTurn[]; task: (typeof TASKS)[number]; attachments: NonNullable<ChatTurn["attachments"]> } {
+export function validateChatInput(input: unknown): { messages: ChatTurn[]; task: ChatTask; attachments: NonNullable<ChatTurn["attachments"]> } {
   const msgs = (input as { messages?: unknown })?.messages;
   if (!Array.isArray(msgs) || msgs.length === 0 || msgs.length > MAX_TURNS) {
     throw new Error("Requête invalide : messages manquants ou trop nombreux.");
@@ -13,11 +13,7 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[]; task:
   const messages = msgs.map((m) => {
     const role = (m as ChatTurn | null)?.role;
     const content = (m as ChatTurn | null)?.content;
-    if (
-      (role !== "user" && role !== "assistant") ||
-      typeof content !== "string" ||
-      content.length > MAX_CHARS
-    ) {
+    if ((role !== "user" && role !== "assistant") || typeof content !== "string" || content.length > MAX_CHARS) {
       throw new Error("Requête invalide : message mal formé.");
     }
     return { role, content };
@@ -38,7 +34,7 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[]; task:
   });
   if (totalBytes > 21_000_000) throw new Error("Les pièces jointes dépassent la limite totale autorisée.");
   const requestedTask = (input as { task?: unknown })?.task;
-  const task = TASKS.includes(requestedTask as (typeof TASKS)[number]) ? requestedTask as (typeof TASKS)[number] : "chat";
+  const task = TASKS.includes(requestedTask as ChatTask) ? requestedTask as ChatTask : "chat";
   return { messages, task, attachments: safeAttachments };
 }
 
@@ -53,11 +49,13 @@ export const sendChatMessage = createServerFn({ method: "POST" })
         return {
           ok: false,
           code: "provider_not_configured",
-          message:
-            "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
+          message: "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
         };
       }
-      const res = await provider.complete({ messages: data.messages.map((message, index) => index === data.messages.length - 1 ? { ...message, attachments: data.attachments } : message), task: data.task ?? "chat" });
+      const messages = data.attachments.length
+        ? data.messages.map((message, index) => index === data.messages.length - 1 ? { ...message, attachments: data.attachments } : message)
+        : data.messages;
+      const res = await provider.complete({ messages, task: data.task });
       return { ok: true, text: res.text, provider: provider.label, model: res.model };
     } catch (error) {
       const { safeGatewayError } = await import("./gateway-error.server");

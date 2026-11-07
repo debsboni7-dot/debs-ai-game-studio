@@ -3,6 +3,7 @@
  * (see registry.server.ts) so no key ever reaches the browser.
  */
 export type ChatRole = "user" | "assistant" | "system";
+export type ChatTask = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs";
 
 export interface ChatTurn {
   role: ChatRole;
@@ -12,8 +13,7 @@ export interface ChatTurn {
 
 export interface CodeModelRequest {
   messages: ChatTurn[];
-  /** Optional task hint so adapters can pick a prompt/model (chat, code review, game design...). */
-  task?: "chat" | "code" | "search" | "game-design" | "debug" | "review";
+  task?: ChatTask;
 }
 
 export interface CodeModelProvider {
@@ -25,8 +25,4 @@ export interface CodeModelProvider {
 
 export type ChatResult =
   | { ok: true; text: string; provider: string; model: string }
-  | {
-      ok: false;
-      code: "provider_not_configured" | "invalid_request" | "provider_error";
-      message: string;
-    };
+  | { ok: false; code: "provider_not_configured" | "invalid_request" | "provider_error"; message: string };
