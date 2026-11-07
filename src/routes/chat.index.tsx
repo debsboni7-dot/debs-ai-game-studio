@@ -54,9 +54,9 @@ function ChatHome() {
       <div className="mb-8 flex size-14 items-center justify-center rounded-2xl border border-red-100 bg-white shadow-[0_8px_30px_-18px_rgba(220,38,38,.55)]">
         <Sparkles className="size-7 text-red-600" />
       </div>
-      <h1 className="text-center text-3xl font-semibold tracking-tight text-slate-800 sm:text-4xl">Que veux-tu créer aujourd’hui&nbsp;?</h1>
+      <h1 className="text-center text-3xl font-semibold tracking-tight text-slate-800 sm:text-4xl">Bienvenue sur DEBS AI 1.1</h1>
       <p className="mt-3 max-w-xl text-center text-sm leading-6 text-slate-500 sm:text-base">
-        Je peux t’aider à imaginer, développer, tester et améliorer tes jeux et tes projets.
+        Je suis DEBS 1.1, ton assistant IA de création et de développement. Je peux t’aider à imaginer, programmer, tester et améliorer tes projets. Que souhaites-tu construire aujourd’hui ?
       </p>
 
       <form onSubmit={(event) => { event.preventDefault(); if (input.trim()) start(input.trim()); }} className="mt-8 w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-3 shadow-[0_10px_36px_-22px_rgba(220,38,38,.5)] ring-1 ring-red-50">
