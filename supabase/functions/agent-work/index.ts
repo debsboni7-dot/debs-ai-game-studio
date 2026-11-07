@@ -198,8 +198,11 @@ Deno.serve(async(request)=>{
   const status=action==="pause"?"paused":action==="resume"?"queued":"cancelled";
   if(action==="resume"&&new Date(session.deadline_at).getTime()<=Date.now())return json({error:"Durée de mission dépassée."},409);
   if(["completed","failed","cancelled","expired"].includes(session.status))return json({error:"Mission déjà terminée."},409);
-  const {error}=await admin.from("agent_work_sessions").update({status,next_run_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId);
+  if(action==="pause"&&!["queued","running"].includes(session.status))return json({error:"Seule une mission en attente ou en cours peut être mise en pause."},409);
+  if(action==="resume"&&session.status!=="paused")return json({error:"La mission n'est pas en pause."},409);
+  const {data:transition,error}=await admin.from("agent_work_sessions").update({status,next_run_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId).eq("status",session.status).select("id").maybeSingle();
   if(error)return json({error:"Modification impossible."},500);
+  if(!transition)return json({error:"La mission a changé d'état. Actualisez son statut avant de réessayer."},409);
   if(action==="cancel")await admin.from("agent_work_tasks").update({status:"cancelled",lease_until:null}).eq("session_id",id).in("status",["queued","running"]);
   if(action==="pause")await admin.from("agent_work_tasks").update({status:"queued",lease_until:null}).eq("session_id",id).eq("status","running");
   if(action==="resume"){
