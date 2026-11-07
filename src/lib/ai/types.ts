@@ -24,4 +24,8 @@ export interface CodeModelProvider {
 
 export type ChatResult =
   | { ok: true; text: string; provider: string; model: string }
-  | { ok: false; code: "provider_not_configured" | "invalid_request" | "provider_error"; message: string };
+  | {
+      ok: false;
+      code: "provider_not_configured" | "invalid_request" | "provider_error";
+      message: string;
+    };
