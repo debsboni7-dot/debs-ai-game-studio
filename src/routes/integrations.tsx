@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Box, Check, CheckCircle2, Code2, ExternalLink, FileCode2, Github, Gamepad2, Layers3, Loader2, LockKeyhole, PlugZap, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
+import { Box, Check, CheckCircle2, Code2, ExternalLink, FileCode2, GitBranch, Gamepad2, Layers3, Loader2, LockKeyhole, PlugZap, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader, Panel } from "@/components/debs/ui";
@@ -94,7 +94,7 @@ function IntegrationsPage() {
       <Panel className="space-y-4 border-blue-200/80 bg-white/90 shadow-[0_16px_50px_-34px_rgba(60,120,255,.45)]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="glow-icon flex size-11 items-center justify-center rounded-2xl"><Github className="size-5" /></span>
+            <span className="glow-icon flex size-11 items-center justify-center rounded-2xl"><GitBranch className="size-5" /></span>
             <div><h2 className="font-semibold">GitHub</h2><p className="text-xs text-muted-foreground">Dépôts, branches et fichiers source</p></div>
           </div>
           {githubUser ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Connecté en mémoire</span> : <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">À connecter</span>}
