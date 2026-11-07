@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, ChevronDown, Clock3, ExternalLink, Globe2, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +8,6 @@ import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
-import { sendChatMessage } from "@/lib/ai/chat.functions";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -87,7 +85,7 @@ function ThreadPage() {
   const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
   const [loading, setLoading] = useState(false);
   const [workingSince, setWorkingSince] = useState<number | null>(null);
-  const send = useServerFn(sendChatMessage);
+  const [workingActivity, setWorkingActivity] = useState<ChatActivityEvent[]>([]);
   const { repositoryContext, selectedRepository, contextFiles, clearRepositoryContext } = useIntegrations();
   const thread = threads.find((item) => item.id === threadId);
   const commandQuery = input.startsWith("/") && !/\s/.test(input) ? input.toLowerCase() : null;
@@ -162,20 +160,72 @@ function ThreadPage() {
         ? contextHeader + repositoryContext.slice(0, contextBudget) + requestHeader + attachmentPrompt
         : attachmentPrompt;
       history[history.length - 1] = { role: "user", content: currentPrompt };
-      const res = await send({ data: { messages: history, task: parsed.task, attachments: encodedAttachments } });
-      if (res.ok) {
-        push({ id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now(), activity: res.activity });
+      const assistantId = uid();
+      let assistantText = "";
+      let streamError = "";
+      const updateAssistant = (patch: Partial<ChatMessage>) => setThreads((previous) => previous.map((item) => item.id === threadId
+        ? { ...item, updatedAt: Date.now(), messages: item.messages.map((message) => message.id === assistantId ? { ...message, ...patch } : message) }
+        : item));
+      push({ id: assistantId, kind: "assistant", content: "", provider: "DEBS AI", createdAt: Date.now(), activity: [] });
+      setWorkingActivity([]);
+      const response = await fetch("/api/chat-stream", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history, task: parsed.task, attachments: encodedAttachments }),
+      });
+      if (!response.ok || !response.body) {
+        const payload = await response.json().catch(() => ({})) as { message?: string };
+        streamError = payload.message || "Le serveur n'a pas pu démarrer le flux de réponse.";
+      } else {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const consume = (line: string) => {
+          if (!line.trim()) return;
+          try {
+            const event = JSON.parse(line) as { type: string; delta?: string; event?: ChatActivityEvent; message?: string; provider?: string; model?: string };
+            if (event.type === "text" && typeof event.delta === "string") {
+              assistantText += event.delta;
+              updateAssistant({ content: assistantText });
+            } else if (event.type === "activity" && event.event) {
+              setWorkingActivity((previous) => {
+                const nextEvents = previous.some((item) => item.id === event.event!.id)
+                  ? previous.map((item) => item.id === event.event!.id ? event.event! : item)
+                  : [...previous, event.event!];
+                updateAssistant({ activity: nextEvents });
+                return nextEvents;
+              });
+            } else if (event.type === "done") {
+              updateAssistant({ provider: event.provider || "DEBS AI" });
+            } else if (event.type === "error") {
+              streamError = event.message || "La génération a échoué.";
+            }
+          } catch { /* Ignore malformed or partial telemetry frames. */ }
+        };
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          lines.forEach(consume);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) consume(buffer);
+      }
+      if (streamError) {
+        updateAssistant({ kind: "notice", content: streamError, provider: undefined });
+      } else if (!assistantText.trim()) {
+        updateAssistant({ kind: "notice", content: "Le flux s'est terminé sans réponse exploitable.", provider: undefined });
+      } else {
         if (cloudUserId) {
           const { error } = await supabase.from("chat_messages").insert({
-            conversation_id: threadId, user_id: cloudUserId, role: "assistant", content: res.text,
+            conversation_id: threadId, user_id: cloudUserId, role: "assistant", content: assistantText,
           });
           if (error) push({ id: uid(), kind: "notice", content: "La réponse est affichée, mais sa sauvegarde cloud a échoué.", createdAt: Date.now() });
           else await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
         }
         setAttachments([]);
         setAttachmentResetKey((key) => key + 1);
-      } else {
-        push({ id: uid(), kind: "notice", content: res.message, createdAt: Date.now() });
       }
     } catch {
       push({ id: uid(), kind: "notice", content: "Erreur réseau : impossible de joindre le serveur.", createdAt: Date.now() });
@@ -211,7 +261,8 @@ function ThreadPage() {
         )}
         {loading && <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-[0_12px_36px_-28px_rgba(37,99,235,.5)]">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Loader2 className="size-4 animate-spin text-blue-600" /> DEBS AI travaille sur ta demande…</div>
-          <p className="mt-1 text-xs text-slate-500">Le modèle traite le contexte et prépare la réponse. Les appels d'outils réellement observés seront affichés sous la réponse.</p>
+          <p className="mt-1 text-xs text-slate-500">Les opérations et les outils confirmés apparaissent ici pendant le travail.</p>
+          {workingActivity.length > 0 && <div className="mt-2"><ActivityPanel events={workingActivity} /></div>}
           {workingSince && <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400"><Clock3 className="size-3" /> Démarré à {new Date(workingSince).toLocaleTimeString()}</p>}
         </div>}
       </div>
