@@ -42,7 +42,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
             "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
         };
       }
-      const res = await provider.complete({ messages: data.messages, task: data.task });
+      const res = await provider.complete({ messages: data.messages, task: data.task ?? "chat" });
       return { ok: true, text: res.text, provider: provider.label, model: res.model };
     } catch (error) {
       const { safeGatewayError } = await import("./gateway-error.server");
