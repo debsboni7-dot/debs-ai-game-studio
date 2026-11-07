@@ -3,8 +3,9 @@ import type { ChatResult, ChatTurn } from "./types";
 
 const MAX_TURNS = 50;
 const MAX_CHARS = 20_000;
+const TASKS = ["chat", "code", "search", "game-design", "debug", "review"] as const;
 
-export function validateChatInput(input: unknown): { messages: ChatTurn[] } {
+export function validateChatInput(input: unknown): { messages: ChatTurn[]; task: (typeof TASKS)[number] } {
   const msgs = (input as { messages?: unknown })?.messages;
   if (!Array.isArray(msgs) || msgs.length === 0 || msgs.length > MAX_TURNS) {
     throw new Error("Requête invalide : messages manquants ou trop nombreux.");
@@ -21,7 +22,9 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[] } {
     }
     return { role, content };
   });
-  return { messages };
+  const requestedTask = (input as { task?: unknown })?.task;
+  const task = TASKS.includes(requestedTask as (typeof TASKS)[number]) ? requestedTask as (typeof TASKS)[number] : "chat";
+  return { messages, task };
 }
 
 /** Secure backend entry point for the chat. Returns an explicit status when no model is wired. */
@@ -39,7 +42,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
             "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
         };
       }
-      const res = await provider.complete({ messages: data.messages, task: "chat" });
+      const res = await provider.complete({ messages: data.messages, task: data.task });
       return { ok: true, text: res.text, provider: provider.label, model: res.model };
     } catch (error) {
       const { safeGatewayError } = await import("./gateway-error.server");
