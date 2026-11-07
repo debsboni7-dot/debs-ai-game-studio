@@ -84,8 +84,8 @@ end; $$;
 revoke all on function public.claim_agent_work_task(integer) from public,anon,authenticated;
 grant execute on function public.claim_agent_work_task(integer) to service_role;
 
-// Explicit least-privilege table grants. RLS further limits authenticated reads
-// to rows belonging to auth.uid(); writes are reserved for service_role.
+-- Explicit least-privilege table grants. RLS further limits authenticated reads
+-- to rows belonging to auth.uid(); writes are reserved for service_role.
 revoke all on table public.agent_work_sessions, public.agent_work_tasks, public.agent_work_events from anon, authenticated;
 grant select on table public.agent_work_sessions, public.agent_work_tasks, public.agent_work_events to authenticated;
 grant all privileges on table public.agent_work_sessions, public.agent_work_tasks, public.agent_work_events to service_role;
