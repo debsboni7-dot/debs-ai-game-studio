@@ -30,9 +30,9 @@ export function safeAssetPath(name: string): string | null {
 
 const ALLOWED_EXTENSIONS = new Set([
   "glb", "gltf", "fbx", "obj", "mtl", "stl", "usd", "usdz", "blend",
-  "png", "jpg", "jpeg", "webp", "tga", "hdr", "exr",
+  "png", "jpg", "jpeg", "webp", "tga", "tif", "tiff", "dds", "hdr", "exr", "svg",
   "wav", "ogg", "mp3", "flac", "mp4", "webm",
-  "json", "txt", "md", "xml", "bin", "ktx", "ktx2", "glsl", "vert", "frag", "vsh", "fsh", "shader", "atlas", "ase", "aseprite",
+  "json", "txt", "md", "xml", "bin", "ktx", "ktx2", "glsl", "vert", "frag", "vsh", "fsh", "shader", "atlas", "ase", "aseprite", "ttf", "otf", "woff2", "unity", "prefab", "asset", "mat", "controller", "anim", "meta", "uasset", "umap", "tscn", "tres", "gdshader", "hlsl", "compute", "shadergraph", "shadersubgraph", "vfx",
 ]);
 
 export function isAllowedAssetFile(path: string): boolean {
