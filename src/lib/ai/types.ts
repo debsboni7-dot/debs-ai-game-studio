@@ -12,7 +12,7 @@ export interface ChatTurn {
 export interface CodeModelRequest {
   messages: ChatTurn[];
   /** Optional task hint so adapters can pick a prompt/model (chat, code review, game design...). */
-  task?: "chat" | "code" | "game-spec";
+  task?: "chat" | "code" | "search" | "game-design" | "debug" | "review";
 }
 
 export interface CodeModelProvider {
