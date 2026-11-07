@@ -11,9 +11,9 @@ Deno.serve(async(request)=>{
  let body:Record<string,unknown>;try{body=await request.json();}catch{return json({error:"JSON invalide."},400);}
  const action=typeof body.action==="string"?body.action:"";
  if(action==="worker"){
-  await admin.from("agent_work_sessions").update({status:"expired",updated_at:new Date().toISOString()}).in("status",["queued","running"]).lt("deadline_at",new Date().toISOString());
   const secret=env("AGENT_WORKER_SECRET");
   if(!secret||request.headers.get("x-agent-worker-secret")!==secret)return json({error:"Worker non autorisé."},401);
+  await admin.from("agent_work_sessions").update({status:"expired",updated_at:new Date().toISOString()}).in("status",["queued","running"]).lt("deadline_at",new Date().toISOString());
   if(!env("LOVABLE_API_KEY"))return json({error:"LOVABLE_API_KEY absent."},503);
   const {data:claimed,error:claimError}=await admin.rpc("claim_agent_work_task",{p_lease_seconds:180});
   if(claimError)return json({error:"Réservation de tâche impossible.",detail:claimError.message},500);
@@ -46,7 +46,14 @@ Deno.serve(async(request)=>{
    const {error:taskError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,checkpoint,next_action:parsed.next_action??""},lease_until:null,updated_at:now}).eq("id",task.id);
    if(taskError)throw taskError;
    const {data:latestSession}=await admin.from("agent_work_sessions").select("status").eq("id",session.id).single();
-   if(latestSession?.status==="paused"||latestSession?.status==="cancelled"){await admin.from("agent_work_tasks").update({status:"queued",lease_until:null,updated_at:now}).eq("id",task.id);return json({ok:true,claimed:true,paused:true,session_id:session.id});}
+   if(latestSession?.status==="paused"){
+    await admin.from("agent_work_tasks").update({status:"queued",lease_until:null,updated_at:now}).eq("id",task.id);
+    return json({ok:true,claimed:true,paused:true,session_id:session.id});
+   }
+   if(latestSession?.status==="cancelled"||latestSession?.status==="expired"){
+    await admin.from("agent_work_tasks").update({status:"cancelled",lease_until:null,updated_at:now}).eq("id",task.id);
+    return json({ok:true,claimed:true,cancelled:true,session_id:session.id});
+   }
    const {error:updateError}=await admin.from("agent_work_sessions").update({status:completed?(expired?"expired":"completed"):"queued",checkpoint,last_summary:summary,step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
    if(updateError)throw updateError;
    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:completed?"mission_completed":"step_completed",message:summary,metadata:{step_count:steps,next_action:parsed.next_action??""}});
