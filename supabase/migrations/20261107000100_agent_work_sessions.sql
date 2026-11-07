@@ -52,7 +52,7 @@ begin
  where s.status in ('queued','running') and exists(select 1 from public.agent_work_tasks t where t.session_id=s.id and t.status='failed');
  select t.* into v_task from public.agent_work_tasks t join public.agent_work_sessions s on s.id=t.session_id
  where t.status='queued' and t.available_at<=now() and s.status in ('queued','running')
- and s.deadline_at>now() and s.step_count<s.max_steps
+ and s.deadline_at>now() and (s.step_count<s.max_steps or t.task_type in ('github_ci_check','github_ci_repair'))
  order by t.available_at,t.created_at for update of t skip locked limit 1;
  if not found then return; end if;
  update public.agent_work_tasks set status='running',attempt=attempt+1,
