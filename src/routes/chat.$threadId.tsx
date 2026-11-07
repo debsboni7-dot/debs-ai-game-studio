@@ -170,7 +170,11 @@ function ThreadPage() {
         ? { ...item, updatedAt: Date.now(), messages: item.messages.map((message) => message.id === assistantId ? { ...message, ...patch } : message) }
         : item));
       push({ id: assistantId, kind: "assistant", content: "", provider: "DEBS AI", createdAt: Date.now(), activity: [] });
-      setWorkingActivity([]);
+      if (repositoryContext) {
+        activityEvents = [{ id: "github-context", connector: "GitHub", action: "Contexte du dépôt", status: "completed", summary: contextFiles.length + " fichier(s) du dépôt " + (selectedRepository?.fullName ?? "importé") + " transmis au modèle en lecture seule." }];
+        setWorkingActivity(activityEvents);
+        updateAssistant({ activity: activityEvents });
+      } else setWorkingActivity([]);
       const response = await fetch("/api/chat-stream", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: history, task: parsed.task, attachments: encodedAttachments }),
