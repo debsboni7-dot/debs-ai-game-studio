@@ -1,4 +1,5 @@
-export type ProposedFile = { path: string; content: string };
+import { validateProposedFiles, type ProposedFile } from "../_shared/github-validation.ts";
+
 export type CheckSummary = {
   state: "pending" | "success" | "failure" | "unknown";
   head_sha: string;
@@ -76,17 +77,7 @@ export async function updateMissionPullRequestBranch(branch: string, files: Prop
   const repository = Deno.env.get("GITHUB_REPOSITORY")?.trim();
   if (!token || !repository || repository.split("/").length !== 2 || repository.split("/").some((part) => !/^[A-Za-z0-9_.-]+$/.test(part))) throw new Error("GitHub non configuré côté serveur.");
   if (!branch.startsWith("debs-ai/mission-") || !/^debs-ai\/mission-[a-f0-9-]{6,40}$/.test(branch)) throw new Error("Branche de réparation non autorisée.");
-  if (!files.length || files.length > 12) throw new Error("Nombre de fichiers invalide.");
-  const seen = new Set<string>(); let totalBytes = 0;
-  for (const file of files) {
-    const path = file.path;
-    if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\") || path.split("/").some((part) => !part || part === "." || part === ".." || /^\.env/i.test(part) || /^(secrets?|credentials|private)$/i.test(part) || /^id_rsa(\.pub)?$/i.test(part)) || path.startsWith(".github/workflows/")) throw new Error("Chemin refusé : " + path);
-    if (file.content.length > 80000) throw new Error("Fichier trop volumineux : " + path);
-    totalBytes += new TextEncoder().encode(file.content).byteLength;
-    if (totalBytes > 300000) throw new Error("Proposition trop volumineuse : limite totale de 300 Ko.");
-    if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}/i.test(file.content)) throw new Error("Contenu refusé : secret ou clé privée détecté.");
-    if (seen.has(path)) throw new Error("Chemin dupliqué : " + path); seen.add(path);
-  }
+  files = validateProposedFiles(files);
   const api = "https://api.github.com/repos/" + repository;
   const headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" };
   const call = async (route: string, body?: unknown) => {
@@ -125,26 +116,7 @@ export async function createMissionPullRequest(
   if (!token || !repository || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
     throw new Error("GitHub non configuré côté serveur.");
   }
-  if (!files.length || files.length > 12) throw new Error("Nombre de fichiers invalide.");
-  const seen = new Set<string>();
-  let totalBytes = 0;
-  for (const file of files) {
-    const path = file.path;
-    if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\") ||
-      path.split("/").some((part) => !part || part === "." || part === "..") ||
-      /(^|\/)(\.env[^/]*|secrets?)(\/|$)/i.test(path) ||
-      /(^|\/)id_rsa(\.pub)?$/i.test(path) ||
-      /^\.github\/workflows\//i.test(path) ||
-      /(^|\/)(credentials|private)(\/|$)/i.test(path)) throw new Error("Chemin refusé : " + path);
-    if (file.content.length > 80000) throw new Error("Fichier trop volumineux : " + path);
-    totalBytes += new TextEncoder().encode(file.content).byteLength;
-    if (totalBytes > 300000) throw new Error("Proposition trop volumineuse : limite totale de 300 Ko.");
-    if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}/i.test(file.content)) {
-      throw new Error("Contenu refusé : un secret ou une clé privée semble présent.");
-    }
-    if (seen.has(path)) throw new Error("Chemin dupliqué : " + path);
-    seen.add(path);
-  }
+  files = validateProposedFiles(files);
   const api = "https://api.github.com/repos/" + repository;
   const headers = {
     Authorization: "Bearer " + token,
