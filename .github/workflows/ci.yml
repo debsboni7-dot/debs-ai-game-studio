@@ -41,3 +41,6 @@ jobs:
 
       - name: Build production app
         run: bun run build
+
+      - name: Validate browser game smoke runner syntax
+        run: node --check scripts/browser-game-smoke.cjs
