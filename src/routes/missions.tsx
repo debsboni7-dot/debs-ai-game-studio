@@ -18,6 +18,7 @@ function MissionsPage() {
  const [goal,setGoal]=useState("");
  const [title,setTitle]=useState("");
  const [hours,setHours]=useState(24);
+ const [maxSteps,setMaxSteps]=useState(100);
  const [loading,setLoading]=useState(true);
  const [creating,setCreating]=useState(false);
  const [busy,setBusy]=useState<string|null>(null);
@@ -43,7 +44,7 @@ function MissionsPage() {
  const create=async()=>{
   if(goal.trim().length<8)return;
   setCreating(true);setNotice("");
-  const {data,error}=await supabase.functions.invoke("agent-work",{body:{action:"create",title:title.trim()||undefined,goal:goal.trim(),hours,max_steps:100}});
+  const {data,error}=await supabase.functions.invoke("agent-work",{body:{action:"create",title:title.trim()||undefined,goal:goal.trim(),hours,max_steps:maxSteps}});
   if(error||!data?.ok){setNotice(data?.error??error?.message??"La création de mission a échoué. Vérifie le déploiement de la fonction agent-work.");}
   else{setGoal("");setTitle("");setNotice("Mission créée. Elle commencera lorsque le worker planifié sera activé.");await load();}
   setCreating(false);
@@ -78,6 +79,11 @@ function MissionsPage() {
      <label className="flex items-center gap-2 text-sm text-slate-600"><Timer className="size-4"/> Durée
       <select value={hours} onChange={e=>setHours(Number(e.target.value))} className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800">
        <option value={1}>1 heure</option><option value={10}>10 heures</option><option value={24}>24 heures</option><option value={48}>48 heures</option><option value={72}>3 jours</option><option value={168}>7 jours</option>
+      </select>
+     </label>
+     <label className="flex items-center gap-2 text-sm text-slate-600">Étapes max.
+      <select value={maxSteps} onChange={e=>setMaxSteps(Number(e.target.value))} className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-800">
+       <option value={100}>100</option><option value={500}>500</option><option value={1000}>1 000</option><option value={1500}>1 500</option><option value={2000}>2 000</option>
       </select>
      </label>
      <button onClick={create} disabled={!signedIn||creating||goal.trim().length<8} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40">{creating?"Création…":"Créer la mission"}</button>
