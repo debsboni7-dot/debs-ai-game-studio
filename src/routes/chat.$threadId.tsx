@@ -116,6 +116,17 @@ function ThreadPage() {
 
     setLoading(true);
     try {
+      const encodedAttachments = await Promise.all(attachments.map(async (file) => ({
+        kind: file.type.startsWith("image/") ? "image" as const : "file" as const,
+        filename: file.name,
+        mediaType: file.type,
+        data: await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Lecture du fichier impossible"));
+          reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
+          reader.readAsDataURL(file);
+        }),
+      })));
       const history = [...thread.messages, userMsg]
         .filter((m) => m.kind === "user" || m.kind === "assistant")
         .map((m) => ({ role: m.kind as "user" | "assistant", content: m.content }));
