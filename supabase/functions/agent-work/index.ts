@@ -160,9 +160,9 @@ Deno.serve(async(request)=>{
    return json({ok:true,claimed:true,completed,session_id:session.id,step_count:steps,summary,github_proposal:githubProposal});
   }catch(error){
    const message=error instanceof Error?error.message:"Erreur worker inconnue.",retry=Number(task.attempt??1)<Number(task.max_attempts??4);
-   await admin.from("agent_work_tasks").update({status:retry?"queued":"failed",available_at:new Date(Date.now()+Math.min(300000,5000*2**Number(task.attempt??1))).toISOString(),lease_until:null,last_error:message.slice(0,1000),updated_at:new Date().toISOString()}).eq("id",task.id);
+   await admin.from("agent_work_tasks").update({status:retry?"queued":"failed",available_at:new Date(Date.now()+Math.min(300000,5000*2**Number(task.attempt??1))).toISOString(),lease_until:null,last_error:message.slice(0,1000),updated_at:new Date().toISOString()}).eq("id",task.id).eq("status","running");
    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"step_retry",message:retry?"Étape interrompue ; nouvelle tentative programmée.":"Étape échouée après plusieurs tentatives.",metadata:{error:message.slice(0,500),attempt:task.attempt}});
-   if(!retry)await admin.from("agent_work_sessions").update({status:"failed",last_summary:"Mission arrêtée après plusieurs échecs : "+message.slice(0,500)}).eq("id",session.id);
+   if(!retry)await admin.from("agent_work_sessions").update({status:"failed",last_summary:"Mission arrêtée après plusieurs échecs : "+message.slice(0,500)}).eq("id",session.id).eq("status","running");
    return json({ok:false,retry_scheduled:retry,session_id:session.id},retry?202:500);
   }
  }
