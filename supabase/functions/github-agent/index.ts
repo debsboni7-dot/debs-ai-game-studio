@@ -1,3 +1,4 @@
+import { validateProposedFiles } from "../_shared/github-validation.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const cors = {
@@ -66,29 +67,9 @@ Deno.serve(async (request) => {
     const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
     const summary = typeof body.summary === "string" ? body.summary.trim().slice(0, 4000) : "";
     const files = Array.isArray(body.files) ? body.files : [];
-    if (!title || files.length < 1 || files.length > 20) return reply({ error: "Titre requis et 1 à 20 fichiers attendus." }, 400);
+    if (!title || files.length < 1 || files.length > 12) return reply({ error: "Titre requis et 1 à 12 fichiers attendus." }, 400);
 
-    let totalBytes = 0;
-    const normalized = files.map((entry) => {
-      if (!entry || typeof entry !== "object") throw new Error("Fichier invalide.");
-      const file = entry as Record<string, unknown>;
-      const path = typeof file.path === "string" ? file.path : "";
-      const content = typeof file.content === "string" ? file.content : "";
-      if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\") ||
-          path.split("/").some((part) => !part || part === "." || part === ".." || /^\.env/i.test(part) || /^(secrets?|credentials|private)$/i.test(part) || /^id_rsa(\.pub)?$/i.test(part)) ||
-          path.startsWith(".github/workflows/")) {
-        throw new Error("Chemin refusé : " + path);
-      }
-      const bytes = new TextEncoder().encode(content).byteLength;
-      if (bytes > 80_000) throw new Error("Fichier trop volumineux : " + path);
-      totalBytes += bytes;
-      if (totalBytes > 300_000) throw new Error("Proposition trop volumineuse : limite totale de 300 Ko.");
-      if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}/i.test(content)) throw new Error("Contenu refusé : secret ou clé privée détecté.");
-      return { path, content };
-    });
-    if (new Set(normalized.map((file) => file.path)).size !== normalized.length) {
-      return reply({ error: "Chemins de fichiers dupliqués." }, 400);
-    }
+    const normalized = validateProposedFiles(files);
 
     const base = await gh(`/git/ref/heads/${encodeURIComponent(baseBranch)}`);
     const baseSha = base.object.sha as string;
