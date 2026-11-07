@@ -129,7 +129,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="font-display font-bold">DEBS <span className="text-gradient-brand">AI</span></span>
             </Link>
             <div className="flex items-center gap-2">
-              <Link to="/integrations" aria-label="Développement et intégrations" className="rounded-xl border border-blue-200 p-2 text-blue-600"><GitBranch className="size-5" /></Link>\n              <Link to="/missions" aria-label="Missions longue durée" className="rounded-xl border border-violet-200 p-2 text-violet-600"><Clock3 className="size-5" /></Link>
+              <Link to="/integrations" aria-label="Développement et intégrations" className="rounded-xl border border-blue-200 p-2 text-blue-600"><GitBranch className="size-5" /></Link>
+              <Link to="/missions" aria-label="Missions longue durée" className="rounded-xl border border-violet-200 p-2 text-violet-600"><Clock3 className="size-5" /></Link>
               <button onClick={createConversation} aria-label="Nouvelle conversation" className="glow-icon rounded-xl p-2"><MessageSquarePlus className="size-5" /></button>
               {userEmail ? <button onClick={signOut} aria-label="Déconnexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogOut className="size-5" /></button> : <Link to="/connexion" aria-label="Connexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogIn className="size-5" /></Link>}
               <Link to="/parametres" aria-label="Paramètres" className="rounded-xl border border-slate-200 p-2 text-slate-600"><Settings2 className="size-5" /></Link>
