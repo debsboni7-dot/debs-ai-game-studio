@@ -8,7 +8,7 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 - Checkpoints, journal d'événements, tentatives automatiques et délais exponentiels.
 - Actions serveur create, status, pause, resume, cancel.
 - Worker Supabase Edge Function qui exécute une étape IA courte par invocation.
-- RLS : un utilisateur ne lit que ses propres missions, tâches et événements.
+- RLS : un utilisateur ne lit que ses propres missions, tâches et événements ; les changements de statut/checkpoint passent par l'Edge Function de confiance, avec contrôle des transitions et protection contre les mises à jour concurrentes.
 
 ## Activation obligatoire avant toute exécution continue
 1. Appliquer la migration SQL du dossier migrations.
