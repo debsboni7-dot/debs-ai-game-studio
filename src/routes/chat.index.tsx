@@ -4,6 +4,7 @@ import { Code2, Gamepad2, GitBranch, Lightbulb, MessageSquarePlus, Send, Sparkle
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { setPendingAttachments } from "@/lib/chat/pending-attachments";
+import { CREATOR_CREDIT } from "@/lib/brand";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,6 +70,7 @@ function ChatHome() {
       <p className="mt-3 max-w-xl text-center text-sm leading-6 text-slate-500 sm:text-base">
         Je suis DEBS 1.1, ton assistant IA de création et de développement. Je peux t’aider à imaginer, programmer, tester et améliorer tes projets. Que souhaites-tu construire aujourd’hui ?
       </p>
+      <p className="mt-2 text-center text-xs font-medium text-red-500">{CREATOR_CREDIT}</p>
 
       <form onSubmit={(event) => { event.preventDefault(); if (input.trim() || attachments.length) void start(input.trim()); }} className="mt-8 w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-3 shadow-[0_10px_36px_-22px_rgba(220,38,38,.5)] ring-1 ring-red-50">
         <Textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS 1.1…" rows={2} className="min-h-[64px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" />
