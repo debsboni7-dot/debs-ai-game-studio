@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, Loader2, Send, X } from "lucide-react";
@@ -68,7 +68,7 @@ function ThreadPage() {
   const { threadId } = Route.useParams();
   const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const [input, setInput] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);\n  const [attachmentResetKey, setAttachmentResetKey] = useState(0);\n  const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
   const [loading, setLoading] = useState(false);
   const send = useServerFn(sendChatMessage);
   const { repositoryContext, selectedRepository, contextFiles, clearRepositoryContext } = useIntegrations();
@@ -86,9 +86,9 @@ function ThreadPage() {
 
   const submit = async () => {
     const raw = input.trim();
-    if (!raw || loading) return;
+    if ((!raw && attachments.length === 0) || loading) return;
     const parsed = parseCommand(raw);
-    if (!parsed.help && !parsed.prompt) return;
+    if (!parsed.help && !parsed.prompt && attachments.length === 0) return;
     setInput("");
     const userMsg: ChatMessage = {
       id: uid(), kind: "user",
@@ -153,7 +153,7 @@ function ThreadPage() {
           if (error) push({ id: uid(), kind: "notice", content: "La réponse est affichée, mais sa sauvegarde cloud a échoué.", createdAt: Date.now() });
           else await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
         }
-        setAttachments([]);
+        setAttachments([]);\n        setAttachmentResetKey((key) => key + 1);
       } else {
         push({ id: uid(), kind: "notice", content: res.message, createdAt: Date.now() });
       }
@@ -210,7 +210,7 @@ function ThreadPage() {
         <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={setAttachments} />
         <div className="flex items-end gap-2">
           <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
-          <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || !input.trim()} aria-label="Envoyer"><Send /></Button>
+          <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
         </div>
         <div className="px-2 pb-1 text-[11px] text-muted-foreground">Chat général · spécialisations moteur avec / · Entrée pour envoyer</div>
       </form>
