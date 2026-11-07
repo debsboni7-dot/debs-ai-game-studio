@@ -22,9 +22,24 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[]; task:
     }
     return { role, content };
   });
+  const attachmentsRaw = (input as { attachments?: unknown })?.attachments;
+  const attachments = attachmentsRaw === undefined ? [] : attachmentsRaw;
+  if (!Array.isArray(attachments) || attachments.length > 5) throw new Error("Pièces jointes invalides ou trop nombreuses.");
+  let totalBytes = 0;
+  const safeAttachments = attachments.map((item) => {
+    const file = item as { kind?: unknown; data?: unknown; mediaType?: unknown; filename?: unknown };
+    if ((file.kind !== "image" && file.kind !== "file") || typeof file.data !== "string" ||
+      file.data.length > 11_200_000 || typeof file.mediaType !== "string" || typeof file.filename !== "string" ||
+      (file.kind === "image" && !file.mediaType.startsWith("image/")) ||
+      (file.kind === "file" && file.mediaType !== "application/pdf") ||
+      !file.data.startsWith("data:")) throw new Error("Type ou taille de pièce jointe non autorisé.");
+    totalBytes += file.data.length;
+    return { kind: file.kind, data: file.data, mediaType: file.mediaType, filename: file.filename };
+  });
+  if (totalBytes > 21_000_000) throw new Error("Les pièces jointes dépassent la limite totale autorisée.");
   const requestedTask = (input as { task?: unknown })?.task;
   const task = TASKS.includes(requestedTask as (typeof TASKS)[number]) ? requestedTask as (typeof TASKS)[number] : "chat";
-  return { messages, task };
+  return { messages, task, attachments: safeAttachments };
 }
 
 /** Secure backend entry point for the chat. Returns an explicit status when no model is wired. */
@@ -42,7 +57,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
             "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
         };
       }
-      const res = await provider.complete({ messages: data.messages, task: data.task ?? "chat" });
+      const res = await provider.complete({ messages: data.messages.map((message, index) => index === data.messages.length - 1 ? { ...message, attachments: data.attachments } : message), task: data.task ?? "chat" });
       return { ok: true, text: res.text, provider: provider.label, model: res.model };
     } catch (error) {
       const { safeGatewayError } = await import("./gateway-error.server");
