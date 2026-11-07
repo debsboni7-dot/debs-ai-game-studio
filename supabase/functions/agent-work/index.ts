@@ -150,7 +150,7 @@ Deno.serve(async(request)=>{
    const {error:updateError}=await admin.from("agent_work_sessions").update({status:ciFailure?"failed":completed?(expired?"expired":"completed"):"queued",checkpoint,last_summary:summary,step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
    if(updateError)throw updateError;
    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:ciFailure?"github_ci_failed":completed?"mission_completed":"step_completed",message:ciFailure?"Le Pull Request a été créé, mais les vérifications CI ont échoué. "+summary:summary,metadata:{step_count:steps,next_action:parsed.next_action??"",github_proposal:githubProposal}});
-   if(!completed){const {error}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{previous_summary:summary,next_action:parsed.next_action??""}});if(error)throw error;}
+   if(!completed&&!githubProposal){const {error}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{previous_summary:summary,next_action:parsed.next_action??""}});if(error)throw error;}
    return json({ok:true,claimed:true,completed,session_id:session.id,step_count:steps,summary,github_proposal:githubProposal});
   }catch(error){
    const message=error instanceof Error?error.message:"Erreur worker inconnue.",retry=Number(task.attempt??1)<Number(task.max_attempts??4);
