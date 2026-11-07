@@ -15,7 +15,7 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 2. Déployer la fonction Edge agent-work.
 3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY et AGENT_WORKER_SECRET (secret aléatoire long).
 4. Configurer un scheduler fiable qui envoie chaque minute un POST avec le corps {"action":"worker"} et l'en-tête x-agent-worker-secret. Conserver le secret côté serveur, idéalement dans Vault.
-5. Connecter l'interface DEBS AI aux actions create/status/pause/resume/cancel avec le jeton de l'utilisateur connecté.
+5. L'interface /missions est ajoutée au projet et appelle les actions create/status/pause/resume/cancel avec la session Supabase de l'utilisateur connecté.
 
 ## Limites actuelles
 - Le code de cette branche ne déploie pas la migration ni la fonction et ne configure pas le scheduler ou les secrets.
