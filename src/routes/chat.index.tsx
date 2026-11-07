@@ -23,6 +23,10 @@ const suggestions = [
   { icon: Code2, title: "Écrire du code", prompt: "/code Aide-moi à écrire du code propre, robuste et testé. Je vais te décrire ce que je veux construire." },
   { icon: Wrench, title: "Corriger un bug", prompt: "/debug Aide-moi à diagnostiquer et corriger un bug. Je vais te donner le comportement attendu et le problème rencontré." },
   { icon: GitBranch, title: "Travailler avec GitHub", prompt: "/github Aide-moi à analyser mon dépôt GitHub et à planifier les prochaines modifications." },
+  { icon: Gamepad2, title: "Développer avec Unity", prompt: "/unity Aide-moi à développer un système Unity en C#, avec scripts, scènes, prefabs et tests." },
+  { icon: Gamepad2, title: "Développer avec Unreal", prompt: "/unreal Aide-moi à construire un système Unreal Engine avec C++, Blueprints et Gameplay Framework." },
+  { icon: Gamepad2, title: "Développer avec Godot", prompt: "/godot Aide-moi à créer une fonctionnalité Godot 4 avec GDScript, scènes, nœuds et signaux." },
+  { icon: Code2, title: "Créer des assets avec Blender", prompt: "/blender Aide-moi à créer ou automatiser un asset 3D avec Blender Python, matériaux, rigging et export." },
 ];
 
 function ChatHome() {
