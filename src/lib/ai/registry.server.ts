@@ -112,7 +112,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
   });
   const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
     `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. ${modeInstructions[task]}`,
-    task === "search", ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium");
+    ["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", ["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task));
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -136,8 +136,8 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
           if (type === "error") streamError = event.error;
           if (type === "tool-call" || type === "tool-input-start" || type === "tool-input-available") {
             const id = "tool-" + (++toolIndex);
-            const connector = toolName === "web_search" ? "Recherche Web" : (toolName || "Outil externe");
-            const toolEvent: ChatActivityEvent = { id, connector, action: toolName === "web_search" ? "Recherche de sites" : "Appel d'outil", status: "running", summary: "Appel en cours." };
+            const connector = toolName === "web_search" ? "Recherche Web" : toolName === "import_game_assets" ? "Import d’assets" : (toolName || "Outil externe");
+            const toolEvent: ChatActivityEvent = { id, connector, action: toolName === "web_search" ? "Recherche de sites" : toolName === "import_game_assets" ? "Téléchargement et import" : "Appel d’outil", status: "running", summary: "Appel en cours." };
             activity.set(id, toolEvent);
             send({ type: "activity", event: toolEvent });
           }
