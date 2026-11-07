@@ -45,6 +45,72 @@ export async function inspectPullRequestChecks(
 }
 
 
+
+export async function readCheckAnnotations(headSha: string) {
+  const token = Deno.env.get("GITHUB_TOKEN")?.trim();
+  const repository = Deno.env.get("GITHUB_REPOSITORY")?.trim();
+  if (!token || !repository) throw new Error("GitHub non configuré.");
+  const headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  const response = await fetch("https://api.github.com/repos/" + repository + "/commits/" + encodeURIComponent(headSha) + "/check-runs?per_page=100", { headers });
+  if (!response.ok) throw new Error("Lecture des vérifications impossible (HTTP " + response.status + ").");
+  const data = await response.json();
+  const failed = (data.check_runs ?? []).filter((run: {status?:string;conclusion?:string}) => run.status === "completed" && run.conclusion !== "success" && run.conclusion !== "skipped" && run.conclusion !== "neutral");
+  const annotations = [];
+  for (const run of failed.slice(0, 10)) {
+    const r = await fetch("https://api.github.com/repos/" + repository + "/check-runs/" + run.id + "/annotations?per_page=50", { headers });
+    if (!r.ok) continue;
+    const items = await r.json().catch(() => []);
+    for (const a of (Array.isArray(items) ? items : []).slice(0, 50)) annotations.push({
+      check: String(run.name ?? "CI"),
+      path: String(a.path ?? ""),
+      line: a.start_line ?? null,
+      level: String(a.annotation_level ?? "warning"),
+      message: String(a.message ?? "").slice(0, 1000),
+    });
+  }
+  return annotations.slice(0, 100);
+}
+
+export async function updateMissionPullRequestBranch(branch: string, files: ProposedFile[], title: string) {
+  const token = Deno.env.get("GITHUB_TOKEN")?.trim();
+  const repository = Deno.env.get("GITHUB_REPOSITORY")?.trim();
+  if (!token || !repository || !/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) throw new Error("GitHub non configuré côté serveur.");
+  if (!/^debs-ai\\/mission-[a-f0-9-]{6,40}$/.test(branch)) throw new Error("Branche de réparation non autorisée.");
+  if (!files.length || files.length > 12) throw new Error("Nombre de fichiers invalide.");
+  const seen = new Set<string>(); let totalBytes = 0;
+  for (const file of files) {
+    const path = file.path;
+    if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\\\") || path.split("/").some((part) => !part || part === "." || part === "..") ||
+      /(^|\\/)(\\.env[^/]*|secrets?|credentials|private)(\\/|$)/i.test(path) || /(^|\\/)id_rsa(\\.pub)?$/i.test(path) || /^\\.github\\/workflows\\//i.test(path)) throw new Error("Chemin refusé : " + path);
+    if (file.content.length > 80000) throw new Error("Fichier trop volumineux : " + path);
+    totalBytes += new TextEncoder().encode(file.content).byteLength;
+    if (totalBytes > 300000) throw new Error("Proposition trop volumineuse : limite totale de 300 Ko.");
+    if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}/i.test(file.content)) throw new Error("Contenu refusé : secret ou clé privée détecté.");
+    if (seen.has(path)) throw new Error("Chemin dupliqué : " + path); seen.add(path);
+  }
+  const api = "https://api.github.com/repos/" + repository;
+  const headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" };
+  const call = async (route: string, body?: unknown) => {
+    const response = await fetch(api + route, { method: body ? "POST" : "GET", headers, ...(body ? { body: JSON.stringify(body) } : {}) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error("GitHub " + response.status + ": " + String(data.message ?? "requête refusée").slice(0, 200));
+    return data;
+  };
+  const ref = await call("/git/ref/heads/" + encodeURIComponent(branch));
+  const parentSha = String(ref.object.sha);
+  const parent = await call("/git/commits/" + parentSha);
+  const entries = [];
+  for (const file of files) {
+    const blob = await call("/git/blobs", { content: file.content, encoding: "utf-8" });
+    entries.push({ path: file.path, mode: "100644", type: "blob", sha: blob.sha });
+  }
+  const tree = await call("/git/trees", { base_tree: parent.tree.sha, tree: entries });
+  const commit = await call("/git/commits", { message: "DEBS AI: correction CI - " + title.slice(0, 70), tree: tree.sha, parents: [parentSha] });
+  await call("/git/refs/heads/" + encodeURIComponent(branch), { sha: commit.sha, force: false });
+  const checks = await inspectPullRequestChecks(String(commit.sha), 20);
+  return { branch, head_sha: commit.sha, files: files.map((file) => file.path), checks };
+}
+
 export async function createMissionPullRequest(
   files: ProposedFile[],
   title: string,
