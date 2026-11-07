@@ -1,67 +1,56 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
-import { Code2, Gamepad2, Home, MessageSquareCode, Plug, Settings } from "lucide-react";
-import { t } from "@/lib/i18n";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
 import { Logo } from "./ui";
-
-const nav = [
-  { to: "/", label: t("nav.home"), icon: Home, exact: true },
-  { to: "/chat", label: t("nav.chat"), icon: MessageSquareCode, exact: false },
-  { to: "/atelier", label: t("nav.workshop"), icon: Code2, exact: false },
-  { to: "/studio", label: t("nav.studio"), icon: Gamepad2, exact: false },
-  { to: "/parametres", label: t("nav.settings"), icon: Settings, exact: false },
-] as const;
+import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
+import { seedThreads, type Thread } from "@/lib/chat/threads";
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const navigate = useNavigate();
+  const createConversation = () => {
+    const id = uid("t_");
+    setThreads((items) => [{ id, title: "Nouvelle conversation", updatedAt: Date.now(), messages: [] }, ...items]);
+    navigate({ to: "/chat/$threadId", params: { threadId: id } });
+  };
+
   return (
-    <div className="min-h-dvh md:flex">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-sidebar p-4 md:flex">
-        <Link to="/" className="mb-6 flex items-center gap-2">
-          <Logo />
-          <span className="font-display text-lg font-semibold">DEBS <span className="text-gradient-brand">AI</span></span>
+    <div className="min-h-dvh bg-background text-foreground md:flex">
+      <aside className="hidden h-dvh w-[270px] shrink-0 flex-col border-r border-white/70 bg-white/75 p-4 shadow-[8px_0_35px_-30px_rgba(52,128,255,.55)] backdrop-blur-2xl md:sticky md:top-0 md:flex">
+        <Link to="/chat" className="mb-7 flex items-center gap-3 px-2">
+          <Logo className="size-9" />
+          <span className="font-display text-lg font-bold tracking-tight">DEBS <span className="text-gradient-brand">AI</span></span>
         </Link>
-        <nav className="flex flex-col gap-1">
-          {[...nav.slice(0, 4), { to: "/integrations", label: t("nav.integrations"), icon: Plug, exact: false }, nav[4]].map((n) => (
-            <Link
-              key={n.to}
-              to={n.to}
-              activeOptions={{ exact: n.exact }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground data-[status=active]:bg-sidebar-accent data-[status=active]:text-primary"
-            >
-              <n.icon className="size-4" />
-              {n.label}
+        <button onClick={createConversation} className="glow-outline flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition hover:-translate-y-0.5">
+          <MessageSquarePlus className="size-4" /> Nouvelle conversation
+        </button>
+        <div className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Récents</div>
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+          {threads.slice(0, 30).map((thread) => (
+            <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} className="block truncate rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+              {thread.title || "Nouvelle conversation"}
             </Link>
           ))}
-        </nav>
-        <p className="mt-auto text-xs text-muted-foreground">MVP · {t("common.demoMode")}</p>
+        </div>
+        <Link to="/parametres" className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200/80 px-3 py-3 text-sm text-slate-600 transition hover:border-blue-300 hover:text-blue-700">
+          <Settings2 className="size-4" /> Paramètres
+        </Link>
+        <div className="mt-4 flex items-center gap-2 px-2 text-xs text-slate-400"><Sparkles className="size-3.5 text-blue-500" /> Votre espace intelligent</div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-30 flex items-center justify-between border-b px-4 py-3 md:hidden">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo className="size-7" />
-            <span className="font-display font-semibold">DEBS <span className="text-gradient-brand">AI</span></span>
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/80 bg-white/80 px-4 py-3 backdrop-blur-xl md:hidden">
+          <Link to="/chat" className="flex items-center gap-2">
+            <Logo className="size-8" />
+            <span className="font-display font-bold">DEBS <span className="text-gradient-brand">AI</span></span>
           </Link>
-          <Link to="/integrations" className="rounded-lg p-2 text-muted-foreground hover:text-foreground data-[status=active]:text-primary" aria-label={t("nav.integrations")}>
-            <Plug className="size-5" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <button onClick={createConversation} aria-label="Nouvelle conversation" className="glow-icon rounded-xl p-2"><MessageSquarePlus className="size-5" /></button>
+            <Link to="/parametres" aria-label="Paramètres" className="rounded-xl border border-slate-200 p-2 text-slate-600"><Settings2 className="size-5" /></Link>
+          </div>
         </header>
-        <main className="mx-auto w-full max-w-4xl flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
+        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-3 pb-5 pt-4 sm:px-6 md:px-10 md:pt-8">{children}</main>
       </div>
-
-      <nav className="glass pb-safe fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t md:hidden" aria-label="Navigation principale">
-        {nav.map((n) => (
-          <Link
-            key={n.to}
-            to={n.to}
-            activeOptions={{ exact: n.exact }}
-            className="flex flex-col items-center gap-1 pt-2.5 text-[0.68rem] text-muted-foreground data-[status=active]:text-primary"
-          >
-            <n.icon className="size-5" />
-            {n.label}
-          </Link>
-        ))}
-      </nav>
     </div>
   );
 }
