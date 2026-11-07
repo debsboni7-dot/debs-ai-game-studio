@@ -13,6 +13,7 @@ export function createResponsesCall(
   messages: ModelMessage[],
   instructions?: string,
   enableWebSearch = false,
+  reasoningEffort: "low" | "medium" | "high" = "medium",
 ) {
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
@@ -39,7 +40,7 @@ export function createResponsesCall(
         ...(reasoning
           ? {
               forceReasoning: true,
-              reasoningEffort: "medium",
+              reasoningEffort,
               reasoningSummary: "auto",
               include: ["reasoning.encrypted_content"],
             }
