@@ -11,6 +11,7 @@ import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
+import { takePendingAttachments } from "@/lib/chat/pending-attachments";
 
 const COMMANDS = [
   { command: "/code", label: "Programmation", description: "Développement logiciel général" },
@@ -86,7 +87,7 @@ function ThreadPage() {
   const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const [input, setInput] = useState("");
   useEffect(() => { if (draft) setInput(draft); }, [draft]);
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<File[]>(() => takePendingAttachments());
   const [attachmentResetKey, setAttachmentResetKey] = useState(0);
   const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
   const [loading, setLoading] = useState(false);
@@ -252,7 +253,7 @@ function ThreadPage() {
       <div className="flex-1 space-y-4">
         {thread.messages.length === 0 && (
           <div className="mx-auto flex max-w-xl flex-col items-center gap-3 py-12 text-center">
-            <div className="text-2xl font-semibold tracking-tight">Que veux-tu créer aujourd'hui ?</div>
+            <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-3 py-1 text-[11px] font-semibold text-red-700"><span className="size-1.5 rounded-full bg-red-500" /> DEBS 1.1 · Assistant IA</div><div className="text-2xl font-semibold tracking-tight">Bienvenue sur DEBS AI 1.1</div>
             <p className="text-sm text-muted-foreground">Pose une question librement ou commence par une commande spécialisée.</p>
             <p className="text-xs text-muted-foreground">Exemple : <code className="rounded bg-muted px-2 py-1 text-primary">/unity</code> Crée un système de combat C#.</p>
           </div>
@@ -297,7 +298,7 @@ function ThreadPage() {
         )}
         <div className="flex items-end gap-2">
           <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS AI…" rows={2} className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
-          <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
+          <VoiceAndFiles initialFiles={attachments} onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
         </div>
         <div className="px-2 pb-1 text-center text-[10px] text-slate-400">DEBS AI peut faire des erreurs. Vérifie les informations importantes.</div>
