@@ -257,30 +257,30 @@ function ThreadPage() {
         )}
         {thread.messages.map((message) =>
           message.kind === "user" ? (
-            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-blue-100 bg-blue-50/80 px-4 py-3 text-sm leading-6 text-slate-800">{message.content}</div>
+            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-red-100 bg-red-50/80 px-4 py-3 text-sm leading-6 text-slate-800">{message.content}</div>
           ) : message.kind === "notice" ? (
             <div key={message.id} role="status" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"><AlertTriangle className="size-4 shrink-0" /> {message.content}</div>
           ) : (
             <div key={message.id} className="mx-auto w-full max-w-3xl space-y-3 py-2">
-              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600"><span className="flex size-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600">✦</span>{message.provider}</span>}
+              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600"><span className="flex size-6 items-center justify-center rounded-lg bg-red-50 text-red-600">✦</span>{message.provider}</span>}
               {message.activity && message.activity.length > 0 && <ActivityPanel events={message.activity} />}
               <GameArtifact markdown={message.content} />
               <Markdown>{message.content.replace(new RegExp("\\x60\\x60\\x60file:[^\\n]*\\n[\\s\\S]*?\\n\\x60\\x60\\x60", "g"), "")}</Markdown>
             </div>
           ),
         )}
-        {loading && <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-[0_12px_36px_-28px_rgba(37,99,235,.5)]">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Loader2 className="size-4 animate-spin text-blue-600" /> DEBS AI travaille sur ta demande…</div>
+        {loading && <div className="rounded-2xl border border-red-100 bg-white p-3 shadow-[0_12px_36px_-28px_rgba(220,38,38,.5)]">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Loader2 className="size-4 animate-spin text-red-600" /> DEBS AI travaille sur ta demande…</div>
           <p className="mt-1 text-xs text-slate-500">Les opérations et les outils confirmés apparaissent ici pendant le travail.</p>
           {workingActivity.length > 0 && <div className="mt-2"><ActivityPanel events={workingActivity} /></div>}
           {workingSince && <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400"><Clock3 className="size-3" /> Démarré à {new Date(workingSince).toLocaleTimeString()}</p>}
         </div>}
       </div>
-      <form className="sticky bottom-2 z-20 mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-blue-200 bg-white p-2 shadow-[0_10px_36px_-22px_rgba(37,99,235,.5)] ring-1 ring-blue-50" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <form className="sticky bottom-2 z-20 mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-red-200 bg-white p-2 shadow-[0_10px_36px_-22px_rgba(220,38,38,.5)] ring-1 ring-red-50" onSubmit={(event) => { event.preventDefault(); submit(); }}>
         {repositoryContext && (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-800">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-xs text-red-800">
             <span className="min-w-0 truncate">GitHub · {selectedRepository?.fullName ?? "Dépôt importé"} · {contextFiles.length} fichier(s) en contexte</span>
-            <button type="button" aria-label="Retirer le contexte GitHub" onClick={clearRepositoryContext} className="shrink-0 rounded-lg p-1 hover:bg-blue-100"><X className="size-4" /></button>
+            <button type="button" aria-label="Retirer le contexte GitHub" onClick={clearRepositoryContext} className="shrink-0 rounded-lg p-1 hover:bg-red-100"><X className="size-4" /></button>
           </div>
         )}
         {suggestions.length > 0 && (
@@ -311,22 +311,22 @@ function ActivityPanel({ events }: { events: ChatActivityEvent[] }) {
   }).filter(Boolean))];
   const duration = events.reduce((sum, event) => sum + (event.durationMs ?? 0), 0);
   return (
-    <details className="group rounded-xl border border-blue-100 bg-white text-sm shadow-[0_8px_28px_-24px_rgba(37,99,235,.5)]">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-blue-50/60">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><Globe2 className="size-4" /></span>
+    <details className="group rounded-xl border border-red-100 bg-white text-sm shadow-[0_8px_28px_-24px_rgba(220,38,38,.5)]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-red-50/60">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-red-50 text-red-700"><Globe2 className="size-4" /></span>
         <span className="font-semibold">Activité de DEBS AI</span>
         <span className="text-xs text-slate-500">{events.length} opération(s) · {sites.length} site(s)</span>
         {duration > 0 && <span className="ml-auto text-[11px] text-slate-400">{(duration / 1000).toFixed(1)} s</span>}
         <ChevronDown className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
       </summary>
-      <div className="space-y-2 border-t border-blue-50 px-3 py-3">
+      <div className="space-y-2 border-t border-red-50 px-3 py-3">
         {events.map((event) => (
           <div key={event.id} className="flex items-start gap-2">
-            <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg ${event.status === "failed" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-700"}`}><CheckActivityStatus status={event.status} /></span>
+            <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg ${event.status === "failed" ? "bg-red-50 text-red-600" : "bg-red-50 text-red-700"}`}><CheckActivityStatus status={event.status} /></span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-slate-800">{event.connector}</strong><span className="text-[11px] text-slate-400">{event.action}</span>{event.durationMs !== undefined && <span className="ml-auto text-[10px] text-slate-400">{(event.durationMs / 1000).toFixed(1)} s</span>}</div>
               <p className="text-xs leading-5 text-slate-500">{event.summary}</p>
-              {event.urls && event.urls.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{event.urls.slice(0, 12).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700 hover:bg-blue-100">{(() => { try { return new URL(url).hostname; } catch { return url; } })()} <ExternalLink className="size-2.5 shrink-0" /></a>)}</div>}
+              {event.urls && event.urls.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{event.urls.slice(0, 12).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate rounded-md bg-red-50 px-2 py-1 text-[10px] text-red-700 hover:bg-red-100">{(() => { try { return new URL(url).hostname; } catch { return url; } })()} <ExternalLink className="size-2.5 shrink-0" /></a>)}</div>}
             </div>
           </div>
         ))}
