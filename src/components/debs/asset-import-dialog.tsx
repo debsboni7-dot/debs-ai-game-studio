@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Download, ExternalLink, Loader2, PackageOpen, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ export function AssetImportDialog() {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const reset = () => { setResult(null); setPackName(""); setSourceUrl(""); setLicenseName(""); setLicenseUrl(""); setLicenseEvidence(""); };
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setResult(null);
