@@ -1,6 +1,6 @@
 const ALLOWED_HOSTS = [
   "kenney.nl", "quaternius.com", "itch.io", "itch.zone",
-  "polyhaven.com", "ambientcg.com", "catenarius.com",
+  "polyhaven.com", "ambientcg.com", "catenarius.com", "cartenarius.com",
   "github.com", "githubusercontent.com",
 ];
 
@@ -32,7 +32,7 @@ const ALLOWED_EXTENSIONS = new Set([
   "glb", "gltf", "fbx", "obj", "mtl", "stl", "usd", "usdz", "blend",
   "png", "jpg", "jpeg", "webp", "tga", "hdr", "exr",
   "wav", "ogg", "mp3", "flac", "mp4", "webm",
-  "json", "txt", "md", "xml", "bin", "ktx", "ktx2",
+  "json", "txt", "md", "xml", "bin", "ktx", "ktx2", "glsl", "vert", "frag", "vsh", "fsh", "shader", "atlas", "ase", "aseprite",
 ]);
 
 export function isAllowedAssetFile(path: string): boolean {
