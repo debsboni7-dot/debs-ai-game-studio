@@ -73,7 +73,7 @@ jobs:
         env:
           GAME_URL: http://127.0.0.1:4173/${{ steps.project.outputs.entry_file }}
           GAME_SCREENSHOT_PATH: browser-game-smoke.png
-          run: |
+        run: |
           export NODE_PATH="$(npm root -g)"
           node scripts/browser-game-smoke.cjs
 
