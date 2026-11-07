@@ -180,7 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LogIn className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Connexion / Inscription"}
           </Link>
         )}
-        {(!collapsed || isMobile) && <div className="mt-3 flex items-center gap-2 px-2 text-[10px] text-slate-400"><Sparkles className="size-3 text-red-500" /> Assistant de création</div>}
+        {(!collapsed || isMobile) && <div className="mt-3 flex items-center gap-2 px-2 text-[10px] text-slate-400"><Sparkles className="size-3 text-red-500" /> DEBS 1.1 · Modèle IA</div>}
       </div>
     </div>
   );
@@ -205,7 +205,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"><Menu className="size-5" /></button>
               <button onClick={() => setCollapsed((value) => !value)} aria-label="Afficher ou masquer la barre latérale" className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:inline-flex"><PanelLeftOpen className="size-4" /></button>
               <Link to="/chat" className="truncate text-sm font-semibold tracking-tight text-slate-800">DEBS AI</Link>
-              <span className="hidden rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 sm:inline-flex">Assistant IA</span>
+              <span className="hidden rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 sm:inline-flex">DEBS 1.1</span>
             </div>
             <button onClick={createConversation} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-700">
               <MessageSquarePlus className="size-4" /><span className="hidden sm:inline">Nouveau chat</span>
