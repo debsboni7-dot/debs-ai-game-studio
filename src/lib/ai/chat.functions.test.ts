@@ -44,6 +44,7 @@ describe("chat validation", () => {
   });
   it("accepts specialized engineering modes and defaults unknown modes to general chat", () => {
     expect(validateChatInput({ messages, task: "unity" }).task).toBe("unity");
+    expect(validateChatInput({ messages, task: "game-dev" }).task).toBe("game-dev");
     expect(validateChatInput({ messages, task: "architect" }).task).toBe("architect");
     expect(validateChatInput({ messages, task: "security" }).task).toBe("security");
     expect(validateChatInput({ messages, task: "made-up-mode" }).task).toBe("chat");
