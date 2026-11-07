@@ -34,3 +34,4 @@ use the editor.
 - Integrations/tools live in `src/lib/integrations` separate from the model layer; write/execute actions require explicit user confirmation.
 - MVP persistence is browser localStorage via `usePersistentState` (`src/lib/storage.ts`) until accounts are added.
 - See docs/MVP.md for what is real vs. pending.
+- The chat adapter uses request-local native Gateway Responses streaming consumed server-side with retries disabled, preserving the existing final-only UI and plain-text history contract.

@@ -10,8 +10,8 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[] } {
     throw new Error("Requête invalide : messages manquants ou trop nombreux.");
   }
   const messages = msgs.map((m) => {
-    const role = (m as ChatTurn)?.role;
-    const content = (m as ChatTurn)?.content;
+    const role = (m as ChatTurn | null)?.role;
+    const content = (m as ChatTurn | null)?.content;
     if ((role !== "user" && role !== "assistant") || typeof content !== "string" || content.length > MAX_CHARS) {
       throw new Error("Requête invalide : message mal formé.");
     }
@@ -24,20 +24,21 @@ export function validateChatInput(input: unknown): { messages: ChatTurn[] } {
 export const sendChatMessage = createServerFn({ method: "POST" })
   .inputValidator(validateChatInput)
   .handler(async ({ data }): Promise<ChatResult> => {
-    const { resolveProvider } = await import("./registry.server");
-    const provider = resolveProvider();
-    if (!provider) {
-      return {
-        ok: false,
-        code: "provider_not_configured",
-        message:
-          "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
-      };
-    }
     try {
+      const { resolveProvider } = await import("./registry.server");
+      const provider = resolveProvider();
+      if (!provider) {
+        return {
+          ok: false,
+          code: "provider_not_configured",
+          message:
+            "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
+        };
+      }
       const res = await provider.complete({ messages: data.messages, task: "chat" });
       return { ok: true, text: res.text, provider: provider.label, model: res.model };
-    } catch {
-      return { ok: false, code: "provider_error", message: "Le fournisseur IA a renvoyé une erreur." };
+    } catch (error) {
+      const { safeGatewayError } = await import("./gateway-error.server");
+      return { ok: false, code: "provider_error", message: safeGatewayError(error).message };
     }
   });
