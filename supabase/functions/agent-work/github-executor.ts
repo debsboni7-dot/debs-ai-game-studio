@@ -74,14 +74,13 @@ export async function readCheckAnnotations(headSha: string) {
 export async function updateMissionPullRequestBranch(branch: string, files: ProposedFile[], title: string) {
   const token = Deno.env.get("GITHUB_TOKEN")?.trim();
   const repository = Deno.env.get("GITHUB_REPOSITORY")?.trim();
-  if (!token || !repository || !/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) throw new Error("GitHub non configuré côté serveur.");
-  if (!/^debs-ai\\/mission-[a-f0-9-]{6,40}$/.test(branch)) throw new Error("Branche de réparation non autorisée.");
+  if (!token || !repository || repository.split("/").length !== 2 || repository.split("/").some((part) => !/^[A-Za-z0-9_.-]+$/.test(part))) throw new Error("GitHub non configuré côté serveur.");
+  if (!branch.startsWith("debs-ai/mission-") || !/^debs-ai\/mission-[a-f0-9-]{6,40}$/.test(branch)) throw new Error("Branche de réparation non autorisée.");
   if (!files.length || files.length > 12) throw new Error("Nombre de fichiers invalide.");
   const seen = new Set<string>(); let totalBytes = 0;
   for (const file of files) {
     const path = file.path;
-    if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\\\") || path.split("/").some((part) => !part || part === "." || part === "..") ||
-      /(^|\\/)(\\.env[^/]*|secrets?|credentials|private)(\\/|$)/i.test(path) || /(^|\\/)id_rsa(\\.pub)?$/i.test(path) || /^\\.github\\/workflows\\//i.test(path)) throw new Error("Chemin refusé : " + path);
+    if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\") || path.split("/").some((part) => !part || part === "." || part === ".." || /^\.env/i.test(part) || /^(secrets?|credentials|private)$/i.test(part) || /^id_rsa(\.pub)?$/i.test(part)) || path.startsWith(".github/workflows/")) throw new Error("Chemin refusé : " + path);
     if (file.content.length > 80000) throw new Error("Fichier trop volumineux : " + path);
     totalBytes += new TextEncoder().encode(file.content).byteLength;
     if (totalBytes > 300000) throw new Error("Proposition trop volumineuse : limite totale de 300 Ko.");
