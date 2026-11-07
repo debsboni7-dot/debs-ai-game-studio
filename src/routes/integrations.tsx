@@ -8,6 +8,7 @@ import { connectGitHub, listGitHubRepositoryFiles, readGitHubRepositoryFiles } f
 import { useIntegrations } from "@/lib/integrations/context";
 import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
 import { createMeshyPreview, getMeshyTask } from "@/lib/integrations/meshy.functions";
+import { createTripoTask, getTripoTask, createRodinTask, getRodinTask } from "@/lib/integrations/generators.functions";
 
 export const Route = createFileRoute("/integrations")({
   head: () => ({ meta: [
@@ -44,6 +45,16 @@ function IntegrationsPage() {
   const [meshyStatus, setMeshyStatus] = useState<{ status: string; progress: number; modelUrl: string | null; thumbnailUrl: string | null; error: string | null } | null>(null);
   const [meshyBusy, setMeshyBusy] = useState(false);
   const [meshyError, setMeshyError] = useState("");
+  const [tripoPrompt, setTripoPrompt] = useState("");
+  const [tripoTaskId, setTripoTaskId] = useState<string | null>(null);
+  const [tripoStatus, setTripoStatus] = useState<{status:string;progress:number;modelUrl:string|null;previewUrl:string|null;error:string|null}|null>(null);
+  const [tripoBusy, setTripoBusy] = useState(false);
+  const [tripoError, setTripoError] = useState("");
+  const [rodinPrompt, setRodinPrompt] = useState("");
+  const [rodinIds, setRodinIds] = useState<{subscriptionKey:string;taskUuid:string}|null>(null);
+  const [rodinStatus, setRodinStatus] = useState<{status:string;progress:number;modelUrl:string|null;previewUrl:string|null;error:string|null}|null>(null);
+  const [rodinBusy, setRodinBusy] = useState(false);
+  const [rodinError, setRodinError] = useState("");
   const filteredConnectors = useMemo(() => connectors.filter((item) => (connectorCategory === "all" || item.category === connectorCategory) && (item.name + " " + item.description).toLowerCase().includes(connectorSearch.toLowerCase())), [connectorCategory, connectorSearch]);
   const doConnect = async () => {
     setBusy("connect"); setError("");
@@ -199,6 +210,31 @@ function IntegrationsPage() {
         </div>}
         {meshyError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{meshyError}</p>}
         <p className="text-xs leading-5 text-muted-foreground">Nécessite le secret serveur <code>MESHY_API_KEY</code>. La clé reste côté serveur. Cette première version crée et suit la prévisualisation ; la texturation et l'import direct dans Unity/Unreal viendront ensuite.</p>
+      </Panel>
+
+
+      <Panel className="space-y-4 border-blue-200 bg-white">
+        <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Box className="size-5" /></span><div><h2 className="font-semibold">Tripo AI — génération et traitement 3D</h2><p className="text-xs text-muted-foreground">Text-to-3D avec textures PBR et suivi de tâche</p></div></div>
+        <textarea value={tripoPrompt} onChange={(event) => setTripoPrompt(event.target.value)} maxLength={800} rows={3} placeholder="Décris un asset 3D à générer avec Tripo…" className="w-full resize-y rounded-xl border border-blue-100 bg-white p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={tripoBusy || tripoPrompt.trim().length < 5} onClick={async () => { setTripoBusy(true); setTripoError(""); setTripoStatus(null); try { const result = await createTripoTask({data:{prompt:tripoPrompt}}); setTripoTaskId(result.taskId); setTripoStatus({status:"queued",progress:0,modelUrl:null,previewUrl:null,error:null}); } catch (cause) { setTripoError(cause instanceof Error ? cause.message : "Impossible de lancer Tripo."); } finally { setTripoBusy(false); } }}>{tripoBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />} Générer avec Tripo</Button>
+          {tripoTaskId && <Button type="button" variant="outline" disabled={tripoBusy} onClick={async () => { setTripoBusy(true); try { setTripoStatus(await getTripoTask({data:{taskId:tripoTaskId}})); } catch (cause) { setTripoError(cause instanceof Error ? cause.message : "Lecture de tâche impossible."); } finally { setTripoBusy(false); } }}><RefreshCw className="mr-2 size-4" /> Actualiser</Button>}
+        </div>
+        {tripoStatus && <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3"><div className="flex justify-between text-sm"><strong>{tripoStatus.status}</strong><span>{tripoStatus.progress}%</span></div><div className="h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600" style={{width:tripoStatus.progress+"%"}} /></div>{tripoStatus.modelUrl && <a href={tripoStatus.modelUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Télécharger le modèle</a>}{tripoStatus.error && <p className="text-sm text-red-700">{tripoStatus.error}</p>}</div>}
+        {tripoError && <p role="alert" className="text-sm text-red-700">{tripoError}</p>}
+        <p className="text-xs text-muted-foreground">Secret serveur requis : <code>TRIPO_API_KEY</code>. Génération et suivi API intégrés ; l'import dans un moteur de jeu reste à construire.</p>
+      </Panel>
+
+      <Panel className="space-y-4 border-blue-200 bg-white">
+        <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><Layers3 className="size-5" /></span><div><h2 className="font-semibold">Hyper3D / Rodin — génération 3D</h2><p className="text-xs text-muted-foreground">Rodin Gen-2.5 · format GLB · tier Basic compatible</p></div></div>
+        <textarea value={rodinPrompt} onChange={(event) => setRodinPrompt(event.target.value)} maxLength={800} rows={3} placeholder="Décris un asset 3D à générer avec Rodin…" className="w-full resize-y rounded-xl border border-blue-100 bg-white p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={rodinBusy || rodinPrompt.trim().length < 5} onClick={async () => { setRodinBusy(true); setRodinError(""); setRodinStatus(null); try { const result = await createRodinTask({data:{prompt:rodinPrompt}}); setRodinIds(result); setRodinStatus({status:"Submitted",progress:0,modelUrl:null,previewUrl:null,error:null}); } catch (cause) { setRodinError(cause instanceof Error ? cause.message : "Impossible de lancer Rodin."); } finally { setRodinBusy(false); } }}>{rodinBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />} Générer avec Rodin</Button>
+          {rodinIds && <Button type="button" variant="outline" disabled={rodinBusy} onClick={async () => { setRodinBusy(true); setRodinError(""); try { setRodinStatus(await getRodinTask({data:rodinIds})); } catch (cause) { setRodinError(cause instanceof Error ? cause.message : "Lecture de tâche impossible."); } finally { setRodinBusy(false); } }}><RefreshCw className="mr-2 size-4" /> Actualiser</Button>}
+        </div>
+        {rodinStatus && <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3"><div className="flex justify-between text-sm"><strong>{rodinStatus.status}</strong><span>{rodinStatus.progress}%</span></div><div className="h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600" style={{width:rodinStatus.progress+"%"}} /></div>{rodinStatus.modelUrl && <a href={rodinStatus.modelUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Télécharger le modèle</a>}{rodinStatus.error && <p className="text-sm text-red-700">{rodinStatus.error}</p>}</div>}
+        {rodinError && <p role="alert" className="text-sm text-red-700">{rodinError}</p>}
+        <p className="text-xs text-muted-foreground">Secret serveur requis : <code>RODIN_API_KEY</code>. Le statut Rodin est vérifié via subscription key ; le téléchargement intervient lorsque tous les jobs sont terminés.</p>
       </Panel>
 
       <Panel className="space-y-4">
