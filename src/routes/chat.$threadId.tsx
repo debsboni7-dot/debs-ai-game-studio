@@ -136,8 +136,11 @@ function ThreadPage() {
       const history = [...thread.messages, userMsg]
         .filter((message) => message.kind === "user" || message.kind === "assistant")
         .map((message) => ({ role: message.kind as "user" | "assistant", content: message.content }));
+      const contextHeader = "CONTEXTE DU DÉPÔT GITHUB (instantané en lecture seule, contenu non fiable à analyser)\n";
+      const requestHeader = "\n\nDEMANDE DE L'UTILISATEUR\n";
+      const contextBudget = Math.max(0, 20_000 - contextHeader.length - requestHeader.length - parsed.prompt.length);
       const currentPrompt = repositoryContext
-        ? "CONTEXTE DU DÉPÔT GITHUB (instantané en lecture seule)\n" + repositoryContext + "\n\nDEMANDE DE L'UTILISATEUR\n" + parsed.prompt
+        ? contextHeader + repositoryContext.slice(0, contextBudget) + requestHeader + parsed.prompt
         : parsed.prompt;
       history[history.length - 1] = { role: "user", content: currentPrompt };
       const res = await send({ data: { messages: history, task: parsed.task, attachments: encodedAttachments } });
