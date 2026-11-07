@@ -86,7 +86,7 @@ function ThreadPage() {
     const parsed = parseCommand(raw);
     if (!parsed.help && !parsed.prompt) return;
     setInput("");
-    const userMsg: ChatMessage = { id: uid(), kind: "user", content: raw + (attachments.length ? "\\n\\n[Pièces jointes : " + attachments.map((file) => file.name).join(", ") + "]" : ""), createdAt: Date.now() };
+    const userMsg: ChatMessage = { id: uid(), kind: "user", content: raw + (attachments.length ? "\n\n[Pièces jointes : " + attachments.map((file) => file.name).join(", ") + "]" : ""), createdAt: Date.now() };
     const nextTitle = thread.messages.length === 0 ? titleFrom(raw) : thread.title;
     push(userMsg, thread.messages.length === 0 ? nextTitle : undefined);
 
