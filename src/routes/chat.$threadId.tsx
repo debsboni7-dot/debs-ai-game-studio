@@ -41,7 +41,7 @@ const HELP_TEXT = `### Commandes DEBS AI
 - \`/review\` — revue de code
 - \`/help\` — afficher cette aide
 
-Sans commande slash, DEBS AI répond en mode général. Écris la commande, ajoute un espace, puis ton message. Exemple : `/debug Mon personnage traverse le sol...`
+Sans commande slash, DEBS AI répond en mode général. Écris la commande, ajoute un espace, puis ton message. Exemple : \`/debug Mon personnage traverse le sol...\`
 
 Note : le mode recherche ne prétendra jamais avoir consulté le Web si aucun outil de recherche réel n'est disponible.`;
 
