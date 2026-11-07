@@ -36,7 +36,7 @@ function urlFrom(value: unknown): string | null {
 export const createTripoTask = createServerFn({ method: "POST" }).inputValidator(validatePrompt).handler(async ({ data }) => {
   const body = await jsonRequest("https://openapi.tripo3d.ai/v3/generation/text-to-model", secret("TRIPO_API_KEY"), {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: data.prompt, model: "v3.1-20260211", texture: true, pbr: true, texture_quality: "detailed", output_format: "glb" }),
+    body: JSON.stringify({ prompt: data.prompt, model: "v3.1-20260211", texture: true, pbr: true, texture_quality: "detailed" }),
   });
   const taskId = body.data?.task_id;
   if (body.code !== 0 || typeof taskId !== "string") throw new Error(String(body.message ?? "Tripo n'a pas retourné d'identifiant de tâche."));
