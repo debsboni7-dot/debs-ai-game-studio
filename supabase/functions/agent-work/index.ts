@@ -41,11 +41,11 @@ Deno.serve(async(request)=>{
       const paths=(treeData.tree??[]).filter((x:{type:string;path:string;size?:number})=>x.type==="blob"&&
         !/(^|\\/)(node_modules|dist|build|coverage|\.git|\.next|vendor)(\\/|$)/i.test(x.path)&&
         !/(^|\\/)(\.env[^/]*|secrets?[^/]*|id_rsa(\.pub)?|.*\.lock)$/i.test(x.path)&&
-        /\\.(tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
+        /[.](tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
       const ranked=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:
         (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
-        (/(src\\/|supabase\\/functions\\/)/i.test(x.path)?3:0)+
-        (/\\.(tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a,b)=>b.score-a.score);
+        (/(src[/]|supabase[/]functions[/])/i.test(x.path)?3:0)+
+        (/[.](tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a,b)=>b.score-a.score);
       const selected=ranked.slice(0,8);
       const contents=[];let total=0;
       for(const item of selected){
@@ -55,7 +55,7 @@ Deno.serve(async(request)=>{
           if(!fileResponse.ok)continue;
           const fileData=await fileResponse.json();
           if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")continue;
-          const binary=atob(fileData.content.replace(/\\s/g,""));
+          const binary=atob(fileData.content.replace(/\s/g,""));
           const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
           const text=new TextDecoder().decode(bytes).slice(0,Math.min(12000,60000-total));
           contents.push({path:item.path,content:text});total+=text.length;
