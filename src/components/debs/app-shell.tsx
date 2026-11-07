@@ -93,6 +93,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link to="/integrations" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50">
             <GitBranch className="size-4" /> Développement & intégrations
           </Link>
+          <Link to="/missions" className="mt-2 flex items-center gap-3 rounded-xl border border-violet-100 bg-violet-50/70 px-3 py-3 text-sm font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-50">
+            <Clock3 className="size-4" /> Missions autonomes
+          </Link>
           <div className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Historique des conversations</div>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             {groupedThreads.map((group) => (
