@@ -52,7 +52,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json({ error: "Méthode non autorisée." }, 405);
   const authHeader = request.headers.get("authorization") ?? "";
-  const jwt = authHeader.replace(/^Bearer\\s+/i, "");
+  const jwt = authHeader.replace(/^Bearer\s+/i, "");
   if (!jwt || jwt === authHeader) return json({ error: "Connexion requise." }, 401);
   const supabaseUrl = env("SUPABASE_URL");
   const anonKey = env("SUPABASE_ANON_KEY");
@@ -77,7 +77,7 @@ Deno.serve(async (request) => {
   const token = env("GITHUB_TOKEN");
   const repository = env("GITHUB_REPOSITORY");
   const baseBranch = env("GITHUB_BASE_BRANCH") || "main";
-  if (!token || !/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) return json({ error: "GitHub n'est pas configuré côté serveur." }, 503);
+  if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return json({ error: "GitHub n'est pas configuré côté serveur." }, 503);
 
   try {
     const archive = await downloadZip(sourceUrl);
@@ -87,7 +87,7 @@ Deno.serve(async (request) => {
     let total = 0;
     for (const [name, bytes] of Object.entries(entries)) {
       if (name.endsWith("/")) continue;
-      const path = name.replace(/^\\.\\//, "");
+      const path = name.replace(/^\.\//, "");
       if (!isAllowedAssetFile(path)) continue;
       if (bytes.length > 5 * 1024 * 1024) throw new Error("Un fichier dépasse la limite de 5 Mo : " + path.slice(0, 100));
       total += bytes.length;
