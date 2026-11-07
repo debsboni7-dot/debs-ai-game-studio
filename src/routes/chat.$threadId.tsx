@@ -218,7 +218,7 @@ function ThreadPage() {
       } else {
         if (cloudUserId) {
           const { error } = await supabase.from("chat_messages").insert({
-            conversation_id: threadId, user_id: cloudUserId, role: "assistant", content: assistantText,
+            conversation_id: threadId, user_id: cloudUserId, role: "assistant", content: assistantText, activity: activityEvents,
           });
           if (error) push({ id: uid(), kind: "notice", content: "La réponse est affichée, mais sa sauvegarde cloud a échoué.", createdAt: Date.now() });
           else await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", threadId);
