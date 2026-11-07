@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { unzipSync } from "npm:fflate@0.8.2";
+import { unzipSync } from "https://esm.sh/fflate@0.8.2";
 import { assetSlug, isAllowedAssetFile, validateAssetSourceUrl } from "../_shared/asset-security.ts";
 
 const cors = {
