@@ -12,13 +12,62 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => { if (active) setUserEmail(data.session?.user.email ?? null); });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUserEmail(session?.user.email ?? null));
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active) return;
+      const user = data.session?.user;
+      setUserEmail(user?.email ?? null);
+      if (user) {
+        const { data: cloudRows, error } = await supabase
+          .from("conversations")
+          .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
+          .order("updated_at", { ascending: false });
+        if (active && !error && cloudRows?.length) {
+          const cloudThreads: Thread[] = cloudRows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            updatedAt: new Date(row.updated_at).getTime(),
+            messages: (row.chat_messages ?? []).map((message) => ({
+              id: message.id,
+              kind: message.role,
+              content: message.content,
+              createdAt: new Date(message.created_at).getTime(),
+            })),
+          }));
+          setThreads(cloudThreads);
+        }
+      }
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? null);
+      if (!session) return;
+      void supabase.from("conversations")
+        .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
+        .order("updated_at", { ascending: false })
+        .then(({ data, error }) => {
+          if (!active || error || !data?.length) return;
+          setThreads(data.map((row) => ({
+            id: row.id,
+            title: row.title,
+            updatedAt: new Date(row.updated_at).getTime(),
+            messages: (row.chat_messages ?? []).map((message) => ({
+              id: message.id, kind: message.role, content: message.content,
+              createdAt: new Date(message.created_at).getTime(),
+            })),
+          })));
+        });
+    });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
   const signOut = async () => { await supabase.auth.signOut(); setUserEmail(null); await navigate({ to: "/chat" }); };
-  const createConversation = () => {
-    const id = uid("t_");
+  const createConversation = async () => {
+    let id = uid("t_");
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth.user) {
+      const { data, error } = await supabase.from("conversations")
+        .insert({ user_id: auth.user.id, title: "Nouvelle conversation" })
+        .select("id").single();
+      if (!error && data) id = data.id;
+    }
     setThreads((items) => [{ id, title: "Nouvelle conversation", updatedAt: Date.now(), messages: [] }, ...items]);
     navigate({ to: "/chat/$threadId", params: { threadId: id } });
   };
