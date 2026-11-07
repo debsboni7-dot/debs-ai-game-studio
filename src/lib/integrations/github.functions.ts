@@ -120,7 +120,7 @@ export const readGitHubRepositoryFiles = createServerFn({ method: "POST" })
       }
       const content = decodeBase64(file.content);
       total += content.length;
-      if (total > 60_000) throw new Error("La sélection dépasse 60 000 caractères. Importe moins de fichiers.");
+      if (total > 14_000) throw new Error("La sélection dépasse 14 000 caractères. Importe moins de fichiers.");
       files.push({ path, content });
     }
     return { files };
