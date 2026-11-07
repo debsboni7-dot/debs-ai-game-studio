@@ -137,6 +137,7 @@ function ThreadPage() {
 
     setLoading(true);
     setWorkingSince(Date.now());
+    let pendingAssistantId: string | null = null;
     try {
       const encodedAttachments = await Promise.all(attachments.map(async (file) => ({
         kind: file.type.startsWith("image/") ? "image" as const : "file" as const,
@@ -161,6 +162,7 @@ function ThreadPage() {
         : attachmentPrompt;
       history[history.length - 1] = { role: "user", content: currentPrompt };
       const assistantId = uid();
+      pendingAssistantId = assistantId;
       let assistantText = "";
       let streamError = "";
       let activityEvents: ChatActivityEvent[] = [];
