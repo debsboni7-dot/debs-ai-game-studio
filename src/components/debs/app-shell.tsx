@@ -1,6 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Clock3, GitBranch, LogIn, LogOut, MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
+import {
+  Clock3, GitBranch, LogIn, LogOut, Menu, MessageSquarePlus, PanelLeftClose,
+  PanelLeftOpen, Search, Settings2, Sparkles, X,
+} from "lucide-react";
 import { Logo } from "./ui";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
@@ -9,16 +12,25 @@ import { IntegrationProvider } from "@/lib/integrations/context";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const now = Date.now();
+
+  const filteredThreads = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("fr");
+    return query ? threads.filter((thread) => thread.title.toLocaleLowerCase("fr").includes(query)) : threads;
+  }, [threads, search]);
   const groupedThreads = [
-    { label: "Aujourd’hui", items: threads.filter((item) => now - item.updatedAt < 86_400_000) },
-    { label: "Hier", items: threads.filter((item) => now - item.updatedAt >= 86_400_000 && now - item.updatedAt < 172_800_000) },
-    { label: "7 derniers jours", items: threads.filter((item) => now - item.updatedAt >= 172_800_000 && now - item.updatedAt < 7 * 86_400_000) },
-    { label: "Plus anciens", items: threads.filter((item) => now - item.updatedAt >= 7 * 86_400_000) },
+    { label: "Aujourd’hui", items: filteredThreads.filter((item) => now - item.updatedAt < 86_400_000) },
+    { label: "Hier", items: filteredThreads.filter((item) => now - item.updatedAt >= 86_400_000 && now - item.updatedAt < 172_800_000) },
+    { label: "7 derniers jours", items: filteredThreads.filter((item) => now - item.updatedAt >= 172_800_000 && now - item.updatedAt < 7 * 86_400_000) },
+    { label: "Plus anciens", items: filteredThreads.filter((item) => now - item.updatedAt >= 7 * 86_400_000) },
   ].filter((group) => group.items.length > 0);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(async ({ data }) => {
@@ -31,18 +43,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
           .order("updated_at", { ascending: false });
         if (active && !error && cloudRows?.length) {
-          const cloudThreads: Thread[] = cloudRows.map((row) => ({
-            id: row.id,
-            title: row.title,
-            updatedAt: new Date(row.updated_at).getTime(),
+          setThreads(cloudRows.map((row) => ({
+            id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
             messages: (row.chat_messages ?? []).map((message) => ({
-              id: message.id,
-              kind: message.role,
-              content: message.content,
+              id: message.id, kind: message.role, content: message.content,
               createdAt: new Date(message.created_at).getTime(),
             })),
-          }));
-          setThreads(cloudThreads);
+          })));
         }
       }
     });
@@ -65,7 +72,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
-  const signOut = async () => { await supabase.auth.signOut(); setUserEmail(null); await navigate({ to: "/chat" }); };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUserEmail(null);
+    await navigate({ to: "/chat" });
+    setMobileOpen(false);
+  };
+
   const createConversation = async () => {
     let id = uid("t_");
     const { data: auth } = await supabase.auth.getUser();
@@ -76,70 +90,130 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (!error && data) id = data.id;
     }
     setThreads((items) => [{ id, title: "Nouvelle conversation", updatedAt: Date.now(), messages: [] }, ...items]);
-    navigate({ to: "/chat/$threadId", params: { threadId: id } });
+    setSearch("");
+    setMobileOpen(false);
+    await navigate({ to: "/chat/$threadId", params: { threadId: id } });
   };
+
+  const sidebar = (isMobile = false) => (
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <div className="flex h-[68px] shrink-0 items-center justify-between px-4">
+        <Link to="/chat" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
+          <Logo className="size-9 shrink-0" />
+          {!collapsed || isMobile ? <span className="font-display text-lg font-bold tracking-tight">DEBS <span className="text-gradient-brand">AI</span></span> : null}
+        </Link>
+        {isMobile ? (
+          <button onClick={() => setMobileOpen(false)} aria-label="Fermer le menu" className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X className="size-5" /></button>
+        ) : (
+          <button onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Développer la barre latérale" : "Réduire la barre latérale"} className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-50 hover:text-blue-700">
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </button>
+        )}
+      </div>
+
+      <div className={`px-3 ${collapsed && !isMobile ? "px-2" : ""}`}>
+        <button onClick={createConversation} title="Nouvelle conversation" className={`flex w-full items-center gap-3 rounded-xl border border-blue-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 shadow-[0_2px_12px_-8px_rgba(37,99,235,.5)] transition hover:border-blue-400 hover:bg-blue-50/60 ${collapsed && !isMobile ? "justify-center px-2" : ""}`}>
+          <MessageSquarePlus className="size-[18px] shrink-0 text-blue-600" />
+          {(!collapsed || isMobile) && "Nouveau chat"}
+        </button>
+      </div>
+
+      {(!collapsed || isMobile) && (
+        <div className="px-3 pt-3">
+          <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-slate-400 focus-within:border-blue-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+            <Search className="size-4 shrink-0" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un chat" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" />
+            {search && <button onClick={() => setSearch("")} aria-label="Effacer la recherche"><X className="size-3.5" /></button>}
+          </label>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-5">
+        {(!collapsed || isMobile) ? (
+          <>
+            <div className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[.12em] text-slate-400">Historique</div>
+            {groupedThreads.length ? groupedThreads.map((group) => (
+              <section key={group.label} className="mb-4">
+                <h3 className="mb-1 px-2 text-[11px] font-medium text-slate-400">{group.label}</h3>
+                {group.items.map((thread) => {
+                  const active = pathname.endsWith("/" + thread.id);
+                  return (
+                    <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} onClick={() => setMobileOpen(false)}
+                      className={`mb-0.5 block truncate rounded-lg px-3 py-2.5 text-[13px] transition ${active ? "bg-blue-50 font-semibold text-blue-800" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"}`}>
+                      {thread.title || "Nouvelle conversation"}
+                    </Link>
+                  );
+                })}
+              </section>
+            )) : <p className="px-2 text-xs leading-5 text-slate-400">{search ? "Aucun résultat." : "Tes conversations apparaîtront ici."}</p>}
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-3 pt-2">
+            {filteredThreads.slice(0, 8).map((thread) => (
+              <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} title={thread.title} className={`flex size-10 items-center justify-center rounded-xl text-xs font-semibold ${pathname.endsWith("/" + thread.id) ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500 hover:bg-blue-50"}`}>
+                {(thread.title || "N").slice(0, 1).toUpperCase()}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 border-t border-slate-100 p-3">
+        <div className={`mb-1 flex flex-col gap-1 ${collapsed && !isMobile ? "items-center" : ""}`}>
+          <Link to="/integrations" onClick={() => setMobileOpen(false)} title="Outils et intégrations" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-blue-700">
+            <GitBranch className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Outils et intégrations"}
+          </Link>
+          <Link to="/missions" onClick={() => setMobileOpen(false)} title="Missions autonomes" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-blue-700">
+            <Clock3 className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Missions autonomes"}
+          </Link>
+          <Link to="/parametres" onClick={() => setMobileOpen(false)} title="Paramètres" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-blue-700">
+            <Settings2 className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Paramètres"}
+          </Link>
+        </div>
+        {userEmail ? (
+          <div className={`mt-2 flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 ${collapsed && !isMobile ? "justify-center" : ""}`}>
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">{userEmail.slice(0, 1).toUpperCase()}</div>
+            {(!collapsed || isMobile) && <><span className="min-w-0 flex-1 truncate text-xs text-slate-600">{userEmail}</span><button onClick={signOut} aria-label="Déconnexion" title="Déconnexion" className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"><LogOut className="size-4" /></button></>}
+          </div>
+        ) : (
+          <Link to="/connexion" onClick={() => setMobileOpen(false)} title="Connexion / Inscription" className={`mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 ${collapsed && !isMobile ? "justify-center" : ""}`}>
+            <LogIn className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Connexion / Inscription"}
+          </Link>
+        )}
+        {(!collapsed || isMobile) && <div className="mt-3 flex items-center gap-2 px-2 text-[10px] text-slate-400"><Sparkles className="size-3 text-blue-500" /> Assistant de création</div>}
+      </div>
+    </div>
+  );
 
   return (
     <IntegrationProvider>
-      <div className="min-h-dvh bg-background text-foreground md:flex">
-        <aside className="hidden h-dvh w-[270px] shrink-0 flex-col border-r border-white/70 bg-white/75 p-4 shadow-[8px_0_35px_-30px_rgba(52,128,255,.55)] backdrop-blur-2xl md:sticky md:top-0 md:flex">
-          <Link to="/chat" className="mb-7 flex items-center gap-3 px-2">
-            <Logo className="size-9" />
-            <span className="font-display text-lg font-bold tracking-tight">DEBS <span className="text-gradient-brand">AI</span></span>
-          </Link>
-          <button onClick={createConversation} className="glow-outline flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition hover:-translate-y-0.5">
-            <MessageSquarePlus className="size-4" /> Nouvelle conversation
-          </button>
-          <Link to="/integrations" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50">
-            <GitBranch className="size-4" /> Développement & intégrations
-          </Link>
-          <Link to="/missions" className="mt-2 flex items-center gap-3 rounded-xl border border-violet-100 bg-violet-50/70 px-3 py-3 text-sm font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-50">
-            <Clock3 className="size-4" /> Missions autonomes
-          </Link>
-          <div className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Historique des conversations</div>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            {groupedThreads.map((group) => (
-              <section key={group.label} className="space-y-1">
-                <h3 className="px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{group.label}</h3>
-                {group.items.map((thread) => {
-                  const active = pathname.endsWith("/" + thread.id);
-                  return <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} className={`block truncate rounded-xl border px-3 py-2.5 text-sm transition ${active ? "border-blue-200 bg-blue-50 font-semibold text-blue-800 shadow-[inset_3px_0_0_#397dff]" : "border-transparent text-slate-600 hover:border-blue-100 hover:bg-blue-50/70 hover:text-blue-700"}`}>
-                    {thread.title || "Nouvelle conversation"}
-                  </Link>;
-                })}
-              </section>
-            ))}
-            {threads.length === 0 && <p className="px-2 text-xs text-slate-400">Tes conversations apparaîtront ici.</p>}
-          </div>
-          {userEmail ? (
-            <div className="mt-3 space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
-              <p className="truncate text-xs text-slate-500">{userEmail}</p>
-              <button onClick={signOut} className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-700"><LogOut className="size-4" /> Déconnexion</button>
-            </div>
-          ) : (
-            <Link to="/connexion" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"><LogIn className="size-4" /> Connexion / Inscription</Link>
-          )}
-          <Link to="/parametres" className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200/80 px-3 py-3 text-sm text-slate-600 transition hover:border-blue-300 hover:text-blue-700">
-            <Settings2 className="size-4" /> Paramètres
-          </Link>
-          <div className="mt-4 flex items-center gap-2 px-2 text-xs text-slate-400"><Sparkles className="size-3.5 text-blue-500" /> Votre espace intelligent</div>
+      <div className="flex min-h-dvh bg-white text-slate-900">
+        <aside className={`sticky top-0 hidden h-dvh shrink-0 border-r border-slate-200/80 bg-white transition-[width] duration-200 md:block ${collapsed ? "w-[76px]" : "w-[270px]"}`}>
+          {sidebar(false)}
         </aside>
 
+        {mobileOpen && (
+          <div className="fixed inset-0 z-[70] md:hidden">
+            <button aria-label="Fermer le menu" onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-slate-950/25 backdrop-blur-[2px]" />
+            <aside className="absolute inset-y-0 left-0 w-[min(86vw,310px)] border-r border-slate-200 bg-white shadow-2xl">{sidebar(true)}</aside>
+          </div>
+        )}
+
         <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/80 bg-white/80 px-4 py-3 backdrop-blur-xl md:hidden">
-            <Link to="/chat" className="flex items-center gap-2">
-              <Logo className="size-8" />
-              <span className="font-display font-bold">DEBS <span className="text-gradient-brand">AI</span></span>
-            </Link>
-            <div className="flex items-center gap-2">
-              <Link to="/integrations" aria-label="Développement et intégrations" className="rounded-xl border border-blue-200 p-2 text-blue-600"><GitBranch className="size-5" /></Link>
-              <Link to="/missions" aria-label="Missions longue durée" className="rounded-xl border border-violet-200 p-2 text-violet-600"><Clock3 className="size-5" /></Link>
-              <button onClick={createConversation} aria-label="Nouvelle conversation" className="glow-icon rounded-xl p-2"><MessageSquarePlus className="size-5" /></button>
-              {userEmail ? <button onClick={signOut} aria-label="Déconnexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogOut className="size-5" /></button> : <Link to="/connexion" aria-label="Connexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogIn className="size-5" /></Link>}
-              <Link to="/parametres" aria-label="Paramètres" className="rounded-xl border border-slate-200 p-2 text-slate-600"><Settings2 className="size-5" /></Link>
+          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-slate-100 bg-white/95 px-3 backdrop-blur md:px-5">
+            <div className="flex min-w-0 items-center gap-2">
+              <button onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"><Menu className="size-5" /></button>
+              <button onClick={() => setCollapsed((value) => !value)} aria-label="Afficher ou masquer la barre latérale" className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:inline-flex"><PanelLeftOpen className="size-4" /></button>
+              <Link to="/chat" className="truncate text-sm font-semibold tracking-tight text-slate-800">DEBS AI</Link>
+              <span className="hidden rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 sm:inline-flex">Assistant IA</span>
             </div>
+            <button onClick={createConversation} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
+              <MessageSquarePlus className="size-4" /><span className="hidden sm:inline">Nouveau chat</span>
+            </button>
           </header>
-          <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-3 pb-5 pt-4 sm:px-6 md:px-10 md:pt-8">{children}</main>
+          <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 md:px-10 md:pt-6">
+            {children}
+          </main>
         </div>
       </div>
     </IntegrationProvider>
