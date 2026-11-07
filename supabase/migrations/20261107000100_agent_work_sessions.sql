@@ -83,6 +83,13 @@ begin
 end; $$;
 revoke all on function public.claim_agent_work_task(integer) from public,anon,authenticated;
 grant execute on function public.claim_agent_work_task(integer) to service_role;
+
+// Explicit least-privilege table grants. RLS further limits authenticated reads
+// to rows belonging to auth.uid(); writes are reserved for service_role.
+revoke all on table public.agent_work_sessions, public.agent_work_tasks, public.agent_work_events from anon, authenticated;
+grant select on table public.agent_work_sessions, public.agent_work_tasks, public.agent_work_events to authenticated;
+grant all privileges on table public.agent_work_sessions, public.agent_work_tasks, public.agent_work_events to service_role;
+grant usage, select on sequence public.agent_work_events_id_seq to service_role;
 create or replace function public.touch_agent_work_session() returns trigger language plpgsql as $$
 begin new.updated_at=now(); return new; end; $$;
 drop trigger if exists agent_work_sessions_touch on public.agent_work_sessions;
