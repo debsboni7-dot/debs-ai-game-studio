@@ -5,7 +5,7 @@ create table if not exists public.agent_work_sessions (
  status text not null default 'queued' check(status in ('queued','running','paused','completed','failed','cancelled','expired')),
  requested_hours integer not null check(requested_hours between 1 and 168), deadline_at timestamptz not null,
  heartbeat_at timestamptz, next_run_at timestamptz not null default now(), checkpoint jsonb not null default '{}'::jsonb,
- last_summary text, step_count integer not null default 0, max_steps integer not null default 100 check(max_steps between 1 and 1000),
+ last_summary text, step_count integer not null default 0, max_steps integer not null default 100 check(max_steps between 1 and 2000),
  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 create table if not exists public.agent_work_tasks (
