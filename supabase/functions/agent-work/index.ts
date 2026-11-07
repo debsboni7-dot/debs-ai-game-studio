@@ -37,19 +37,19 @@ Deno.serve(async(request)=>{
      const nextAt=new Date(Date.now()+60000).toISOString();
      const {error:taskUpdateError}=await admin.from("agent_work_tasks").update({status:"completed",result:{checks},lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
      if(taskUpdateError)throw taskUpdateError;
+     await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},last_summary:"Pull Request créé ; vérifications CI en cours.",heartbeat_at:new Date().toISOString(),next_run_at:nextAt,updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
      await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"github_ci_pending",message:"Les vérifications GitHub sont encore en cours ; nouveau contrôle programmé.",metadata:eventMetadata});
      const {error:nextError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,available_at:nextAt,input:{...proposal,poll_count:pollCount}});
      if(nextError)throw nextError;
-     await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},last_summary:"Pull Request créé ; vérifications CI en cours.",heartbeat_at:new Date().toISOString(),next_run_at:nextAt,updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
      return json({ok:true,claimed:true,ci_state:"pending",session_id:session.id,poll_count:pollCount});
     }
     const finalSummary=checks.state==="success"?"Les vérifications GitHub ont réussi.":"Les vérifications GitHub ont échoué : "+(checks.failed_checks.join(", ")||"résultat incomplet ou délai de suivi atteint.");
     await admin.from("agent_work_tasks").update({status:"completed",result:{checks},lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
     if(checks.state==="failure"&&Number(proposal.repair_count??0)<2){
      const annotations=await readCheckAnnotations(proposal.head_sha);
+     await admin.from("agent_work_sessions").update({status:"queued",last_summary:"Échec CI détecté ; préparation d'une correction contrôlée.",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),next_run_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
      const {error:repairError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_repair",max_attempts:2,input:{...proposal,repair_count:Number(proposal.repair_count??0)+1,checks,annotations}});
      if(repairError)throw repairError;
-     await admin.from("agent_work_sessions").update({status:"queued",last_summary:"Échec CI détecté ; préparation d'une correction contrôlée.",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),next_run_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
      await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"github_ci_repair_started",message:"Échec CI détecté ; l'agent prépare une correction (tentative "+(Number(proposal.repair_count??0)+1)+"/2).",metadata:{...eventMetadata,annotations}});
      return json({ok:true,claimed:true,ci_state:"failure",repair_scheduled:true,session_id:session.id});
     }
@@ -120,6 +120,7 @@ Deno.serve(async(request)=>{
    let completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps);let ciFailure=false;const summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
    let githubProposal:Record<string,unknown>|null=null;
+   let ciTaskScheduled=false;
    if(hasFiles){
     if(task.task_type==="github_ci_repair"){
      const repairInput=task.input as {branch?:string;url?:string;number?:number;repair_count?:number};
@@ -132,8 +133,11 @@ Deno.serve(async(request)=>{
     const proposal=githubProposal as {url?:string;number?:number;branch?:string;head_sha?:string;checks?:{state?:string};repair_count?:number};
     if(proposal.checks?.state==="pending"||proposal.checks?.state==="failure"){
      completed=false;
+     const {error:queueSessionError}=await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:githubProposal},last_summary:"Pull Request créé ; vérifications CI en attente.",step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
+     if(queueSessionError)throw queueSessionError;
      const {error:ciTaskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,input:{url:proposal.url,number:proposal.number,branch:proposal.branch,head_sha:proposal.head_sha,poll_count:0,repair_count:proposal.repair_count??0}});
      if(ciTaskError)throw ciTaskError;
+     ciTaskScheduled=true;
     }
    }
    const {error:taskError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,checkpoint,next_action:parsed.next_action??""},lease_until:null,updated_at:now}).eq("id",task.id);
@@ -147,8 +151,10 @@ Deno.serve(async(request)=>{
     await admin.from("agent_work_tasks").update({status:"cancelled",lease_until:null,updated_at:now}).eq("id",task.id);
     return json({ok:true,claimed:true,cancelled:true,session_id:session.id});
    }
-   const {error:updateError}=await admin.from("agent_work_sessions").update({status:ciFailure?"failed":completed?(expired?"expired":"completed"):"queued",checkpoint,last_summary:summary,step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
-   if(updateError)throw updateError;
+   if(!ciTaskScheduled){
+    const {error:updateError}=await admin.from("agent_work_sessions").update({status:ciFailure?"failed":completed?(expired?"expired":"completed"):"queued",checkpoint,last_summary:summary,step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
+    if(updateError)throw updateError;
+   }
    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:ciFailure?"github_ci_failed":completed?"mission_completed":"step_completed",message:ciFailure?"Le Pull Request a été créé, mais les vérifications CI ont échoué. "+summary:summary,metadata:{step_count:steps,next_action:parsed.next_action??"",github_proposal:githubProposal}});
    if(!completed&&!githubProposal){const {error}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{previous_summary:summary,next_action:parsed.next_action??""}});if(error)throw error;}
    return json({ok:true,claimed:true,completed,session_id:session.id,step_count:steps,summary,github_proposal:githubProposal});
