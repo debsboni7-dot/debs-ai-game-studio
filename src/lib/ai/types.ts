@@ -1,9 +1,16 @@
-/**
- * Provider-agnostic contract for code models. Adapters live server-side only
- * (see registry.server.ts) so no key ever reaches the browser.
- */
+/** Provider-agnostic contract for code models. Adapters live server-side only. */
 export type ChatRole = "user" | "assistant" | "system";
-export type ChatTask = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs";
+export type ChatTask = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs" | "architect" | "test" | "refactor" | "security" | "performance" | "api" | "devops";
+
+export interface ChatActivityEvent {
+  id: string;
+  connector: string;
+  action: string;
+  status: "completed" | "failed" | "running";
+  summary: string;
+  urls?: string[];
+  durationMs?: number;
+}
 
 export interface ChatTurn {
   role: ChatRole;
@@ -20,9 +27,9 @@ export interface CodeModelProvider {
   id: string;
   label: string;
   isConfigured(): boolean;
-  complete(req: CodeModelRequest, signal?: AbortSignal): Promise<{ text: string; model: string }>;
+  complete(req: CodeModelRequest, signal?: AbortSignal): Promise<{ text: string; model: string; activity?: ChatActivityEvent[] }>;
 }
 
 export type ChatResult =
-  | { ok: true; text: string; provider: string; model: string }
-  | { ok: false; code: "provider_not_configured" | "invalid_request" | "provider_error"; message: string };
+  | { ok: true; text: string; provider: string; model: string; activity: ChatActivityEvent[] }
+  | { ok: false; code: "provider_not_configured" | "invalid_request" | "provider_error"; message: string; activity?: ChatActivityEvent[] };
