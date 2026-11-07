@@ -11,7 +11,7 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 - RLS : un utilisateur ne lit que ses propres missions, tâches et événements ; les changements de statut/checkpoint passent par l'Edge Function de confiance, avec contrôle des transitions et protection contre les mises à jour concurrentes.
 
 ## Activation obligatoire avant toute exécution continue
-1. Appliquer la migration SQL du dossier migrations.
+1. Dans le SQL Editor, exécuter d'abord `supabase/preflight-agent-work.sql` pour voir l'état des tables/extensions, puis appliquer la migration `supabase/migrations/20261107000100_agent_work_sessions.sql`. Relancer le preflight : les trois tables, la fonction RPC et RLS doivent être présents.
 2. Déployer la fonction Edge agent-work.
 3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY, AGENT_WORKER_SECRET, GITHUB_TOKEN, GITHUB_REPOSITORY et GITHUB_BASE_BRANCH. Le jeton GitHub doit être limité au dépôt autorisé avec Contents: Read and write, Pull requests: Read and write et Checks: Read. Ne jamais le placer dans le navigateur.
 4. Configurer un scheduler fiable qui envoie chaque minute un POST avec le corps {"action":"worker"} et l'en-tête x-agent-worker-secret. Conserver le secret côté serveur, idéalement dans Vault.
@@ -31,7 +31,7 @@ La fonction utilise un en-tête secret personnalisé pour le worker. Déploie-la
 supabase functions deploy agent-work --no-verify-jwt
 ```
 
-Dans le SQL Editor Supabase, active/autorise les extensions `pg_cron`, `pg_net` et `vault`, puis stocke l'URL et le secret du worker dans Vault (ne les écris pas en clair dans une migration) :
+Dans le Dashboard Supabase, active `pg_cron` et `pg_net` depuis Database → Extensions (Vault doit être disponible), puis relance `supabase/preflight-agent-work.sql`. Le contrôle `cron.job relation` doit devenir vrai après activation de pg_cron. Stocke ensuite l'URL et le secret du worker dans Vault (ne les écris pas en clair dans une migration) :
 
 ```sql
 select vault.create_secret(
@@ -58,4 +58,4 @@ select cron.schedule(
 
 Remplace l'URL si le projet Supabase est différent. Vérifie l'exécution dans les journaux Edge Functions et dans les tables `agent_work_events`. Pour désactiver le scheduler : `select cron.unschedule('debs-agent-work-every-minute');`.
 
-**Important :** la fonction doit aussi recevoir `LOVABLE_API_KEY` comme secret Supabase Edge Function. Cette clé ne se transmet pas automatiquement depuis les secrets de l'application Lovable. Le service-role key reste strictement côté serveur.
+**Important :** les clients authentifiés ne disposent que d'un droit de lecture RLS sur leurs missions. La création, les transitions d'état, les tâches et les événements sont réservés au service role utilisé par l'Edge Function. La fonction doit aussi recevoir `LOVABLE_API_KEY` comme secret Supabase Edge Function. Cette clé ne se transmet pas automatiquement depuis les secrets de l'application Lovable. Le service-role key reste strictement côté serveur.
