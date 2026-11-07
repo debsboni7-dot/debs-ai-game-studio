@@ -44,14 +44,18 @@ returns setof public.agent_work_tasks language plpgsql security definer set sear
 declare v_task public.agent_work_tasks;
 declare v_session_id uuid;
 begin
+ -- Keep the same lock order as pause/cancel: session rows before task rows.
+ update public.agent_work_sessions s set status='failed',last_summary='Une étape a expiré après plusieurs tentatives.',updated_at=now()
+ where s.status in ('queued','running') and exists(
+   select 1 from public.agent_work_tasks t
+   where t.session_id=s.id and t.status='running' and t.lease_until<now() and t.attempt>=t.max_attempts
+ );
  update public.agent_work_tasks t set status='queued',lease_until=null,available_at=now(),updated_at=now(),
  last_error=coalesce(t.last_error,'Worker lease expired; task returned to queue.')
  where t.status='running' and t.lease_until<now() and t.attempt<t.max_attempts;
  update public.agent_work_tasks t set status='failed',lease_until=null,updated_at=now(),
  last_error=coalesce(t.last_error,'Worker lease expired too many times.')
  where t.status='running' and t.lease_until<now() and t.attempt>=t.max_attempts;
- update public.agent_work_sessions s set status='failed',last_summary='Une étape a expiré après plusieurs tentatives.',updated_at=now()
- where s.status in ('queued','running') and exists(select 1 from public.agent_work_tasks t where t.session_id=s.id and t.status='failed');
  -- Lock the session first, matching the pause/cancel path's lock order.
  select s.id into v_session_id
  from public.agent_work_sessions s
