@@ -26,6 +26,11 @@ Deno.serve(async(request)=>{
     const proposal=(task.input??{}) as {url?:string;number?:number;branch?:string;head_sha?:string;poll_count?:number};
     if(!proposal.head_sha)throw new Error("SHA du commit absent pour le suivi CI.");
     const checks=await inspectPullRequestChecks(proposal.head_sha,0);
+    const {data:ciSession}=await admin.from("agent_work_sessions").select("status,checkpoint").eq("id",session.id).single();
+    if(ciSession?.status==="paused"||ciSession?.status==="cancelled"||ciSession?.status==="expired"){
+     await admin.from("agent_work_tasks").update({status:ciSession.status==="paused"?"queued":"cancelled",lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
+     return json({ok:true,claimed:true,ci_paused:true,session_id:session.id});
+    }
     const pollCount=Number(proposal.poll_count??0)+1;
     const eventMetadata={github_proposal:{...proposal,checks}};
     if(checks.state==="pending"&&pollCount<120){
