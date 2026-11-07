@@ -21,14 +21,14 @@
   --color-code: var(--code); --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground);
 }
 :root {
-  --radius: 1rem; --background: #f7faff; --foreground: #17233b; --surface: #ffffff;
+  --radius: 1rem; --background: #fbfdff; --foreground: #17233b; --surface: #ffffff;
   --card: #ffffff; --card-foreground: #17233b; --popover: #ffffff; --popover-foreground: #17233b;
   --primary: #397dff; --primary-foreground: #ffffff; --secondary: #eef4ff; --secondary-foreground: #26436f;
   --muted: #f1f5fb; --muted-foreground: #74829a; --accent: #eaf2ff; --accent-foreground: #244e9b;
   --destructive: #dc4b64; --destructive-foreground: #ffffff; --border: #dce7f7; --input: #dce7f7; --ring: #70a5ff;
   --code: #f3f6fc; --sidebar: #ffffff; --sidebar-foreground: #17233b;
-  --gradient-brand: linear-gradient(120deg,#2687ff 0%,#6c8cff 52%,#a66bff 100%);
-  --gradient-glow: radial-gradient(55% 40% at 5% 0%,rgba(67,145,255,.10),transparent 75%),radial-gradient(45% 35% at 100% 5%,rgba(162,111,255,.09),transparent 75%);
+  --gradient-brand: linear-gradient(120deg,#1677ff 0%,#398cff 52%,#70b5ff 100%);
+  --gradient-glow: radial-gradient(55% 40% at 5% 0%,rgba(40,130,255,.12),transparent 75%),radial-gradient(45% 35% at 100% 5%,rgba(90,170,255,.08),transparent 75%);
   --shadow-glow: 0 0 0 1px rgba(91,151,255,.32),0 8px 30px -12px rgba(70,133,255,.38);
 }
 @layer base {
