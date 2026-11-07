@@ -15,6 +15,47 @@ const MAX_ARCHIVE = 12 * 1024 * 1024;
 const MAX_EXTRACTED = 18 * 1024 * 1024;
 const MAX_FILES = 60;
 
+function inspectZipLimits(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const min = Math.max(0, bytes.length - 65_557);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= min; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("Archive ZIP invalide : répertoire central absent.");
+  const entries = view.getUint16(eocd + 10, true);
+  const centralSize = view.getUint32(eocd + 12, true);
+  const centralOffset = view.getUint32(eocd + 16, true);
+  if (entries === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
+    throw new Error("Les archives ZIP64 ne sont pas prises en charge par cette version.");
+  }
+  if (entries > 200 || centralOffset + centralSize > eocd) throw new Error("Archive trop complexe ou répertoire ZIP invalide.");
+  let cursor = centralOffset;
+  let totalExpanded = 0;
+  for (let i = 0; i < entries; i++) {
+    if (cursor + 46 > bytes.length || view.getUint32(cursor, true) !== 0x02014b50) throw new Error("Entrée ZIP mal formée.");
+    const expanded = view.getUint32(cursor + 24, true);
+    const nameLength = view.getUint16(cursor + 28, true);
+    const extraLength = view.getUint16(cursor + 30, true);
+    const commentLength = view.getUint16(cursor + 32, true);
+    if (expanded === 0xffffffff) throw new Error("Les fichiers ZIP64 ne sont pas pris en charge.");
+    if (expanded > 5 * 1024 * 1024) throw new Error("Un fichier extrait dépasse 5 Mo.");
+    totalExpanded += expanded;
+    if (totalExpanded > MAX_EXTRACTED) throw new Error("Archive compressée suspecte : extraction supérieure à 18 Mo.");
+    cursor += 46 + nameLength + extraLength + commentLength;
+  }
+  if (cursor > centralOffset + centralSize) throw new Error("Répertoire central ZIP invalide.");
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
+  }
+  return btoa(binary);
+}
+
 async function downloadZip(start: URL): Promise<Uint8Array> {
   let url = start;
   for (let hop = 0; hop <= 4; hop++) {
@@ -81,7 +122,7 @@ Deno.serve(async (request) => {
 
   try {
     const archive = await downloadZip(sourceUrl);
-    const entries = unzipSync(archive);
+    inspectZipLimits(archive);\n    const entries = unzipSync(archive);
     const slug = assetSlug(packName);
     const files: Array<{ path: string; bytes: Uint8Array }> = [];
     let total = 0;
@@ -115,7 +156,7 @@ Deno.serve(async (request) => {
     const base = await githubCall(api, token, "/git/commits/" + baseSha);
     const treeEntries = [];
     for (const file of files) {
-      const blob = await githubCall(api, token, "/git/blobs", { content: encodeBase64(file.bytes), encoding: "base64" });
+      const blob = await githubCall(api, token, "/git/blobs", { content: bytesToBase64(file.bytes), encoding: "base64" });
       treeEntries.push({ path: "game-assets/" + slug + "/" + file.path, mode: "100644", type: "blob", sha: blob.sha });
     }
     const manifestBlob = await githubCall(api, token, "/git/blobs", { content: manifest, encoding: "utf-8" });
