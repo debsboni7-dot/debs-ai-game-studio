@@ -4,9 +4,9 @@ import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
 const MODEL = "openai/gpt-6-astra";
 
-// Prefer the project secret AI_API_KEY2; keep the managed Lovable key as fallback.
+// Use the Lovable-managed project API key; never expose it to the client.
 function getLovableApiKey(): string | undefined {
-  return process.env.AI_API_KEY2?.trim() || process.env.LOVABLE_API_KEY?.trim() || undefined;
+  return process.env.LOVABLE_API_KEY?.trim() || undefined;
 }
 
 /** Credentials and SDK clients are created per call, never sent to the browser. */
