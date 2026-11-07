@@ -41,9 +41,10 @@ describe("validateProposedFiles", () => {
   it("enforces per-file and total UTF-8 byte limits", () => {
     expect(() => validateProposedFiles([{ path: "large.ts", content: "x".repeat(80_001) }])).toThrow(/volumineux/);
     expect(() => validateProposedFiles([
-      { path: "a.ts", content: "é".repeat(60_000) },
-      { path: "b.ts", content: "é".repeat(60_000) },
-      { path: "c.ts", content: "é".repeat(60_000) },
+      { path: "a.ts", content: "é".repeat(40_000) },
+      { path: "b.ts", content: "é".repeat(40_000) },
+      { path: "c.ts", content: "é".repeat(40_000) },
+      { path: "d.ts", content: "é".repeat(40_000) },
     ])).toThrow(/300 Ko/);
   });
 
