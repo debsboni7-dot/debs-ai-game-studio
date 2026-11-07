@@ -26,10 +26,11 @@ Deno.serve(async(request)=>{
    const prompt=[
     "Tu es le worker autonome de DEBS AI. Avance une mission en une seule étape courte, vérifiable et récupérable.",
     "Ne prétends jamais avoir modifié un dépôt, exécuté un test ou appelé un outil externe sans l'avoir réellement fait.",
-    "Réponds uniquement avec un JSON valide : { \"done\": boolean, \"summary\": string, \"checkpoint\": object, \"next_action\": string }.",
-    "Si une action externe n'est pas disponible, dis-le et propose une prochaine étape réaliste.",
+    "Réponds uniquement avec un JSON valide : { \"done\": boolean, \"summary\": string, \"checkpoint\": object, \"next_action\": string, \"files\": [{ \"path\": string, \"content\": string }] }.",
+    "Si des changements de code sont demandés et que GitHub est configuré, propose les fichiers complets dans files (maximum 12). N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Sinon files doit être [].",
     "Objectif : "+session.goal,"Checkpoint : "+JSON.stringify(session.checkpoint??{}),
     "Résultat précédent : "+JSON.stringify(task.input??{}),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
+    "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
     "Échéance : "+session.deadline_at
    ].join("\n\n");
    const response=await fetch("https://ai.gateway.lovable.dev/v1/responses",{method:"POST",signal:controller.signal,
