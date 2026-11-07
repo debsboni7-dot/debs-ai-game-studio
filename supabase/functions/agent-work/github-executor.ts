@@ -106,7 +106,11 @@ export async function updateMissionPullRequestBranch(branch: string, files: Prop
   }
   const tree = await call("/git/trees", { base_tree: parent.tree.sha, tree: entries });
   const commit = await call("/git/commits", { message: "DEBS AI: correction CI - " + title.slice(0, 70), tree: tree.sha, parents: [parentSha] });
-  await call("/git/refs/heads/" + encodeURIComponent(branch), { sha: commit.sha, force: false });
+  const updateResponse = await fetch(api + "/git/refs/heads/" + encodeURIComponent(branch), { method: "PATCH", headers, body: JSON.stringify({ sha: commit.sha, force: false }) });
+  if (!updateResponse.ok) {
+    const errorData = await updateResponse.json().catch(() => ({}));
+    throw new Error("Mise à jour de la branche GitHub impossible (HTTP " + updateResponse.status + ") : " + String(errorData.message ?? "").slice(0, 180));
+  }
   const checks = await inspectPullRequestChecks(String(commit.sha), 20);
   return { branch, head_sha: commit.sha, files: files.map((file) => file.path), checks };
 }
