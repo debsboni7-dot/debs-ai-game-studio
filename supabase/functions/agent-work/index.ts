@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch } from "./github-executor.ts";
 import type { ProposedFile } from "../_shared/github-validation.ts";
-import { validateMissionCreateInput } from "../_shared/mission-security.ts";
+import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -199,7 +199,7 @@ Deno.serve(async(request)=>{
  }
  if(["pause","resume","cancel"].includes(action)){
   const status=action==="pause"?"paused":action==="resume"?"queued":"cancelled";
-  if(action==="resume"&&new Date(session.deadline_at).getTime()<=Date.now())return json({error:"Durée de mission dépassée."},409);
+  if(action==="resume"&&!canResumeMission(session.status,session.deadline_at))return json({error:"La mission ne peut pas être reprise ou sa durée est dépassée."},409);
   if(["completed","failed","cancelled","expired"].includes(session.status))return json({error:"Mission déjà terminée."},409);
   if(action==="pause"&&!["queued","running"].includes(session.status))return json({error:"Seule une mission en attente ou en cours peut être mise en pause."},409);
   if(action==="resume"&&session.status!=="paused")return json({error:"La mission n'est pas en pause."},409);
