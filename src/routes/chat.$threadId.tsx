@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DemoBadge, EmptyState } from "@/components/debs/ui";
 import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
+import { GameArtifact } from "@/components/debs/game-artifact";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { useIntegrations } from "@/lib/integrations/context";
@@ -260,7 +261,8 @@ function ThreadPage() {
             <div key={message.id} className="space-y-2">
               {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="text-xs text-muted-foreground">{message.provider}</span>}
               {message.activity && message.activity.length > 0 && <ActivityPanel events={message.activity} />}
-              <Markdown>{message.content}</Markdown>
+              <GameArtifact markdown={message.content} />
+              <Markdown>{message.content.replace(new RegExp("\\x60\\x60\\x60file:[^\\n]*\\n[\\s\\S]*?\\n\\x60\\x60\\x60", "g"), "")}</Markdown>
             </div>
           ),
         )}
@@ -288,9 +290,9 @@ function ThreadPage() {
             ))}
           </div>
         )}
-        <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
         <div className="flex items-end gap-2">
           <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
+          <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
         </div>
         <div className="px-2 pb-1 text-[11px] text-muted-foreground">Chat général · spécialisations moteur avec / · Entrée pour envoyer</div>
