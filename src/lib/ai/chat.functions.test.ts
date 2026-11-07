@@ -53,7 +53,12 @@ describe("chat validation", () => {
   it("keeps only role and content", () => {
     expect(validateChatInput({ messages: [{ ...messages[0], key: "ignored" }] })).toEqual({
       messages,
+      task: "chat",
     });
+  });
+  it("accepts a recognized slash-command mode and defaults unknown modes to general chat", () => {
+    expect(validateChatInput({ messages, task: "debug" }).task).toBe("debug");
+    expect(validateChatInput({ messages, task: "made-up-mode" }).task).toBe("chat");
   });
 });
 
