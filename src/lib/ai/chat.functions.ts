@@ -5,7 +5,7 @@ const MAX_TURNS = 50;
 const MAX_CHARS = 20_000;
 const TASKS = ["chat", "code", "search", "game-design", "debug", "review"] as const;
 
-export function validateChatInput(input: unknown): { messages: ChatTurn[]; task: (typeof TASKS)[number] } {
+export function validateChatInput(input: unknown): { messages: ChatTurn[]; task: (typeof TASKS)[number]; attachments: NonNullable<ChatTurn["attachments"]> } {
   const msgs = (input as { messages?: unknown })?.messages;
   if (!Array.isArray(msgs) || msgs.length === 0 || msgs.length > MAX_TURNS) {
     throw new Error("Requête invalide : messages manquants ou trop nombreux.");
