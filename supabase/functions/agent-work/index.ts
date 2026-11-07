@@ -31,6 +31,7 @@ Deno.serve(async(request)=>{
     "Objectif : "+session.goal,"Checkpoint : "+JSON.stringify(session.checkpoint??{}),
     "Résultat précédent : "+JSON.stringify(task.input??{}),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
+    "Arborescence GitHub : "+JSON.stringify(await (async()=>{try{const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY");if(!token||!repo)return [];const r=await fetch("https://api.github.com/repos/"+repo+"/git/trees/"+encodeURIComponent(env("GITHUB_BASE_BRANCH")||"main")+"?recursive=1",{headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});if(!r.ok)return [];const d=await r.json();return (d.tree??[]).filter((x:{type:string})=>x.type==="blob").slice(0,120).map((x:{path:string})=>x.path);}catch{return [];}})()),
     "Échéance : "+session.deadline_at
    ].join("\n\n");
    const response=await fetch("https://ai.gateway.lovable.dev/v1/responses",{method:"POST",signal:controller.signal,
