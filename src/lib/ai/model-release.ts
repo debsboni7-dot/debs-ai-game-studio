@@ -14,7 +14,7 @@ export const ACTIVE_MODEL_RELEASE = {
     "Higher reasoning effort for engineering tasks.",
     "Explicit engineering workflow for playable vertical slices and quality checks.",
     "Transparent reporting: never claim execution or verification without runtime evidence.",
-    "Manual GitHub Actions workflow for Chromium launch and rendering smoke checks of browser game projects.",
+    "Manual GitHub Actions workflow for desktop/mobile Chromium checks, declarative interaction tests, screenshots, and JSON/Markdown evidence reports.",
   ],
   capabilities: {
     specializedGameDevelopment: true,
@@ -25,7 +25,7 @@ export const ACTIVE_MODEL_RELEASE = {
     unityBuildRunner: false,
     unrealBuildRunner: false,
     godotBuildRunner: false,
-    browserGameRuntimeVerification: "manual-chromium-smoke-workflow-not-runtime-verified",
+    browserGameRuntimeVerification: "manual-desktop-mobile-chromium-and-declarative-tests-workflow-not-runtime-verified",
   },
 } as const;
 
