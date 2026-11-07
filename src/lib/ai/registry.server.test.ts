@@ -41,6 +41,7 @@ describe("managed Gateway adapter", () => {
     expect(await provider.complete(input)).toEqual({
       text: "Hello",
       model: "actual-upstream-model",
+      activity: [],
     });
     expect(state.call.mock.calls[0]?.[1]).toEqual({
       baseURL: "https://ai.gateway.lovable.dev/v1",
