@@ -42,6 +42,7 @@ create policy "Users read own agent events" on public.agent_work_events for sele
 create or replace function public.claim_agent_work_task(p_lease_seconds integer default 180)
 returns setof public.agent_work_tasks language plpgsql security definer set search_path=public as $$
 declare v_task public.agent_work_tasks;
+declare v_session_id uuid;
 begin
  update public.agent_work_tasks t set status='queued',lease_until=null,available_at=now(),updated_at=now(),
  last_error=coalesce(t.last_error,'Worker lease expired; task returned to queue.')
@@ -51,15 +52,29 @@ begin
  where t.status='running' and t.lease_until<now() and t.attempt>=t.max_attempts;
  update public.agent_work_sessions s set status='failed',last_summary='Une étape a expiré après plusieurs tentatives.',updated_at=now()
  where s.status in ('queued','running') and exists(select 1 from public.agent_work_tasks t where t.session_id=s.id and t.status='failed');
- select t.* into v_task from public.agent_work_tasks t join public.agent_work_sessions s on s.id=t.session_id
- where t.status='queued' and t.available_at<=now() and s.status in ('queued','running')
- and s.deadline_at>now() and (s.step_count<s.max_steps or t.task_type in ('github_ci_check','github_ci_repair'))
- order by t.available_at,t.created_at for update of t,s skip locked limit 1;
+ -- Lock the session first, matching the pause/cancel path's lock order.
+ select s.id into v_session_id
+ from public.agent_work_sessions s
+ where s.status in ('queued','running') and s.deadline_at>now()
+ and exists (
+   select 1 from public.agent_work_tasks t
+   where t.session_id=s.id and t.status='queued' and t.available_at<=now()
+   and (s.step_count<s.max_steps or t.task_type in ('github_ci_check','github_ci_repair'))
+ )
+ order by s.next_run_at,s.created_at
+ limit 1 for update of s skip locked;
  if not found then return; end if;
+
+ select t.* into v_task from public.agent_work_tasks t
+ where t.session_id=v_session_id and t.status='queued' and t.available_at<=now()
+ order by t.available_at,t.created_at
+ limit 1 for update skip locked;
+ if not found then return; end if;
+
  update public.agent_work_tasks set status='running',attempt=attempt+1,
  lease_until=now()+make_interval(secs=>greatest(30,least(p_lease_seconds,600))),updated_at=now()
  where id=v_task.id returning * into v_task;
- update public.agent_work_sessions set status='running',heartbeat_at=now(),updated_at=now() where id=v_task.session_id;
+ update public.agent_work_sessions set status='running',heartbeat_at=now(),updated_at=now() where id=v_session_id;
  return next v_task;
 end; $$;
 revoke all on function public.claim_agent_work_task(integer) from public,anon,authenticated;
