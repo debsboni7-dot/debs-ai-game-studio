@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Box, Check, CheckCircle2, Code2, ExternalLink, FileCode2, GitBranch, Gamepad2, Layers3, Loader2, LockKeyhole, PlugZap, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader, Panel } from "@/components/debs/ui";
 import { connectGitHub, listGitHubRepositoryFiles, readGitHubRepositoryFiles } from "@/lib/integrations/github.functions";
 import { useIntegrations } from "@/lib/integrations/context";
+import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
 
 export const Route = createFileRoute("/integrations")({
   head: () => ({ meta: [
@@ -35,6 +36,12 @@ function IntegrationsPage() {
   const [fileList, setFileList] = useState<{ path: string; size: number }[]>([]);
   const [branch, setBranch] = useState("");
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const [connectorSearch, setConnectorSearch] = useState("");
+  const [connectorCategory, setConnectorCategory] = useState<ConnectorCategory | "all">("all");
+  const filteredConnectors = useMemo(() => connectors.filter((item) =>
+    (connectorCategory === "all" || item.category === connectorCategory) &&
+    (item.name + " " + item.description).toLowerCase().includes(connectorSearch.toLowerCase())
+  ), [connectorCategory, connectorSearch]);
 
   const doConnect = async () => {
     setBusy("connect"); setError("");
@@ -185,6 +192,33 @@ function IntegrationsPage() {
         )}
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <p className="flex items-start gap-2 border-t pt-3 text-xs text-muted-foreground"><LockKeyhole className="mt-0.5 size-4 shrink-0" /> Le jeton n'est ni enregistré dans le compte, ni placé dans les messages, ni envoyé au modèle IA. Il est transmis au serveur uniquement pour appeler l'API GitHub et disparaît au rechargement.</p>
+      </Panel>
+
+      <Panel className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><h2 className="text-lg font-semibold">Catalogue de connecteurs</h2><p className="mt-1 text-sm text-muted-foreground">{connectors.length} services référencés · plusieurs familles d'outils</p></div>
+          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Catalogue extensible</span>
+        </div>
+        <Input value={connectorSearch} onChange={(event) => setConnectorSearch(event.target.value)} placeholder="Rechercher Meshy, Tripo, GitHub, Kenney…" className="h-11 rounded-xl border-blue-100 bg-white" />
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button type="button" onClick={() => setConnectorCategory("all")} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${connectorCategory === "all" ? "border-blue-600 bg-blue-600 text-white" : "border-blue-100 bg-white text-slate-600 hover:border-blue-300"}`}>Tous ({connectors.length})</button>
+          {connectorCategories.map((category) => <button key={category.id} type="button" onClick={() => setConnectorCategory(category.id)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${connectorCategory === category.id ? "border-blue-600 bg-blue-600 text-white" : "border-blue-100 bg-white text-slate-600 hover:border-blue-300"}`}>{category.label}</button>)}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredConnectors.map((connector) => (
+            <article key={connector.id} className={`flex min-w-0 flex-col gap-3 rounded-2xl border bg-white p-4 transition hover:border-blue-300 hover:shadow-[0_10px_35px_-25px_rgba(37,99,235,.55)] ${connector.priority ? "border-blue-200" : "border-slate-200"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0"><h3 className="font-semibold text-slate-900">{connector.name}</h3><p className="mt-1 text-[11px] font-medium text-blue-700">{connectorIntegrationLabel(connector.integration)}</p></div>
+                {connector.priority && <span className="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Prioritaire</span>}
+              </div>
+              <p className="flex-1 text-xs leading-5 text-slate-600">{connector.description}</p>
+              {connector.note && <p className="text-[11px] text-blue-700">{connector.note}</p>}
+              <a href={connector.website} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">Site officiel <ExternalLink className="size-3" /></a>
+            </article>
+          ))}
+        </div>
+        {filteredConnectors.length === 0 && <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-muted-foreground">Aucun connecteur ne correspond à cette recherche.</p>}
+        <p className="border-t pt-3 text-xs leading-5 text-muted-foreground">Ce catalogue présente les intégrations ciblées, pas des connexions déjà actives. Chaque service devra recevoir son adaptateur réel (OAuth, API, agent local ou import), ses permissions et ses tests. Les clés secrètes ne doivent jamais être placées dans le navigateur ou dans les conversations.</p>
       </Panel>
 
       <div className="space-y-3">
