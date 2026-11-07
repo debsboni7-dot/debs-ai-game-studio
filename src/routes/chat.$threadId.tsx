@@ -65,6 +65,7 @@ function ThreadPage() {
   const { threadId } = Route.useParams();
   const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const send = useServerFn(sendChatMessage);
   const thread = threads.find((t) => t.id === threadId);
@@ -85,7 +86,7 @@ function ThreadPage() {
     const parsed = parseCommand(raw);
     if (!parsed.help && !parsed.prompt) return;
     setInput("");
-    const userMsg: ChatMessage = { id: uid(), kind: "user", content: raw, createdAt: Date.now() };
+    const userMsg: ChatMessage = { id: uid(), kind: "user", content: raw + (attachments.length ? "\\n\\n[Pièces jointes : " + attachments.map((file) => file.name).join(", ") + "]" : ""), createdAt: Date.now() };
     const nextTitle = thread.messages.length === 0 ? titleFrom(raw) : thread.title;
     push(userMsg, thread.messages.length === 0 ? nextTitle : undefined);
 
@@ -119,7 +120,7 @@ function ThreadPage() {
         .filter((m) => m.kind === "user" || m.kind === "assistant")
         .map((m) => ({ role: m.kind as "user" | "assistant", content: m.content }));
       history[history.length - 1] = { role: "user", content: parsed.prompt };
-      const res = await send({ data: { messages: history, task: parsed.task } });
+      const res = await send({ data: { messages: history, task: parsed.task, attachments: encodedAttachments } });
       if (res.ok) {
         push({ id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now() });
         if (cloudUserId) {
