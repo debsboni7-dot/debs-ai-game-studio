@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowLeft, ChevronDown, Clock3, ExternalLink, Globe2, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,7 @@ const HELP_TEXT = [
 ].join("\n");
 
 export const Route = createFileRoute("/chat/$threadId")({
+  validateSearch: (search: Record<string, unknown>) => ({ draft: typeof search.draft === "string" ? search.draft : "" }),
   head: () => ({ meta: [
     { title: "Conversation — DEBS AI" },
     { name: "description", content: "Assistant spécialisé en programmation et création de jeux vidéo." },
@@ -79,8 +80,10 @@ export const Route = createFileRoute("/chat/$threadId")({
 
 function ThreadPage() {
   const { threadId } = Route.useParams();
+  const { draft } = Route.useSearch();
   const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const [input, setInput] = useState("");
+  useEffect(() => { if (draft) setInput(draft); }, [draft]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentResetKey, setAttachmentResetKey] = useState(0);
   const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
@@ -239,10 +242,10 @@ function ThreadPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-9rem)] flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <Link to="/chat" aria-label="Retour" className="rounded p-1 text-muted-foreground hover:text-foreground"><ArrowLeft className="size-5" /></Link>
-        <h1 className="truncate text-lg font-semibold">{thread.title}</h1>
+    <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex min-w-0 items-center gap-2"><Link to="/chat" aria-label="Retour" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><ArrowLeft className="size-4" /></Link><h1 className="truncate text-sm font-medium text-slate-700">{thread.title}</h1></div>
+        <span className="hidden text-[11px] text-slate-400 sm:block">DEBS AI · Assistant de création</span>
       </div>
       <div className="flex-1 space-y-4">
         {thread.messages.length === 0 && (
@@ -254,12 +257,12 @@ function ThreadPage() {
         )}
         {thread.messages.map((message) =>
           message.kind === "user" ? (
-            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">{message.content}</div>
+            <div key={message.id} className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-blue-100 bg-blue-50/80 px-4 py-3 text-sm leading-6 text-slate-800">{message.content}</div>
           ) : message.kind === "notice" ? (
             <div key={message.id} role="status" className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning"><AlertTriangle className="size-4 shrink-0" /> {message.content}</div>
           ) : (
-            <div key={message.id} className="space-y-2">
-              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="text-xs text-muted-foreground">{message.provider}</span>}
+            <div key={message.id} className="mx-auto w-full max-w-3xl space-y-3 py-2">
+              {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600"><span className="flex size-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600">✦</span>{message.provider}</span>}
               {message.activity && message.activity.length > 0 && <ActivityPanel events={message.activity} />}
               <GameArtifact markdown={message.content} />
               <Markdown>{message.content.replace(new RegExp("\\x60\\x60\\x60file:[^\\n]*\\n[\\s\\S]*?\\n\\x60\\x60\\x60", "g"), "")}</Markdown>
@@ -273,7 +276,7 @@ function ThreadPage() {
           {workingSince && <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400"><Clock3 className="size-3" /> Démarré à {new Date(workingSince).toLocaleTimeString()}</p>}
         </div>}
       </div>
-      <form className="glass sticky bottom-20 z-20 flex flex-col gap-2 rounded-2xl border p-2 shadow-lg md:bottom-4" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <form className="sticky bottom-2 z-20 mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-2xl border border-blue-200 bg-white p-2 shadow-[0_10px_36px_-22px_rgba(37,99,235,.5)] ring-1 ring-blue-50" onSubmit={(event) => { event.preventDefault(); submit(); }}>
         {repositoryContext && (
           <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-xs text-blue-800">
             <span className="min-w-0 truncate">GitHub · {selectedRepository?.fullName ?? "Dépôt importé"} · {contextFiles.length} fichier(s) en contexte</span>
@@ -291,11 +294,11 @@ function ThreadPage() {
           </div>
         )}
         <div className="flex items-end gap-2">
-          <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
+          <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS AI…" rows={2} className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
           <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
         </div>
-        <div className="px-2 pb-1 text-[11px] text-muted-foreground">Chat général · spécialisations moteur avec / · Entrée pour envoyer</div>
+        <div className="px-2 pb-1 text-center text-[10px] text-slate-400">DEBS AI peut faire des erreurs. Vérifie les informations importantes.</div>
       </form>
     </div>
   );
