@@ -30,7 +30,10 @@ function Atelier() {
   const add = () => {
     const p = normalizePath(window.prompt("Chemin du nouveau fichier (ex. scripts/enemy.gd)") ?? "");
     if (!p) return;
-    if (files.some((f) => f.path === p)) return toast.error("Ce fichier existe déjà.");
+    if (files.some((f) => f.path === p)) {
+      toast.error("Ce fichier existe déjà.");
+      return;
+    }
     setFiles((prev) => [...prev, { path: p, content: "" }]);
     setActive(p);
   };
@@ -38,7 +41,10 @@ function Atelier() {
     if (!current) return;
     const p = normalizePath(window.prompt("Nouveau chemin", current.path) ?? "");
     if (!p || p === current.path) return;
-    if (files.some((f) => f.path === p)) return toast.error("Ce chemin est déjà pris.");
+    if (files.some((f) => f.path === p)) {
+      toast.error("Ce chemin est déjà pris.");
+      return;
+    }
     setFiles((prev) => prev.map((f) => (f.path === current.path ? { ...f, path: p } : f)));
     setActive(p);
   };

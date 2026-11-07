@@ -34,7 +34,10 @@ function Studio() {
 
   const create = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return toast.error("Donnez un nom au jeu.");
+    if (!form.name.trim()) {
+      toast.error("Donnez un nom au jeu.");
+      return;
+    }
     const g: GameProject = { ...form, id: uid("g_"), createdAt: Date.now(), notes: "", ...generateGameTemplate(form) };
     setGames((p) => [g, ...p]);
     setOpenId(g.id);
