@@ -95,9 +95,6 @@ Deno.serve(async (request) => {
       files.push({ path, bytes });
       if (files.length > MAX_FILES) throw new Error("Archive trop complexe : maximum 60 fichiers exploitables.");
     }
-    if (!files.some((file) => /\\.(glb|gltf|fbx|obj|stl|blend|usd|usdz)$/i.test(file.path))) {
-      throw new Error("Aucun modèle 3D reconnu dans cette archive. Les packs uniquement audio/VFX/2D ne sont pas encore importables par cette première version.");
-    }
     if (!files.length) throw new Error("Aucun fichier de ressource autorisé dans cette archive.");
 
     const manifest = [
