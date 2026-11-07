@@ -163,6 +163,7 @@ function ThreadPage() {
       const assistantId = uid();
       let assistantText = "";
       let streamError = "";
+      let activityEvents: ChatActivityEvent[] = [];
       const updateAssistant = (patch: Partial<ChatMessage>) => setThreads((previous) => previous.map((item) => item.id === threadId
         ? { ...item, updatedAt: Date.now(), messages: item.messages.map((message) => message.id === assistantId ? { ...message, ...patch } : message) }
         : item));
@@ -187,13 +188,11 @@ function ThreadPage() {
               assistantText += event.delta;
               updateAssistant({ content: assistantText });
             } else if (event.type === "activity" && event.event) {
-              setWorkingActivity((previous) => {
-                const nextEvents = previous.some((item) => item.id === event.event!.id)
-                  ? previous.map((item) => item.id === event.event!.id ? event.event! : item)
-                  : [...previous, event.event!];
-                updateAssistant({ activity: nextEvents });
-                return nextEvents;
-              });
+              activityEvents = activityEvents.some((item) => item.id === event.event!.id)
+                ? activityEvents.map((item) => item.id === event.event!.id ? event.event! : item)
+                : [...activityEvents, event.event!];
+              setWorkingActivity(activityEvents);
+              updateAssistant({ activity: activityEvents });
             } else if (event.type === "done") {
               updateAssistant({ provider: event.provider || "DEBS AI" });
             } else if (event.type === "error") {
