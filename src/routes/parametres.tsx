@@ -18,7 +18,6 @@ export const Route = createFileRoute("/parametres")({
   component: Settings,
 });
 
-const sel = "h-9 w-full rounded-md border bg-transparent px-3 text-sm";
 
 function Settings() {
   const [profile, setProfile] = usePersistentState(STORAGE_KEYS.profile, { name: "" });
