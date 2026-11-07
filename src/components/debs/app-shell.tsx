@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { GitBranch, LogIn, LogOut, MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
 import { Logo } from "./ui";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
@@ -9,7 +9,7 @@ import { IntegrationProvider } from "@/lib/integrations/context";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
-  const navigate = useNavigate();
+  const navigate = useNavigate();\n  const pathname = useRouterState({ select: (state) => state.location.pathname });\n  const now = Date.now();\n  const groupedThreads = [\n    { label: "Aujourd’hui", items: threads.filter((item) => now - item.updatedAt < 86_400_000) },\n    { label: "Hier", items: threads.filter((item) => now - item.updatedAt >= 86_400_000 && now - item.updatedAt < 172_800_000) },\n    { label: "7 derniers jours", items: threads.filter((item) => now - item.updatedAt >= 172_800_000 && now - item.updatedAt < 7 * 86_400_000) },\n    { label: "Plus anciens", items: threads.filter((item) => now - item.updatedAt >= 7 * 86_400_000) },\n  ].filter((group) => group.items.length > 0);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -85,13 +85,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link to="/integrations" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50">
             <GitBranch className="size-4" /> Développement & intégrations
           </Link>
-          <div className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Récents</div>
-          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-            {threads.slice(0, 30).map((thread) => (
-              <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} className="block truncate rounded-xl px-3 py-2.5 text-sm text-slate-600 transition hover:bg-blue-50 hover:text-blue-700">
-                {thread.title || "Nouvelle conversation"}
-              </Link>
+          <div className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Historique des conversations</div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+            {groupedThreads.map((group) => (
+              <section key={group.label} className="space-y-1">
+                <h3 className="px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{group.label}</h3>
+                {group.items.map((thread) => {
+                  const active = pathname.endsWith("/" + thread.id);
+                  return <Link key={thread.id} to="/chat/$threadId" params={{ threadId: thread.id }} className={`block truncate rounded-xl border px-3 py-2.5 text-sm transition ${active ? "border-blue-200 bg-blue-50 font-semibold text-blue-800 shadow-[inset_3px_0_0_#397dff]" : "border-transparent text-slate-600 hover:border-blue-100 hover:bg-blue-50/70 hover:text-blue-700"}`}>
+                    {thread.title || "Nouvelle conversation"}
+                  </Link>;
+                })}
+              </section>
             ))}
+            {threads.length === 0 && <p className="px-2 text-xs text-slate-400">Tes conversations apparaîtront ici.</p>}
           </div>
           {userEmail ? (
             <div className="mt-3 space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
