@@ -1,14 +1,14 @@
 import { useCallback, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, Loader2, Send, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, Clock3, ExternalLink, Globe2, Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DemoBadge, EmptyState } from "@/components/debs/ui";
 import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
-import { seedThreads, titleFrom, type ChatMessage, type Thread } from "@/lib/chat/threads";
+import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { sendChatMessage } from "@/lib/ai/chat.functions";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,12 +25,19 @@ const COMMANDS = [
   { command: "/game-design", label: "Game design", description: "Mécaniques, progression et équilibrage" },
   { command: "/debug", label: "Debug", description: "Diagnostiquer et corriger un problème" },
   { command: "/review", label: "Code review", description: "Analyser la qualité et les risques du code" },
+  { command: "/architect", label: "Architecture", description: "Concevoir l’architecture et les interfaces" },
+  { command: "/test", label: "Tests", description: "Créer une stratégie et des tests automatisés" },
+  { command: "/refactor", label: "Refactorisation", description: "Améliorer le code sans casser le comportement" },
+  { command: "/security", label: "Sécurité", description: "Audit de sécurité et menaces" },
+  { command: "/performance", label: "Performance", description: "Optimiser après identification des goulots" },
+  { command: "/api", label: "API & Backend", description: "Concevoir des API et services backend" },
+  { command: "/devops", label: "DevOps", description: "CI/CD, déploiement et observabilité" },
   { command: "/help", label: "Commandes", description: "Afficher les commandes disponibles" },
 ] as const;
 
 type Task = "chat" | "code" | "search" | "game-design" | "debug" | "review" | "github" | "unity" | "unreal" | "godot" | "blender" | "threejs";
 function parseCommand(raw: string): { task: Task; prompt: string; help: boolean } {
-  const match = raw.match(/^\/(code|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs)(?:\s+([\s\S]*))?$/i);
+  const match = raw.match(/^\/(code|search|game-design|debug|review|help|github|unity|unreal|godot|blender|threejs|architect|test|refactor|security|performance|api|devops)(?:\s+([\s\S]*))?$/i);
   if (!match) return { task: "chat", prompt: raw, help: false };
   const command = match[1].toLowerCase();
   return { task: command === "help" ? "chat" : command as Task, prompt: (match[2] ?? "").trim(), help: command === "help" };
@@ -50,6 +57,13 @@ const HELP_TEXT = [
   "- `/game-design` — conception de jeu",
   "- `/debug` — diagnostic de bugs",
   "- `/review` — revue de code",
+  "- `/architect` — architecture logicielle",
+  "- `/test` — ingénierie de tests",
+  "- `/refactor` — refactorisation sûre",
+  "- `/security` — audit de sécurité",
+  "- `/performance` — optimisation",
+  "- `/api` — API et backend",
+  "- `/devops` — CI/CD et opérations",
   "",
   "Ajoute un espace après la commande puis décris ton objectif. Exemple : `/unity` Crée un système d'inventaire sauvegardé.",
 ].join("\n");
@@ -72,6 +86,7 @@ function ThreadPage() {
   const [attachmentResetKey, setAttachmentResetKey] = useState(0);
   const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
   const [loading, setLoading] = useState(false);
+  const [workingSince, setWorkingSince] = useState<number | null>(null);
   const send = useServerFn(sendChatMessage);
   const { repositoryContext, selectedRepository, contextFiles, clearRepositoryContext } = useIntegrations();
   const thread = threads.find((item) => item.id === threadId);
@@ -123,6 +138,7 @@ function ThreadPage() {
     }
 
     setLoading(true);
+    setWorkingSince(Date.now());
     try {
       const encodedAttachments = await Promise.all(attachments.map(async (file) => ({
         kind: file.type.startsWith("image/") ? "image" as const : "file" as const,
@@ -148,7 +164,7 @@ function ThreadPage() {
       history[history.length - 1] = { role: "user", content: currentPrompt };
       const res = await send({ data: { messages: history, task: parsed.task, attachments: encodedAttachments } });
       if (res.ok) {
-        push({ id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now() });
+        push({ id: uid(), kind: "assistant", content: res.text, provider: res.provider, createdAt: Date.now(), activity: res.activity });
         if (cloudUserId) {
           const { error } = await supabase.from("chat_messages").insert({
             conversation_id: threadId, user_id: cloudUserId, role: "assistant", content: res.text,
@@ -188,11 +204,16 @@ function ThreadPage() {
           ) : (
             <div key={message.id} className="space-y-2">
               {message.kind === "example" ? <DemoBadge label="Exemple statique — pas généré par une IA" /> : <span className="text-xs text-muted-foreground">{message.provider}</span>}
+              {message.activity && message.activity.length > 0 && <ActivityPanel events={message.activity} />}
               <Markdown>{message.content}</Markdown>
             </div>
           ),
         )}
-        {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> DEBS AI réfléchit…</div>}
+        {loading && <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-[0_12px_36px_-28px_rgba(37,99,235,.5)]">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><Loader2 className="size-4 animate-spin text-blue-600" /> DEBS AI travaille sur ta demande…</div>
+          <p className="mt-1 text-xs text-slate-500">Le modèle traite le contexte et prépare la réponse. Les appels d'outils réellement observés seront affichés sous la réponse.</p>
+          {workingSince && <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400"><Clock3 className="size-3" /> Démarré à {new Date(workingSince).toLocaleTimeString()}</p>}
+        </div>}
       </div>
       <form className="glass sticky bottom-20 z-20 flex flex-col gap-2 rounded-2xl border p-2 shadow-lg md:bottom-4" onSubmit={(event) => { event.preventDefault(); submit(); }}>
         {repositoryContext && (
@@ -220,4 +241,42 @@ function ThreadPage() {
       </form>
     </div>
   );
+}
+
+
+function ActivityPanel({ events }: { events: ChatActivityEvent[] }) {
+  const sites = [...new Set(events.flatMap((event) => event.urls ?? []).map((value) => {
+    try { return new URL(value).hostname; } catch { return ""; }
+  }).filter(Boolean))];
+  const duration = events.reduce((sum, event) => sum + (event.durationMs ?? 0), 0);
+  return (
+    <details className="group rounded-xl border border-blue-100 bg-white text-sm shadow-[0_8px_28px_-24px_rgba(37,99,235,.5)]">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2.5 text-slate-700 hover:bg-blue-50/60">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><Globe2 className="size-4" /></span>
+        <span className="font-semibold">Activité de DEBS AI</span>
+        <span className="text-xs text-slate-500">{events.length} opération(s) · {sites.length} site(s)</span>
+        {duration > 0 && <span className="ml-auto text-[11px] text-slate-400">{(duration / 1000).toFixed(1)} s</span>}
+        <ChevronDown className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
+      </summary>
+      <div className="space-y-2 border-t border-blue-50 px-3 py-3">
+        {events.map((event) => (
+          <div key={event.id} className="flex items-start gap-2">
+            <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg ${event.status === "failed" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-700"}`}><CheckActivityStatus status={event.status} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-slate-800">{event.connector}</strong><span className="text-[11px] text-slate-400">{event.action}</span>{event.durationMs !== undefined && <span className="ml-auto text-[10px] text-slate-400">{(event.durationMs / 1000).toFixed(1)} s</span>}</div>
+              <p className="text-xs leading-5 text-slate-500">{event.summary}</p>
+              {event.urls && event.urls.length > 0 && <div className="mt-1 flex flex-wrap gap-1.5">{event.urls.slice(0, 12).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700 hover:bg-blue-100">{(() => { try { return new URL(url).hostname; } catch { return url; } })()} <ExternalLink className="size-2.5 shrink-0" /></a>)}</div>}
+            </div>
+          </div>
+        ))}
+        <p className="border-t border-slate-100 pt-2 text-[10px] text-slate-400">Seules les opérations confirmées par le serveur sont comptabilisées. Les sites sont dédupliqués par domaine lorsque leurs URL sont retournées par l'outil.</p>
+      </div>
+    </details>
+  );
+}
+
+function CheckActivityStatus({ status }: { status: ChatActivityEvent["status"] }) {
+  if (status === "failed") return <AlertTriangle className="size-3.5" />;
+  if (status === "running") return <Loader2 className="size-3.5 animate-spin" />;
+  return <span className="text-[11px] font-bold">✓</span>;
 }
