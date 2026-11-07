@@ -2,7 +2,7 @@ export type ProposedFile = { path: string; content: string };
 export type CheckSummary = {
   state: "pending" | "success" | "failure" | "unknown";
   head_sha: string;
-  checks: Array<{ name: string; status: string; conclusion: string | null; details_url: string | null }>;
+  checks: Array<{ name: string; status: string; conclusion: string | null; details_url: string | null; output_title: string | null; output_summary: string | null }>;
   failed_checks: string[];
 };
 
@@ -21,11 +21,13 @@ export async function inspectPullRequestChecks(
     const response = await fetch("https://api.github.com/repos/" + repository + "/commits/" + encodeURIComponent(headSha) + "/check-runs?per_page=100", { headers });
     if (!response.ok) throw new Error("Lecture des vérifications GitHub impossible (HTTP " + response.status + ").");
     const data = await response.json();
-    checks = (data.check_runs ?? []).map((item: { name?: string; status?: string; conclusion?: string | null; html_url?: string }) => ({
+    checks = (data.check_runs ?? []).map((item: { name?: string; status?: string; conclusion?: string | null; html_url?: string; output?: { title?: string | null; summary?: string | null } }) => ({
       name: String(item.name ?? "Vérification"),
       status: String(item.status ?? "unknown"),
       conclusion: item.conclusion ?? null,
       details_url: item.html_url ?? null,
+      output_title: item.output?.title?.slice(0, 300) ?? null,
+      output_summary: item.output?.summary?.slice(0, 3000) ?? null,
     }));
     if (!checks.length) state = "pending";
     else if (checks.some((item) => item.status !== "completed")) state = "pending";
