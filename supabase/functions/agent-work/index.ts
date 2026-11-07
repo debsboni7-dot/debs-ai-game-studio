@@ -40,13 +40,13 @@ Deno.serve(async(request)=>{
      await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"github_ci_pending",message:"Les vérifications GitHub sont encore en cours ; nouveau contrôle programmé.",metadata:eventMetadata});
      const {error:nextError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,available_at:nextAt,input:{...proposal,poll_count:pollCount}});
      if(nextError)throw nextError;
-     await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},last_summary:"Pull Request créé ; vérifications CI en cours.",heartbeat_at:new Date().toISOString(),next_run_at:nextAt,updated_at:new Date().toISOString()}).eq("id",session.id);
+     await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},last_summary:"Pull Request créé ; vérifications CI en cours.",heartbeat_at:new Date().toISOString(),next_run_at:nextAt,updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
      return json({ok:true,claimed:true,ci_state:"pending",session_id:session.id,poll_count:pollCount});
     }
     const finalStatus=checks.state==="success"?"completed":"failed";
     const finalSummary=checks.state==="success"?"Les vérifications GitHub ont réussi.":"Les vérifications GitHub ont échoué : "+(checks.failed_checks.join(", ")||"résultat incomplet ou délai de suivi atteint.");
     await admin.from("agent_work_tasks").update({status:"completed",result:{checks},lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
-    await admin.from("agent_work_sessions").update({status:finalStatus,last_summary:finalSummary,checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id);
+    await admin.from("agent_work_sessions").update({status:finalStatus,last_summary:finalSummary,checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id).eq("status","running");
     await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:checks.state==="success"?"github_ci_passed":"github_ci_failed",message:finalSummary,metadata:eventMetadata});
     return json({ok:true,claimed:true,ci_state:checks.state,session_id:session.id});
    }
