@@ -1,6 +1,9 @@
+import { useCallback, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Code2, Gamepad2, GitBranch, Lightbulb, MessageSquarePlus, Send, Sparkles, Wrench } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceAndFiles } from "@/components/debs/voice-and-files";
+import { setPendingAttachments } from "@/lib/chat/pending-attachments";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +29,8 @@ function ChatHome() {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const navigate = useNavigate();
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const handleAttachmentsChange = useCallback((files: File[]) => setAttachments(files), []);
 
   const start = async (draft = "") => {
     let id = uid("t_");
@@ -42,7 +47,8 @@ function ChatHome() {
       updatedAt: Date.now(),
       messages: [],
     }, ...previous]);
-    navigate({
+    setPendingAttachments(attachments);
+    await navigate({
       to: "/chat/$threadId",
       params: { threadId: id },
       search: draft ? { draft } : {},
@@ -51,19 +57,23 @@ function ChatHome() {
 
   return (
     <section className="flex min-h-[calc(100dvh-7rem)] flex-1 flex-col items-center justify-center px-1 pb-8">
-      <div className="mb-8 flex size-14 items-center justify-center rounded-2xl border border-red-100 bg-white shadow-[0_8px_30px_-18px_rgba(220,38,38,.55)]">
+      <div className="mb-6 flex size-14 items-center justify-center rounded-2xl border border-red-100 bg-white shadow-[0_8px_30px_-18px_rgba(220,38,38,.55)]">
         <Sparkles className="size-7 text-red-600" />
       </div>
+      <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-red-100 bg-white/90 px-3 py-1 text-[11px] font-semibold text-red-700 shadow-[0_4px_20px_-16px_rgba(220,38,38,.6)]"><span className="size-1.5 rounded-full bg-red-500" /> Assistant IA · DEBS 1.1</div>
       <h1 className="text-center text-3xl font-semibold tracking-tight text-slate-800 sm:text-4xl">Bienvenue sur DEBS AI 1.1</h1>
       <p className="mt-3 max-w-xl text-center text-sm leading-6 text-slate-500 sm:text-base">
         Je suis DEBS 1.1, ton assistant IA de création et de développement. Je peux t’aider à imaginer, programmer, tester et améliorer tes projets. Que souhaites-tu construire aujourd’hui ?
       </p>
 
-      <form onSubmit={(event) => { event.preventDefault(); if (input.trim()) start(input.trim()); }} className="mt-8 w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-3 shadow-[0_10px_36px_-22px_rgba(220,38,38,.5)] ring-1 ring-red-50">
+      <form onSubmit={(event) => { event.preventDefault(); if (input.trim() || attachments.length) void start(input.trim()); }} className="mt-8 w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-3 shadow-[0_10px_36px_-22px_rgba(220,38,38,.5)] ring-1 ring-red-50">
         <Textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS 1.1…" rows={2} className="min-h-[64px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" />
-        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-          <span className="px-2 text-[11px] text-slate-400">Décris ton idée ou pose une question</span>
-          <button type="submit" disabled={!input.trim()} aria-label="Envoyer le message" className="flex size-10 items-center justify-center rounded-xl bg-red-600 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-200"><Send className="size-4" /></button>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
+          <span className="px-2 text-[11px] text-slate-400">Décris ton idée, dicte-la ou joins un fichier</span>
+          <div className="ml-auto flex items-center gap-2">
+            <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={0} initialFiles={attachments} />
+            <button type="submit" disabled={!input.trim() && attachments.length === 0} aria-label="Continuer vers la conversation" className="flex size-10 items-center justify-center rounded-xl bg-red-600 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-200"><Send className="size-4" /></button>
+          </div>
         </div>
       </form>
 
