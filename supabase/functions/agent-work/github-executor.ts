@@ -13,13 +13,21 @@ export async function createMissionPullRequest(
   }
   if (!files.length || files.length > 12) throw new Error("Nombre de fichiers invalide.");
   const seen = new Set<string>();
+  let totalBytes = 0;
   for (const file of files) {
     const path = file.path;
     if (!path || path.length > 220 || path.startsWith("/") || path.includes("\\") ||
       path.split("/").some((part) => !part || part === "." || part === "..") ||
-      /(^|\/)(\.env|secrets?)(\/|$)/i.test(path) ||
-      /(^|\/)id_rsa(\.pub)?$/i.test(path)) throw new Error("Chemin refusé : " + path);
+      /(^|\/)(\.env[^/]*|secrets?)(\/|$)/i.test(path) ||
+      /(^|\/)id_rsa(\.pub)?$/i.test(path) ||
+      /^\.github\/workflows\//i.test(path) ||
+      /(^|\/)(credentials|private)(\/|$)/i.test(path)) throw new Error("Chemin refusé : " + path);
     if (file.content.length > 80000) throw new Error("Fichier trop volumineux : " + path);
+    totalBytes += new TextEncoder().encode(file.content).byteLength;
+    if (totalBytes > 300000) throw new Error("Proposition trop volumineuse : limite totale de 300 Ko.");
+    if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}/i.test(file.content)) {
+      throw new Error("Contenu refusé : un secret ou une clé privée semble présent.");
+    }
     if (seen.has(path)) throw new Error("Chemin dupliqué : " + path);
     seen.add(path);
   }
