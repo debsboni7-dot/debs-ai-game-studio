@@ -1,0 +1,89 @@
+name: Browser game runtime smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_path:
+        description: "Repository folder containing the browser game"
+        required: true
+        default: "games/my-game"
+        type: string
+      entry_file:
+        description: "HTML entry file, relative to the project folder"
+        required: true
+        default: "index.html"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate game project path
+        id: project
+        shell: bash
+        env:
+          PROJECT_PATH: ${{ inputs.project_path }}
+          ENTRY_FILE: ${{ inputs.entry_file }}
+        run: |
+          set -euo pipefail
+          PROJECT_DIR="$(realpath "$PROJECT_PATH")"
+          case "$PROJECT_DIR/" in
+            "$GITHUB_WORKSPACE/"*) ;;
+            *) echo "Project folder must be inside the checked-out repository."; exit 1 ;;
+          esac
+          ENTRY_PATH="$(realpath "$PROJECT_DIR/$ENTRY_FILE")"
+          case "$ENTRY_PATH" in
+            "$PROJECT_DIR/"*) ;;
+            *) echo "Entry file must stay inside the selected project folder."; exit 1 ;;
+          esac
+          test -f "$ENTRY_PATH"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "entry_file=$(realpath --relative-to="$PROJECT_DIR" "$ENTRY_PATH")" >> "$GITHUB_OUTPUT"
+
+      - name: Install Chromium and Playwright
+        run: |
+          npm install --global playwright@1.58.2
+          playwright install --with-deps chromium
+
+      - name: Start local game server
+        env:
+          PROJECT_DIR: ${{ steps.project.outputs.project_dir }}
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "$PROJECT_DIR" > /tmp/debs-game-server.log 2>&1 &
+          echo $! > /tmp/debs-game-server.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/debs-game-server.log
+          exit 1
+
+      - name: Launch game in Chromium
+        env:
+          GAME_URL: http://127.0.0.1:4173/${{ steps.project.outputs.entry_file }}
+          GAME_SCREENSHOT_PATH: browser-game-smoke.png
+          NODE_PATH: ${{ runner.tool_cache }}/../global/node_modules
+        run: |
+          export NODE_PATH="$(npm root -g)"
+          node scripts/browser-game-smoke.cjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-game-chromium-smoke
+          path: browser-game-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
