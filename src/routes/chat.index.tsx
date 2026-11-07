@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Code2, Gamepad2, GitBranch, Lightbulb, MessageSquarePlus, Search, Sparkles, Wrench } from "lucide-react";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/chat/")({
   head: () => ({
@@ -24,8 +25,15 @@ function ChatHome() {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const navigate = useNavigate();
 
-  const start = (draft = "") => {
-    const id = uid("t_");
+  const start = async (draft = "") => {
+    let id = uid("t_");
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth.user) {
+      const { data, error } = await supabase.from("conversations")
+        .insert({ user_id: auth.user.id, title: draft ? draft.slice(0, 52) : "Nouvelle conversation" })
+        .select("id").single();
+      if (!error && data) id = data.id;
+    }
     setThreads((previous) => [{
       id,
       title: draft ? draft.slice(0, 52) : "Nouvelle conversation",
