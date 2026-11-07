@@ -1,4 +1,47 @@
 export type ProposedFile = { path: string; content: string };
+export type CheckSummary = {
+  state: "pending" | "success" | "failure" | "unknown";
+  head_sha: string;
+  checks: Array<{ name: string; status: string; conclusion: string | null; details_url: string | null }>;
+  failed_checks: string[];
+};
+
+export async function inspectPullRequestChecks(
+  headSha: string,
+  waitSeconds = 0,
+): Promise<CheckSummary> {
+  const token = Deno.env.get("GITHUB_TOKEN")?.trim();
+  const repository = Deno.env.get("GITHUB_REPOSITORY")?.trim();
+  if (!token || !repository) throw new Error("GitHub non configuré pour lire les vérifications.");
+  const headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  const deadline = Date.now() + Math.min(Math.max(waitSeconds, 0), 30) * 1000;
+  let checks: CheckSummary["checks"] = [];
+  let state: CheckSummary["state"] = "unknown";
+  do {
+    const response = await fetch("https://api.github.com/repos/" + repository + "/commits/" + encodeURIComponent(headSha) + "/check-runs?per_page=100", { headers });
+    if (!response.ok) throw new Error("Lecture des vérifications GitHub impossible (HTTP " + response.status + ").");
+    const data = await response.json();
+    checks = (data.check_runs ?? []).map((item: { name?: string; status?: string; conclusion?: string | null; html_url?: string }) => ({
+      name: String(item.name ?? "Vérification"),
+      status: String(item.status ?? "unknown"),
+      conclusion: item.conclusion ?? null,
+      details_url: item.html_url ?? null,
+    }));
+    if (!checks.length) state = "pending";
+    else if (checks.some((item) => item.status !== "completed")) state = "pending";
+    else if (checks.some((item) => item.conclusion !== "success" && item.conclusion !== "skipped" && item.conclusion !== "neutral")) state = "failure";
+    else state = "success";
+    if (state !== "pending" || Date.now() >= deadline) break;
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  } while (Date.now() < deadline);
+  return {
+    state,
+    head_sha: headSha,
+    checks,
+    failed_checks: checks.filter((item) => item.status === "completed" && item.conclusion !== "success" && item.conclusion !== "skipped" && item.conclusion !== "neutral").map((item) => item.name),
+  };
+}
+
 
 export async function createMissionPullRequest(
   files: ProposedFile[],
@@ -73,5 +116,6 @@ export async function createMissionPullRequest(
       "\n\nFichiers :\n" + files.map((file) => "- " + file.path).join("\n") +
       "\n\nÀ examiner et tester avant fusion.",
   });
-  return { repository, branch, url: pr.html_url, number: pr.number, files: files.map((file) => file.path) };
+  const checks = await inspectPullRequestChecks(String(commit.sha), 20);
+  return { repository, branch, url: pr.html_url, number: pr.number, head_sha: commit.sha, files: files.map((file) => file.path), checks };
 }
