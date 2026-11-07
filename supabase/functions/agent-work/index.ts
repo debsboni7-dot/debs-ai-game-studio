@@ -80,7 +80,9 @@ Deno.serve(async(request)=>{
         !/(^|[/])(node_modules|dist|build|coverage|[.]git|[.]next|vendor)([/]|$)/i.test(x.path)&&
         !/(^|[/])([.]env[^/]*|secrets?[^/]*|id_rsa([.]pub)?|.*[.]lock)([/]|$)/i.test(x.path)&&
         /[.](tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
-      const ranked=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:
+      const repairPaths=new Set(Array.isArray(task.input?.annotations)?task.input.annotations.map((a:{path?:string})=>String(a.path??"")).filter(Boolean):[]);
+      const ranked=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:(repairPaths.has(x.path)?100:0)+
+        
         (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
         (/(src[/]|supabase[/]functions[/])/i.test(x.path)?3:0)+
         (/[.](tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a,b)=>b.score-a.score);
