@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DemoBadge, EmptyState } from "@/components/debs/ui";
 import { Markdown } from "@/components/debs/markdown";
+import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { sendChatMessage } from "@/lib/ai/chat.functions";
@@ -179,6 +180,7 @@ function ThreadPage() {
             ))}
           </div>
         )}
+        <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\\n" + text : text)} />
         <div className="flex items-end gap-2">
           <Textarea autoFocus value={input} onChange={(e) => setInput(e.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || !input.trim()} aria-label="Envoyer"><Send /></Button>
