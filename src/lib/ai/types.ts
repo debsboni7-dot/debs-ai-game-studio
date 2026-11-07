@@ -7,6 +7,7 @@ export type ChatRole = "user" | "assistant" | "system";
 export interface ChatTurn {
   role: ChatRole;
   content: string;
+  attachments?: { kind: "image" | "file"; data: string; mediaType: string; filename: string }[];
 }
 
 export interface CodeModelRequest {
