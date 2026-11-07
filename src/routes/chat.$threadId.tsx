@@ -207,7 +207,7 @@ function ThreadPage() {
             ))}
           </div>
         )}
-        <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={setAttachments} />
+        <VoiceAndFiles onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
         <div className="flex items-end gap-2">
           <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Message à DEBS AI… ( / pour les commandes )" rows={2} className="min-h-0 resize-none border-0 bg-transparent focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
