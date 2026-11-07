@@ -122,7 +122,7 @@ function ThreadPage() {
     const nextTitle = thread.messages.length === 0 ? titleFrom(raw) : thread.title;
     push(userMsg, thread.messages.length === 0 ? nextTitle : undefined);
 
-    let cloudUserId: string | null = null;
+    let cloudUserId: string | null = null;\n    let accessToken: string | null = null;
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(threadId)) {
       try {
         const { data: auth } = await supabase.auth.getUser();
