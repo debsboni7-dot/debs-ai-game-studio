@@ -185,7 +185,7 @@ function ThreadPage() {
         updateAssistant({ activity: activityEvents });
       } else setWorkingActivity([]);
       const response = await fetch("/api/chat-stream", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}) },
         body: JSON.stringify({ messages: history, task: parsed.task, attachments: encodedAttachments }),
       });
       if (!response.ok || !response.body) {
