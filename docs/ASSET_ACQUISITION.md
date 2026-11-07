@@ -7,7 +7,7 @@ La fonction Edge `asset-import` fournit un pipeline serveur authentifié pour im
 - Textures et images : PNG, JPG/JPEG, WebP, TGA, HDR, EXR, KTX/KTX2
 - Audio : WAV, OGG, MP3, FLAC
 - Vidéo : MP4, WebM
-- VFX et données : JSON, XML, GLSL, shaders, atlas et fichiers de données autorisés
+- VFX et données : JSON, XML, GLSL/HLSL, shaders, shader graphs, atlas et fichiers de données autorisés\n- Formats moteur : scènes/prefabs Unity, ressources UAsset/UMap Unreal, scènes/ressources/shaders Godot, polices TTF/OTF/WOFF2
 - Documentation et matériaux : MTL, TXT, MD
 
 Les archives ZIP doivent pointer directement vers un fichier téléchargeable. Les pages de catalogue HTML ne sont pas encore explorées automatiquement.
@@ -41,7 +41,7 @@ Secrets Edge Functions requis :
 
 Le jeton GitHub doit être limité au dépôt ciblé, avec Contents: Read and write et Pull requests: Read and write. La fonction `asset-import` valide elle-même le JWT ; la configuration Supabase utilise donc `verify_jwt = false` et le contrôle d'identité dans le code est obligatoire.
 
-## Appel de la fonction
+## Intégration dans le chat DEBS AI\n\nLe chat spécialisé `/game-dev`, `/unity`, `/unreal`, `/godot`, `/blender` et `/threejs` expose le tool serveur `import_game_assets`. Lorsqu'un utilisateur demande explicitement de rechercher, télécharger ou intégrer des assets, le modèle peut lancer une recherche web, vérifier la source et la licence, puis appeler ce tool. Le navigateur transmet uniquement le JWT de session ; le jeton GitHub reste côté serveur. Le composer contient aussi un formulaire d'import manuel.\n\nLe tool exige une URL ZIP directe sur un domaine autorisé et une preuve de licence. Il prépare une PR brouillon et ne fusionne jamais automatiquement.\n\n## Appel de la fonction
 
 Appeler `POST /functions/v1/asset-import` depuis un client connecté, avec son JWT Supabase dans l'en-tête Authorization et un corps JSON :
 
