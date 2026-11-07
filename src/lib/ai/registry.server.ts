@@ -1,4 +1,5 @@
 import type { ChatActivityEvent, ChatTask, CodeModelProvider } from "./types";
+import { ACTIVE_MODEL_RELEASE } from "./model-release";
 import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
@@ -57,7 +58,7 @@ const lovableProvider: CodeModelProvider = {
       const request = new Request("https://debs.internal/chat", signal ? { signal } : undefined);
       const task = req.task ?? "chat";
       const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
-        "You are DEBS 1.1, the first DEBS model release and assistant engine of DEBS AI Studio. Identify yourself as DEBS 1.1 when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that DEBS 1.1 is a separately trained foundation model. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. " + modeInstructions[task],
+        "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. " + modeInstructions[task],
         task === "search", ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium");
       let streamError: unknown;
       const activity: ChatActivityEvent[] = [];
