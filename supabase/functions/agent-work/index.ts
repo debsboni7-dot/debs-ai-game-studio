@@ -31,7 +31,38 @@ Deno.serve(async(request)=>{
     "Objectif : "+session.goal,"Checkpoint : "+JSON.stringify(session.checkpoint??{}),
     "Résultat précédent : "+JSON.stringify(task.input??{}),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
-    "Arborescence GitHub : "+JSON.stringify(await (async()=>{try{const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY");if(!token||!repo)return [];const r=await fetch("https://api.github.com/repos/"+repo+"/git/trees/"+encodeURIComponent(env("GITHUB_BASE_BRANCH")||"main")+"?recursive=1",{headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});if(!r.ok)return [];const d=await r.json();return (d.tree??[]).filter((x:{type:string})=>x.type==="blob").slice(0,120).map((x:{path:string})=>x.path);}catch{return [];}})()),
+    "Contexte du dépôt GitHub (arborescence et extraits réels) : "+JSON.stringify(await (async()=>{try{
+      const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY"),branch=env("GITHUB_BASE_BRANCH")||"main";
+      if(!token||!repo)return {files:[],contents:[]};
+      const headers={Authorization:"Bearer "+token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+      const treeResponse=await fetch("https://api.github.com/repos/"+repo+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1",{headers});
+      if(!treeResponse.ok)return {files:[],contents:[],warning:"Lecture de l'arborescence impossible (HTTP "+treeResponse.status+")."};
+      const treeData=await treeResponse.json();
+      const paths=(treeData.tree??[]).filter((x:{type:string;path:string;size?:number})=>x.type==="blob"&&
+        !/(^|\\/)(node_modules|dist|build|coverage|\.git|\.next|vendor)(\\/|$)/i.test(x.path)&&
+        !/(^|\\/)(\.env[^/]*|secrets?[^/]*|id_rsa(\.pub)?|.*\.lock)$/i.test(x.path)&&
+        /\\.(tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
+      const ranked=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:
+        (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
+        (/(src\\/|supabase\\/functions\\/)/i.test(x.path)?3:0)+
+        (/\\.(tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a,b)=>b.score-a.score);
+      const selected=ranked.slice(0,8);
+      const contents=[];let total=0;
+      for(const item of selected){
+        if(total>=60000)break;
+        try{
+          const fileResponse=await fetch("https://api.github.com/repos/"+repo+"/contents/"+item.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch),{headers});
+          if(!fileResponse.ok)continue;
+          const fileData=await fileResponse.json();
+          if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")continue;
+          const binary=atob(fileData.content.replace(/\\s/g,""));
+          const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+          const text=new TextDecoder().decode(bytes).slice(0,Math.min(12000,60000-total));
+          contents.push({path:item.path,content:text});total+=text.length;
+        }catch{/* fichier ignoré : le contexte reste borné */}
+      }
+      return {branch,truncated:Boolean(treeData.truncated),files:ranked.slice(0,100).map(x=>x.path),contents};
+    }catch{return {files:[],contents:[],warning:"Contexte GitHub indisponible."};}})()),
     "Échéance : "+session.deadline_at
    ].join("\n\n");
    const response=await fetch("https://ai.gateway.lovable.dev/v1/responses",{method:"POST",signal:controller.signal,
