@@ -9,7 +9,15 @@ import { IntegrationProvider } from "@/lib/integrations/context";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
-  const navigate = useNavigate();\n  const pathname = useRouterState({ select: (state) => state.location.pathname });\n  const now = Date.now();\n  const groupedThreads = [\n    { label: "Aujourd’hui", items: threads.filter((item) => now - item.updatedAt < 86_400_000) },\n    { label: "Hier", items: threads.filter((item) => now - item.updatedAt >= 86_400_000 && now - item.updatedAt < 172_800_000) },\n    { label: "7 derniers jours", items: threads.filter((item) => now - item.updatedAt >= 172_800_000 && now - item.updatedAt < 7 * 86_400_000) },\n    { label: "Plus anciens", items: threads.filter((item) => now - item.updatedAt >= 7 * 86_400_000) },\n  ].filter((group) => group.items.length > 0);
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const now = Date.now();
+  const groupedThreads = [
+    { label: "Aujourd’hui", items: threads.filter((item) => now - item.updatedAt < 86_400_000) },
+    { label: "Hier", items: threads.filter((item) => now - item.updatedAt >= 86_400_000 && now - item.updatedAt < 172_800_000) },
+    { label: "7 derniers jours", items: threads.filter((item) => now - item.updatedAt >= 172_800_000 && now - item.updatedAt < 7 * 86_400_000) },
+    { label: "Plus anciens", items: threads.filter((item) => now - item.updatedAt >= 7 * 86_400_000) },
+  ].filter((group) => group.items.length > 0);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
