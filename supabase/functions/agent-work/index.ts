@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createMissionPullRequest, type ProposedFile } from "./github-executor.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -38,11 +39,13 @@ Deno.serve(async(request)=>{
    const payload=await response.json();const outputText=typeof payload.output_text==="string"?payload.output_text:
     (payload.output??[]).flatMap((item:{content?:Array<{text?:string}>})=>item.content??[]).map((part:{text?:string})=>part.text??"").join("\n");
    if(!outputText.trim())throw new Error("Réponse vide du modèle.");
-   let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string};
+   let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string;files?:ProposedFile[]};
    try{parsed=JSON.parse(outputText);}catch{parsed={done:false,summary:outputText.slice(0,4000),checkpoint:{raw:outputText.slice(0,12000)},next_action:"Reprendre depuis ce résultat."};}
    const now=new Date().toISOString(),steps=Number(session.step_count??0)+1,expired=Date.now()>=new Date(session.deadline_at).getTime();
    const completed=parsed.done===true||expired||steps>=Number(session.max_steps),summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
+   let githubProposal:Record<string,unknown>|null=null;
+   if(Array.isArray(parsed.files)&&parsed.files.length){githubProposal=await createMissionPullRequest(parsed.files,String(session.title??"Mission DEBS AI"),summary);}
    const {error:taskError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,checkpoint,next_action:parsed.next_action??""},lease_until:null,updated_at:now}).eq("id",task.id);
    if(taskError)throw taskError;
    const {data:latestSession}=await admin.from("agent_work_sessions").select("status").eq("id",session.id).single();
@@ -56,9 +59,9 @@ Deno.serve(async(request)=>{
    }
    const {error:updateError}=await admin.from("agent_work_sessions").update({status:completed?(expired?"expired":"completed"):"queued",checkpoint,last_summary:summary,step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
    if(updateError)throw updateError;
-   await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:completed?"mission_completed":"step_completed",message:summary,metadata:{step_count:steps,next_action:parsed.next_action??""}});
+   await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:completed?"mission_completed":"step_completed",message:summary,metadata:{step_count:steps,next_action:parsed.next_action??"",github_proposal:githubProposal}});
    if(!completed){const {error}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{previous_summary:summary,next_action:parsed.next_action??""}});if(error)throw error;}
-   return json({ok:true,claimed:true,completed,session_id:session.id,step_count:steps,summary});
+   return json({ok:true,claimed:true,completed,session_id:session.id,step_count:steps,summary,github_proposal:githubProposal});
   }catch(error){
    const message=error instanceof Error?error.message:"Erreur worker inconnue.",retry=Number(task.attempt??1)<Number(task.max_attempts??4);
    await admin.from("agent_work_tasks").update({status:retry?"queued":"failed",available_at:new Date(Date.now()+Math.min(300000,5000*2**Number(task.attempt??1))).toISOString(),lease_until:null,last_error:message.slice(0,1000),updated_at:new Date().toISOString()}).eq("id",task.id);
