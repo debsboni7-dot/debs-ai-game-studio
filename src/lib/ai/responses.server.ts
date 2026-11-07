@@ -27,7 +27,7 @@ export function createResponsesCall(
     : undefined;
   const result = streamText({
     model: provider.responses(config.model),
-    // AI SDK 6 lacks `instructions`: rename this key to `system` there.
+    // AI SDK 7 uses `instructions` for the system-level prompt.
     ...(instructions ? { instructions } : {}),
     messages,
     ...(webSearch ? { tools: { web_search: webSearch }, toolChoice: { type: "tool", toolName: "web_search" } } : {}),
