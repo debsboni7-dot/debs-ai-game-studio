@@ -21,7 +21,7 @@ type SpeechWindow = Window & {
   webkitSpeechRecognition?: new () => SpeechRecognitionLike;
 };
 
-export function VoiceAndFiles({ onInsertText }: Props) {
+export function VoiceAndFiles({ onInsertText, onAttachmentsChange }: Props) {
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -29,8 +29,8 @@ export function VoiceAndFiles({ onInsertText }: Props) {
   const [translated, setTranslated] = useState("");
   const [targetLanguage, setTargetLanguage] = useState("en");
   const [translating, setTranslating] = useState(false);
-  const [fileNames, setFileNames] = useState<string[]>([]);
-  const recognition = useRef<SpeechRecognitionLike | null>(null);
+  const [files, setFiles] = useState<File[]>([]);\n  const [fileError, setFileError] = useState("");
+  const recognition = useRef<SpeechRecognitionLike | null>(null);\n  const filesStateRef = useRef<File[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => recognition.current?.stop(), []);
@@ -133,7 +133,7 @@ export function VoiceAndFiles({ onInsertText }: Props) {
           {fileNames.map((name, index) => <span key={name + index} className="inline-flex max-w-full items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-600"><FileText className="size-3 shrink-0" /><span className="truncate">{name}</span><button type="button" aria-label={"Retirer " + name} onClick={() => setFileNames((items) => items.filter((_, i) => i !== index))}><X className="size-3" /></button></span>)}
         </div>
       )}
-      <details className="rounded-xl border border-slate-200 bg-white/80 p-2">
+      {fileError && <p role="status" className="text-xs text-amber-700">{fileError}</p>}\n      {files.length > 0 && <div className="flex flex-wrap gap-1.5">{files.map((file, index) => <span key={file.name + index} className="inline-flex max-w-full items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-600">{file.type.startsWith("image/") ? <ImagePlus className="size-3 shrink-0" /> : <FileText className="size-3 shrink-0" />}<span className="max-w-40 truncate">{file.name}</span><button type="button" aria-label={"Retirer " + file.name} onClick={() => { const next = files.filter((_, i) => i !== index); filesStateRef.current = next; setFiles(next); onAttachmentsChange(next); }}><X className="size-3" /></button></span>)}</div>}\n      <details className="rounded-xl border border-slate-200 bg-white/80 p-2">
         <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-slate-700"><Languages className="size-4 text-blue-600" /> Traduction écrite (sans IA)</summary>
         <div className="mt-2 space-y-2">
           <textarea value={sourceText} onChange={(event) => setSourceText(event.target.value)} rows={2} placeholder="Texte à traduire…" className="w-full rounded-lg border border-slate-200 bg-white p-2 text-sm outline-none focus:border-blue-300" />
