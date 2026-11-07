@@ -21,15 +21,15 @@
   --color-code: var(--code); --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground);
 }
 :root {
-  --radius: 1rem; --background: #fbfdff; --foreground: #17233b; --surface: #ffffff;
-  --card: #ffffff; --card-foreground: #17233b; --popover: #ffffff; --popover-foreground: #17233b;
-  --primary: #397dff; --primary-foreground: #ffffff; --secondary: #eef4ff; --secondary-foreground: #26436f;
-  --muted: #f1f5fb; --muted-foreground: #74829a; --accent: #eaf2ff; --accent-foreground: #244e9b;
-  --destructive: #dc4b64; --destructive-foreground: #ffffff; --border: #dce7f7; --input: #dce7f7; --ring: #70a5ff;
-  --code: #f3f6fc; --sidebar: #ffffff; --sidebar-foreground: #17233b;
-  --gradient-brand: linear-gradient(120deg,#1677ff 0%,#398cff 52%,#70b5ff 100%);
-  --gradient-glow: radial-gradient(55% 40% at 5% 0%,rgba(40,130,255,.12),transparent 75%),radial-gradient(45% 35% at 100% 5%,rgba(90,170,255,.08),transparent 75%);
-  --shadow-glow: 0 0 0 1px rgba(91,151,255,.32),0 8px 30px -12px rgba(70,133,255,.38);
+  --radius: 1rem; --background: #ffffff; --foreground: #171313; --surface: #ffffff;
+  --card: #ffffff; --card-foreground: #171313; --popover: #ffffff; --popover-foreground: #171313;
+  --primary: #dc2626; --primary-foreground: #ffffff; --secondary: #f5eeee; --secondary-foreground: #3b2020;
+  --muted: #f5f1f1; --muted-foreground: #766b6b; --accent: #fff0f0; --accent-foreground: #991b1b;
+  --destructive: #dc4b64; --destructive-foreground: #ffffff; --border: #eadada; --input: #eadada; --ring: #ef4444;
+  --code: #f3f6fc; --sidebar: #ffffff; --sidebar-foreground: #171313;
+  --gradient-brand: linear-gradient(120deg,#b91c1c 0%,#ef4444 52%,#f87171 100%);
+  --gradient-glow: radial-gradient(55% 40% at 5% 0%,rgba(220,38,38,.12),transparent 75%),radial-gradient(45% 35% at 100% 5%,rgba(239,68,68,.08),transparent 75%);
+  --shadow-glow: 0 0 0 1px rgba(220,38,38,.32),0 8px 30px -12px rgba(185,28,28,.38);
 }
 @layer base {
   * { border-color: var(--color-border); }
@@ -40,19 +40,19 @@
 @utility text-gradient-brand { background-image: var(--gradient-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
 @utility bg-gradient-brand { background-image: var(--gradient-brand); }
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
-@utility glow-outline { background: linear-gradient(white,white) padding-box,var(--gradient-brand) border-box; border: 1px solid transparent; box-shadow: 0 0 18px rgba(71,139,255,.16),inset 0 0 12px rgba(111,154,255,.05); color: #326fe0; }
-@utility glow-icon { color: #397dff; border: 1px solid rgba(91,151,255,.35); box-shadow: 0 0 16px rgba(71,139,255,.18); }
+@utility glow-outline { background: linear-gradient(white,white) padding-box,var(--gradient-brand) border-box; border: 1px solid transparent; box-shadow: 0 0 18px rgba(220,38,38,.16),inset 0 0 12px rgba(239,68,68,.05); color: #b91c1c; }
+@utility glow-icon { color: #dc2626; border: 1px solid rgba(220,38,38,.35); box-shadow: 0 0 16px rgba(220,38,38,.18); }
 @utility glass { background-color: rgba(255,255,255,.84); backdrop-filter: blur(18px); }
 @utility pb-safe { padding-bottom: max(env(safe-area-inset-bottom),.5rem); }
 @utility animate-rise { animation: rise .35s ease-out both; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .md { line-height: 1.7; font-size: .95rem; overflow-wrap: anywhere; color: #263650; }
 .md > * + * { margin-top: .8em; }
-.md h1,.md h2,.md h3 { font-weight: 650; margin-top: 1.2em; color: #17233b; }
+.md h1,.md h2,.md h3 { font-weight: 650; margin-top: 1.2em; color: #171313; }
 .md h1 { font-size: 1.35rem; } .md h2 { font-size: 1.15rem; } .md h3 { font-size: 1rem; }
 .md ul { list-style: disc; padding-left: 1.25rem; } .md ol { list-style: decimal; padding-left: 1.25rem; }
-.md a { color: #3478ef; text-decoration: underline; }
+.md a { color: #dc2626; text-decoration: underline; }
 .md blockquote { border-left: 2px solid #8b83ff; padding-left: .75rem; color: #64748b; }
 .md table { width: 100%; font-size: .85rem; border-collapse: collapse; }
 .md th,.md td { border: 1px solid var(--border); padding: .35rem .5rem; text-align: left; }
-.md-inline-code { font-family: var(--font-mono); font-size: .85em; background: #edf3ff; padding: .1em .35em; border-radius: .3rem; color: #326fe0; }
+.md-inline-code { font-family: var(--font-mono); font-size: .85em; background: #fff1f1; padding: .1em .35em; border-radius: .3rem; color: #b91c1c; }
