@@ -13,7 +13,7 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 ## Activation obligatoire avant toute exécution continue
 1. Appliquer la migration SQL du dossier migrations.
 2. Déployer la fonction Edge agent-work.
-3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY et AGENT_WORKER_SECRET (secret aléatoire long).
+3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY, AGENT_WORKER_SECRET, GITHUB_TOKEN, GITHUB_REPOSITORY et GITHUB_BASE_BRANCH. Le jeton GitHub doit être limité au dépôt autorisé avec Contents: Read and write et Pull requests: Read and write. Ne jamais le placer dans le navigateur.
 4. Configurer un scheduler fiable qui envoie chaque minute un POST avec le corps {"action":"worker"} et l'en-tête x-agent-worker-secret. Conserver le secret côté serveur, idéalement dans Vault.
 5. L'interface /missions est ajoutée au projet et appelle les actions create/status/pause/resume/cancel avec la session Supabase de l'utilisateur connecté.
 
@@ -21,7 +21,7 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 - Le code de cette branche ne déploie pas la migration ni la fonction et ne configure pas le scheduler ou les secrets.
 - Une invocation réalise une seule étape, avec un délai d'attente de 95 secondes. Le scheduler doit déclencher les étapes suivantes.
 - La disponibilité dépend de Supabase, du scheduler, du fournisseur IA, de ses quotas et du réseau. Aucune disponibilité 24 h/24 absolue n'est garantie.
-- Le worker n'a pas encore d'outils GitHub ou d'accès d'écriture au dépôt. Les modifications GitHub doivent être ajoutées séparément et soumises à confirmation explicite.
+- Lorsque le modèle renvoie une liste de fichiers complète, le worker peut créer un commit sur une branche debs-ai/ isolée et ouvrir un Pull Request en brouillon. Il ne pousse jamais directement sur la branche cible et ne fusionne jamais le PR. L'arborescence transmise au modèle est limitée aux 120 premiers chemins ; le worker ne lit pas encore le contenu des fichiers existants, donc les modifications doivent être demandées avec suffisamment de contexte ou viser de nouveaux fichiers.
 
 ## Exemple de planification Supabase Cron (à exécuter après configuration)
 
