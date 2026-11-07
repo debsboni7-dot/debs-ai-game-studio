@@ -16,10 +16,10 @@ export const Route = createFileRoute("/chat/")({
 });
 
 const suggestions = [
-  { icon: Gamepad2, title: "Créer un jeu vidéo", prompt: "Aide-moi à concevoir un jeu vidéo. Commençons par définir son concept, son gameplay et son univers." },
-  { icon: Code2, title: "Écrire du code", prompt: "Aide-moi à écrire du code propre et fonctionnel. Je vais te décrire ce que je veux construire." },
-  { icon: Wrench, title: "Corriger un bug", prompt: "Aide-moi à diagnostiquer et corriger un bug. Je vais te donner le comportement attendu et le problème rencontré." },
-  { icon: GitBranch, title: "Travailler avec GitHub", prompt: "Aide-moi à analyser mon dépôt GitHub et à planifier les prochaines modifications." },
+  { icon: Gamepad2, title: "Créer un jeu vidéo", prompt: "/game-dev Aide-moi à concevoir et développer un jeu vidéo. Commençons par définir le concept, le gameplay, l’architecture technique et une première version jouable." },
+  { icon: Code2, title: "Écrire du code", prompt: "/code Aide-moi à écrire du code propre, robuste et testé. Je vais te décrire ce que je veux construire." },
+  { icon: Wrench, title: "Corriger un bug", prompt: "/debug Aide-moi à diagnostiquer et corriger un bug. Je vais te donner le comportement attendu et le problème rencontré." },
+  { icon: GitBranch, title: "Travailler avec GitHub", prompt: "/github Aide-moi à analyser mon dépôt GitHub et à planifier les prochaines modifications." },
 ];
 
 function ChatHome() {
