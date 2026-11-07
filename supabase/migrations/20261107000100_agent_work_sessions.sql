@@ -30,8 +30,8 @@ alter table public.agent_work_tasks enable row level security;
 alter table public.agent_work_events enable row level security;
 drop policy if exists "Users read own agent sessions" on public.agent_work_sessions;
 create policy "Users read own agent sessions" on public.agent_work_sessions for select to authenticated using(auth.uid()=user_id);
+-- Session creation and state changes are server-controlled; clients only read their own rows.
 drop policy if exists "Users create own agent sessions" on public.agent_work_sessions;
-create policy "Users create own agent sessions" on public.agent_work_sessions for insert to authenticated with check(auth.uid()=user_id);
 -- Session state is changed only by the trusted Edge Function using the service role.
 -- Authenticated users may read their sessions, but cannot directly rewrite status or checkpoints.
 drop policy if exists "Users update own agent sessions" on public.agent_work_sessions;
