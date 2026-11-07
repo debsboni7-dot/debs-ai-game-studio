@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { createMissionPullRequest, type ProposedFile } from "./github-executor.ts";
+import { createMissionPullRequest, inspectPullRequestChecks, type ProposedFile } from "./github-executor.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -22,6 +22,29 @@ Deno.serve(async(request)=>{
   const {data:session,error:sessionError}=await admin.from("agent_work_sessions").select("*").eq("id",task.session_id).single();
   if(sessionError||!session)return json({error:"Mission introuvable."},500);
   try{
+   if(task.task_type==="github_ci_check"){
+    const proposal=(task.input??{}) as {url?:string;number?:number;branch?:string;head_sha?:string;poll_count?:number};
+    if(!proposal.head_sha)throw new Error("SHA du commit absent pour le suivi CI.");
+    const checks=await inspectPullRequestChecks(proposal.head_sha,0);
+    const pollCount=Number(proposal.poll_count??0)+1;
+    const eventMetadata={github_proposal:{...proposal,checks}};
+    if(checks.state==="pending"&&pollCount<120){
+     const nextAt=new Date(Date.now()+60000).toISOString();
+     const {error:taskUpdateError}=await admin.from("agent_work_tasks").update({status:"completed",result:{checks},lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
+     if(taskUpdateError)throw taskUpdateError;
+     await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"github_ci_pending",message:"Les vérifications GitHub sont encore en cours ; nouveau contrôle programmé.",metadata:eventMetadata});
+     const {error:nextError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,available_at:nextAt,input:{...proposal,poll_count:pollCount}});
+     if(nextError)throw nextError;
+     await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},last_summary:"Pull Request créé ; vérifications CI en cours.",heartbeat_at:new Date().toISOString(),next_run_at:nextAt,updated_at:new Date().toISOString()}).eq("id",session.id);
+     return json({ok:true,claimed:true,ci_state:"pending",session_id:session.id,poll_count:pollCount});
+    }
+    const finalStatus=checks.state==="success"?"completed":"failed";
+    const finalSummary=checks.state==="success"?"Les vérifications GitHub ont réussi.":"Les vérifications GitHub ont échoué : "+(checks.failed_checks.join(", ")||"résultat incomplet ou délai de suivi atteint.");
+    await admin.from("agent_work_tasks").update({status:"completed",result:{checks},lease_until:null,updated_at:new Date().toISOString()}).eq("id",task.id);
+    await admin.from("agent_work_sessions").update({status:finalStatus,last_summary:finalSummary,checkpoint:{...(session.checkpoint??{}),github_proposal:{...proposal,checks}},heartbeat_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",session.id);
+    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:checks.state==="success"?"github_ci_passed":"github_ci_failed",message:finalSummary,metadata:eventMetadata});
+    return json({ok:true,claimed:true,ci_state:checks.state,session_id:session.id});
+   }
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),95000);
    const prompt=[
     "Tu es le worker autonome de DEBS AI. Avance une mission en une seule étape courte, vérifiable et récupérable.",
@@ -77,10 +100,18 @@ Deno.serve(async(request)=>{
    try{parsed=JSON.parse(outputText);}catch{parsed={done:false,summary:outputText.slice(0,4000),checkpoint:{raw:outputText.slice(0,12000)},next_action:"Reprendre depuis ce résultat."};}
    const now=new Date().toISOString(),steps=Number(session.step_count??0)+1,expired=Date.now()>=new Date(session.deadline_at).getTime();
    const hasFiles=Array.isArray(parsed.files)&&parsed.files.length>0;
-   const completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps),summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
+   let completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps);const summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
    let githubProposal:Record<string,unknown>|null=null;
-   if(hasFiles){githubProposal=await createMissionPullRequest(parsed.files!,String(session.title??"Mission DEBS AI"),summary);}
+   if(hasFiles){
+    githubProposal=await createMissionPullRequest(parsed.files!,String(session.title??"Mission DEBS AI"),summary);
+    const proposal=githubProposal as {url?:string;number?:number;branch?:string;head_sha?:string;checks?:{state?:string}};
+    if(proposal.checks?.state==="pending"&&proposal.head_sha){
+     completed=false;
+     const {error:ciTaskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"github_ci_check",max_attempts:4,input:{url:proposal.url,number:proposal.number,branch:proposal.branch,head_sha:proposal.head_sha,poll_count:0}});
+     if(ciTaskError)throw ciTaskError;
+    }
+   }
    const {error:taskError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,checkpoint,next_action:parsed.next_action??""},lease_until:null,updated_at:now}).eq("id",task.id);
    if(taskError)throw taskError;
    const {data:latestSession}=await admin.from("agent_work_sessions").select("status").eq("id",session.id).single();
