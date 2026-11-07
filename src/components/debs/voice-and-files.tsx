@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileText, Mic, MicOff, Paperclip, X } from "lucide-react";
 
-type Props = { onInsertText: (text: string) => void; onAttachmentsChange: (files: File[]) => void; resetKey: number };
+type Props = { onInsertText: (text: string) => void; onAttachmentsChange: (files: File[]) => void; resetKey: number; initialFiles?: File[] };
 type Recognition = {
   lang: string; continuous: boolean; interimResults: boolean;
   onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
@@ -9,16 +9,23 @@ type Recognition = {
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
 
-export function VoiceAndFiles({ onInsertText, onAttachmentsChange, resetKey }: Props) {
+export function VoiceAndFiles({ onInsertText, onAttachmentsChange, resetKey, initialFiles = [] }: Props) {
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<File[]>(initialFiles);
   const [fileError, setFileError] = useState("");
   const recognition = useRef<Recognition | null>(null);
   const transcript = useRef("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const previousResetKey = useRef(resetKey);
 
-  useEffect(() => { setFiles([]); setFileError(""); onAttachmentsChange([]); }, [resetKey, onAttachmentsChange]);
+  useEffect(() => {
+    if (previousResetKey.current === resetKey) return;
+    previousResetKey.current = resetKey;
+    setFiles([]);
+    setFileError("");
+    onAttachmentsChange([]);
+  }, [resetKey, onAttachmentsChange]);
   useEffect(() => () => recognition.current?.stop(), []);
 
   const toggleVoice = () => {
