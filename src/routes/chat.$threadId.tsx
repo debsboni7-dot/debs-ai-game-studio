@@ -32,18 +32,20 @@ function parseCommand(raw: string): { task: Task; prompt: string; help: boolean 
   };
 }
 
-const HELP_TEXT = `### Commandes DEBS AI
-
-- \`/code\` — programmation et architecture
-- \`/search\` — demande de recherche web
-- \`/game-design\` — conception des mécaniques et systèmes de jeu
-- \`/debug\` — diagnostic et correction de bugs
-- \`/review\` — revue de code
-- \`/help\` — afficher cette aide
-
-Sans commande slash, DEBS AI répond en mode général. Écris la commande, ajoute un espace, puis ton message. Exemple : \`/debug Mon personnage traverse le sol...\`
-
-Note : le mode recherche ne prétendra jamais avoir consulté le Web si aucun outil de recherche réel n'est disponible.`;
+const HELP_TEXT = [
+  "### Commandes DEBS AI",
+  "",
+  "- `/code` — programmation et architecture",
+  "- `/search` — demande de recherche web",
+  "- `/game-design` — conception des mécaniques et systèmes de jeu",
+  "- `/debug` — diagnostic et correction de bugs",
+  "- `/review` — revue de code",
+  "- `/help` — afficher cette aide",
+  "",
+  "Sans commande slash, DEBS AI répond en mode général. Écris la commande, ajoute un espace, puis ton message. Exemple : `/debug Mon personnage traverse le sol...`",
+  "",
+  "Note : le mode recherche ne prétendra jamais avoir consulté le Web si aucun outil de recherche réel n'est disponible.",
+].join("\n");
 
 export const Route = createFileRoute("/chat/$threadId")({
   head: () => ({
