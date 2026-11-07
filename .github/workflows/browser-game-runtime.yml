@@ -6,7 +6,6 @@ on:
       project_path:
         description: "Repository folder containing the browser game"
         required: true
-        default: "games/my-game"
         type: string
       entry_file:
         description: "HTML entry file, relative to the project folder"
@@ -74,8 +73,7 @@ jobs:
         env:
           GAME_URL: http://127.0.0.1:4173/${{ steps.project.outputs.entry_file }}
           GAME_SCREENSHOT_PATH: browser-game-smoke.png
-          NODE_PATH: ${{ runner.tool_cache }}/../global/node_modules
-        run: |
+          run: |
           export NODE_PATH="$(npm root -g)"
           node scripts/browser-game-smoke.cjs
 
