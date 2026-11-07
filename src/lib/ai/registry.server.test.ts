@@ -66,6 +66,15 @@ describe("managed Gateway adapter", () => {
     const streamedPrompt = state.call.mock.calls[0]?.[3] as string;
     expect(streamedPrompt).toContain("Mon créateur est Debs Boni. J’ai été développé par DEBS AI Studio.");
   });
+  it("gives game-development mode the expanded browser evidence workflow", () => {
+    const provider = configuredProvider();
+    state.call.mockReturnValue(result("Ready"));
+    void provider.complete({ ...input, task: "game-dev" });
+    const prompt = state.call.mock.calls[0]?.[3] as string;
+    expect(prompt).toContain("debs-browser-runtime-evidence");
+    expect(prompt).toContain("mobile touch emulation");
+    expect(prompt).toContain("JSON and Markdown reports");
+  });
   it("rejects empty output without fabricated answers or retries", async () => {
     const provider = configuredProvider();
     state.call.mockReturnValue(result("  "));
