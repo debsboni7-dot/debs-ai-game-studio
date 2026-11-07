@@ -90,3 +90,83 @@ const lovableProvider: CodeModelProvider = {
 };
 const adapters: CodeModelProvider[] = [lovableProvider];
 export function resolveProvider(): CodeModelProvider | null { return adapters.find((adapter) => adapter.isConfigured()) ?? null; }
+
+
+/** Raw NDJSON stream used by the chat UI to display text and confirmed tool activity as it happens. */
+export function streamChatResponse(req: CodeModelRequest, request: Request): Response {
+  const apiKey = getLovableApiKey();
+  if (!apiKey) return Response.json({ message: "Lovable AI n'est pas configuré sur le serveur." }, { status: 503 });
+  const task = req.task ?? "chat";
+  const messages = req.messages.map((message) => {
+    if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
+    if (message.role === "user" && message.attachments?.length) return { role: "user" as const, content: [
+      { type: "text" as const, text: message.content || "Please inspect the attached file(s)." },
+      ...message.attachments.map((file) => file.kind === "image"
+        ? { type: "image" as const, image: file.data, mediaType: file.mediaType }
+        : { type: "file" as const, data: file.data, mediaType: file.mediaType, filename: file.filename }),
+    ] };
+    return { role: message.role, content: message.content };
+  });
+  const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
+    "You are DEBS AI, a senior software and game-development assistant. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. " + modeInstructions[task],
+    task === "search");
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const started = Date.now();
+      const activity = new Map<string, ChatActivityEvent>();
+      const send = (payload: Record<string, unknown>) => controller.enqueue(encoder.encode(JSON.stringify(payload) + "\n"));
+      const modelEvent: ChatActivityEvent = { id: "model", connector: "Lovable AI Gateway", action: "Génération IA", status: "running", summary: "Le modèle traite la demande." };
+      activity.set(modelEvent.id, modelEvent);
+      send({ type: "activity", event: modelEvent });
+      let toolIndex = 0;
+      let streamError: unknown;
+      try {
+        for await (const part of result.fullStream) {
+          const event = part as unknown as Record<string, unknown>;
+          const type = String(event.type ?? "");
+          const toolName = String(event.toolName ?? event.tool_name ?? "");
+          if (type === "text-delta") {
+            const delta = event.textDelta ?? event.delta ?? event.text;
+            if (typeof delta === "string" && delta) send({ type: "text", delta });
+          }
+          if (type === "error") streamError = event.error;
+          if (type === "tool-call" || type === "tool-input-start" || type === "tool-input-available") {
+            const id = "tool-" + (++toolIndex);
+            const connector = toolName === "web_search" ? "Recherche Web" : (toolName || "Outil externe");
+            const toolEvent: ChatActivityEvent = { id, connector, action: toolName === "web_search" ? "Recherche de sites" : "Appel d'outil", status: "running", summary: "Appel en cours." };
+            activity.set(id, toolEvent);
+            send({ type: "activity", event: toolEvent });
+          }
+          if (type === "tool-result" || type === "tool-output-available" || type === "tool-error" || type === "tool-output-error") {
+            const latest = [...activity.values()].reverse().find((item) => item.status === "running" && item.id.startsWith("tool-"));
+            if (latest) {
+              const failed = type === "tool-error" || type === "tool-output-error";
+              const urls = collectUrls(event.output ?? event.result ?? event.content);
+              const updated: ChatActivityEvent = { ...latest, status: failed ? "failed" : "completed", summary: failed ? "L'outil a signalé une erreur." : (urls.size ? urls.size + " adresse(s) de site retournée(s)." : "L'outil a renvoyé un résultat."), ...(urls.size ? { urls: [...urls] } : {}), durationMs: Date.now() - started };
+              activity.set(latest.id, updated);
+              send({ type: "activity", event: updated });
+            }
+          }
+        }
+        if (streamError) throw streamError;
+        const text = await result.text;
+        if (!text.trim()) throw new GatewayError("Lovable AI n'a renvoyé aucun texte.");
+        const model = (await result.response).modelId;
+        const completedModel: ChatActivityEvent = { ...modelEvent, status: "completed", summary: "Réponse terminée.", durationMs: Date.now() - started };
+        activity.set(modelEvent.id, completedModel);
+        send({ type: "activity", event: completedModel });
+        send({ type: "done", model, provider: "Lovable AI Gateway" });
+      } catch (error) {
+        const safe = safeGatewayError(error);
+        const failed: ChatActivityEvent = { ...modelEvent, status: "failed", summary: "La génération a échoué : " + safe.message, durationMs: Date.now() - started };
+        send({ type: "activity", event: failed });
+        send({ type: "error", message: safe.message });
+      } finally {
+        controller.close();
+      }
+    },
+    cancel() { /* Upstream request cancellation is handled by the incoming request signal. */ },
+  });
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Content-Type-Options": "nosniff" } });
+}
