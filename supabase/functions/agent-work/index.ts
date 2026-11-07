@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch, type ProposedFile } from "./github-executor.ts";
+import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch } from "./github-executor.ts";
+import type { ProposedFile } from "../_shared/github-validation.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -23,7 +24,7 @@ Deno.serve(async(request)=>{
   if(sessionError||!session)return json({error:"Mission introuvable."},500);
   try{
    if(task.task_type==="github_ci_check"){
-    const proposal=(task.input??{}) as {url?:string;number?:number;branch?:string;head_sha?:string;poll_count?:number};
+    const proposal=(task.input??{}) as {url?:string;number?:number;branch?:string;head_sha?:string;poll_count?:number;repair_count?:number};
     if(!proposal.head_sha)throw new Error("SHA du commit absent pour le suivi CI.");
     const checks=await inspectPullRequestChecks(proposal.head_sha,0);
     const {data:ciSession}=await admin.from("agent_work_sessions").select("status,checkpoint").eq("id",session.id).single();
@@ -81,7 +82,7 @@ Deno.serve(async(request)=>{
         !/(^|[/])([.]env[^/]*|secrets?[^/]*|id_rsa([.]pub)?|.*[.]lock)([/]|$)/i.test(x.path)&&
         /[.](tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
       const repairPaths=new Set(Array.isArray(task.input?.annotations)?task.input.annotations.map((a:{path?:string})=>String(a.path??"")).filter(Boolean):[]);
-      const ranked=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:(repairPaths.has(x.path)?100:0)+
+      const ranked:Array<{path:string;size:number;score:number}>=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:(repairPaths.has(x.path)?100:0)+
         
         (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
         (/(src[/]|supabase[/]functions[/])/i.test(x.path)?3:0)+
