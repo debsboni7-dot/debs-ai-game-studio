@@ -86,7 +86,7 @@ Deno.serve(async(request)=>{
         
         (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
         (/(src[/]|supabase[/]functions[/])/i.test(x.path)?3:0)+
-        (/[.](tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a,b)=>b.score-a.score);
+        (/[.](tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a:{path:string;size:number;score:number},b:{path:string;size:number;score:number})=>b.score-a.score);
       const selected=ranked.slice(0,8);
       const contents=[];let total=0;
       for(const item of selected){
