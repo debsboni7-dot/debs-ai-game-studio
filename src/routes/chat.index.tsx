@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Code2, Gamepad2, GitBranch, Lightbulb, MessageSquarePlus, Search, Sparkles, Wrench } from "lucide-react";
+import { Code2, Gamepad2, GitBranch, Lightbulb, MessageSquarePlus, Send, Sparkles, Wrench } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +25,7 @@ const suggestions = [
 function ChatHome() {
   const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
   const navigate = useNavigate();
+  const [input, setInput] = useState("");
 
   const start = async (draft = "") => {
     let id = uid("t_");
@@ -57,11 +59,13 @@ function ChatHome() {
         Je peux t’aider à imaginer, développer, tester et améliorer tes jeux et tes projets.
       </p>
 
-      <button onClick={() => start()} className="mt-8 flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-blue-200 bg-white px-4 py-4 text-left shadow-[0_8px_32px_-24px_rgba(37,99,235,.45)] transition hover:border-blue-400 hover:shadow-[0_12px_38px_-22px_rgba(37,99,235,.45)]">
-        <MessageSquarePlus className="size-5 text-blue-600" />
-        <span className="flex-1 text-sm text-slate-400">Commencer une nouvelle conversation…</span>
-        <span className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700">Nouveau chat</span>
-      </button>
+      <form onSubmit={(event) => { event.preventDefault(); if (input.trim()) start(input.trim()); }} className="mt-8 w-full max-w-2xl rounded-2xl border border-blue-200 bg-white p-3 shadow-[0_10px_36px_-22px_rgba(37,99,235,.5)] ring-1 ring-blue-50">
+        <Textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS AI…" rows={2} className="min-h-[64px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" />
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+          <span className="px-2 text-[11px] text-slate-400">Décris ton idée ou pose une question</span>
+          <button type="submit" disabled={!input.trim()} aria-label="Envoyer le message" className="flex size-10 items-center justify-center rounded-xl bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200"><Send className="size-4" /></button>
+        </div>
+      </form>
 
       <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
         {suggestions.map(({ icon: Icon, title, prompt }) => (
