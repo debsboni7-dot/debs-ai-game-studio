@@ -4,13 +4,18 @@ import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
 const MODEL = "openai/gpt-6-astra";
 
+// Prefer the project secret AI_API_KEY2; keep the managed Lovable key as fallback.
+function getLovableApiKey(): string | undefined {
+  return process.env.AI_API_KEY2?.trim() || process.env.LOVABLE_API_KEY?.trim() || undefined;
+}
+
 /** Credentials and SDK clients are created per call, never sent to the browser. */
 const lovableProvider: CodeModelProvider = {
   id: "lovable-ai",
   label: "Lovable AI Gateway",
-  isConfigured: () => Boolean(process.env.LOVABLE_API_KEY?.trim()),
+  isConfigured: () => Boolean(getLovableApiKey()),
   async complete(req, signal) {
-    const apiKey = process.env.LOVABLE_API_KEY?.trim();
+    const apiKey = getLovableApiKey();
     if (!apiKey) throw new GatewayError("Lovable AI n'est pas configuré sur le serveur.");
     const messages = req.messages.map((message) => {
       if (message.role === "system")
