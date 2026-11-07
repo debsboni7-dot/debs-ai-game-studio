@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Github, LogIn, LogOut, MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
+import { GitBranch, LogIn, LogOut, MessageSquarePlus, Settings2, Sparkles } from "lucide-react";
 import { Logo } from "./ui";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, type Thread } from "@/lib/chat/threads";
@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <MessageSquarePlus className="size-4" /> Nouvelle conversation
           </button>
           <Link to="/integrations" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50">
-            <Github className="size-4" /> Développement & intégrations
+            <GitBranch className="size-4" /> Développement & intégrations
           </Link>
           <div className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Récents</div>
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="font-display font-bold">DEBS <span className="text-gradient-brand">AI</span></span>
             </Link>
             <div className="flex items-center gap-2">
-              <Link to="/integrations" aria-label="Développement et intégrations" className="rounded-xl border border-blue-200 p-2 text-blue-600"><Github className="size-5" /></Link>
+              <Link to="/integrations" aria-label="Développement et intégrations" className="rounded-xl border border-blue-200 p-2 text-blue-600"><GitBranch className="size-5" /></Link>
               <button onClick={createConversation} aria-label="Nouvelle conversation" className="glow-icon rounded-xl p-2"><MessageSquarePlus className="size-5" /></button>
               {userEmail ? <button onClick={signOut} aria-label="Déconnexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogOut className="size-5" /></button> : <Link to="/connexion" aria-label="Connexion" className="rounded-xl border border-blue-200 p-2 text-blue-600"><LogIn className="size-5" /></Link>}
               <Link to="/parametres" aria-label="Paramètres" className="rounded-xl border border-slate-200 p-2 text-slate-600"><Settings2 className="size-5" /></Link>
