@@ -42,8 +42,10 @@ describe("chat validation", () => {
       messages, task: "chat", attachments: [],
     });
   });
-  it("accepts a recognized engine mode and defaults unknown modes to general chat", () => {
+  it("accepts specialized engineering modes and defaults unknown modes to general chat", () => {
     expect(validateChatInput({ messages, task: "unity" }).task).toBe("unity");
+    expect(validateChatInput({ messages, task: "architect" }).task).toBe("architect");
+    expect(validateChatInput({ messages, task: "security" }).task).toBe("security");
     expect(validateChatInput({ messages, task: "made-up-mode" }).task).toBe("chat");
   });
   it("accepts bounded image and PDF attachments", () => {
@@ -65,12 +67,12 @@ describe("chat handler", () => {
   it("returns the actual response and provider/model metadata", async () => {
     const complete = vi.fn().mockResolvedValue({ text: "real adapter result", model: "reported-model" });
     state.resolveProvider.mockReturnValue({ label: "Lovable AI Gateway", complete } as Partial<CodeModelProvider>);
-    expect(await invoke()).toEqual({ ok: true, text: "real adapter result", provider: "Lovable AI Gateway", model: "reported-model" });
+    expect(await invoke()).toMatchObject({ ok: true, text: "real adapter result", provider: "Lovable AI Gateway", model: "reported-model", activity: [{ connector: "Lovable AI Gateway", status: "completed" }] });
     expect(complete).toHaveBeenCalledWith({ messages, task: "chat" });
   });
   it("preserves safe Gateway errors", async () => {
     state.resolveProvider.mockReturnValue({ complete: vi.fn().mockRejectedValue(new GatewayError("Insufficient AI credits", 402)) });
-    expect(await invoke()).toEqual({ ok: false, code: "provider_error", message: "Insufficient AI credits" });
+    expect(await invoke()).toMatchObject({ ok: false, code: "provider_error", message: "Insufficient AI credits", activity: [{ connector: "DEBS AI", status: "failed" }] });
   });
   it("does not leak arbitrary error diagnostics", async () => {
     state.resolveProvider.mockImplementation(() => { throw new Error("private credential"); });
