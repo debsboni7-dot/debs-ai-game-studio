@@ -10,7 +10,7 @@ import {
 
 export function createResponsesCall(
   request: Request,
-  config: { baseURL: string; apiKey: string; model: string },
+    baseURL: `${config.baseURL.replace(/\/+$/, "").replace(/\/v1$/, "")}/v1`,
   messages: ModelMessage[],
   instructions?: string,
   enableWebSearch = false,
