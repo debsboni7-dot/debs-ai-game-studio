@@ -7,6 +7,8 @@ import { PageHeader, Panel } from "@/components/debs/ui";
 import { connectGitHub, listGitHubRepositoryFiles, readGitHubRepositoryFiles } from "@/lib/integrations/github.functions";
 import { useIntegrations } from "@/lib/integrations/context";
 import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
+import { createMeshyPreview, getMeshyTask } from "@/lib/integrations/meshy.functions";
+import { connectors, connectorCategories, connectorIntegrationLabel, type ConnectorCategory } from "@/lib/integrations/catalog";
 
 export const Route = createFileRoute("/integrations")({
   head: () => ({ meta: [
@@ -36,6 +38,14 @@ function IntegrationsPage() {
   const [fileList, setFileList] = useState<{ path: string; size: number }[]>([]);
   const [branch, setBranch] = useState("");
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const [connectorSearch, setConnectorSearch] = useState("");
+  const [connectorCategory, setConnectorCategory] = useState<ConnectorCategory | "all">("all");
+  const [meshyPrompt, setMeshyPrompt] = useState("");
+  const [meshyTaskId, setMeshyTaskId] = useState<string | null>(null);
+  const [meshyStatus, setMeshyStatus] = useState<{ status: string; progress: number; modelUrl: string | null; thumbnailUrl: string | null; error: string | null } | null>(null);
+  const [meshyBusy, setMeshyBusy] = useState(false);
+  const [meshyError, setMeshyError] = useState("");
+  const filteredConnectors = useMemo(() => connectors.filter((item) => (connectorCategory === "all" || item.category === connectorCategory) && (item.name + " " + item.description).toLowerCase().includes(connectorSearch.toLowerCase())), [connectorCategory, connectorSearch]);
   const [connectorSearch, setConnectorSearch] = useState("");
   const [connectorCategory, setConnectorCategory] = useState<ConnectorCategory | "all">("all");
   const filteredConnectors = useMemo(() => connectors.filter((item) =>
@@ -148,34 +158,7 @@ function IntegrationsPage() {
             {repositoryContext && <p className="text-xs text-emerald-700">{contextFiles.length} fichier(s) déjà chargé(s) dans le contexte courant.</p>}
           </div>
         ) : (
-          <Panel className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div><h2 className="text-lg font-semibold">Catalogue de connecteurs</h2><p className="mt-1 text-sm text-muted-foreground">{connectors.length} services référencés · plusieurs familles d'outils</p></div>
-          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Catalogue extensible</span>
-        </div>
-        <Input value={connectorSearch} onChange={(event) => setConnectorSearch(event.target.value)} placeholder="Rechercher Meshy, Tripo, GitHub, Kenney…" className="h-11 rounded-xl border-blue-100 bg-white" />
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <button type="button" onClick={() => setConnectorCategory("all")} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${connectorCategory === "all" ? "border-blue-600 bg-blue-600 text-white" : "border-blue-100 bg-white text-slate-600 hover:border-blue-300"}`}>Tous ({connectors.length})</button>
-          {connectorCategories.map((category) => <button key={category.id} type="button" onClick={() => setConnectorCategory(category.id)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${connectorCategory === category.id ? "border-blue-600 bg-blue-600 text-white" : "border-blue-100 bg-white text-slate-600 hover:border-blue-300"}`}>{category.label}</button>)}
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredConnectors.map((connector) => (
-            <article key={connector.id} className={`flex min-w-0 flex-col gap-3 rounded-2xl border bg-white p-4 transition hover:border-blue-300 hover:shadow-[0_10px_35px_-25px_rgba(37,99,235,.55)] ${connector.priority ? "border-blue-200" : "border-slate-200"}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0"><h3 className="font-semibold text-slate-900">{connector.name}</h3><p className="mt-1 text-[11px] font-medium text-blue-700">{connectorIntegrationLabel(connector.integration)}</p></div>
-                {connector.priority && <span className="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Prioritaire</span>}
-              </div>
-              <p className="flex-1 text-xs leading-5 text-slate-600">{connector.description}</p>
-              {connector.note && <p className="text-[11px] text-blue-700">{connector.note}</p>}
-              <a href={connector.website} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">Site officiel <ExternalLink className="size-3" /></a>
-            </article>
-          ))}
-        </div>
-        {filteredConnectors.length === 0 && <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-muted-foreground">Aucun connecteur ne correspond à cette recherche.</p>}
-        <p className="border-t pt-3 text-xs leading-5 text-muted-foreground">Ce catalogue présente les intégrations ciblées, pas des connexions déjà actives. Chaque service devra recevoir son adaptateur réel (OAuth, API, agent local ou import), ses permissions et ses tests. Les clés secrètes ne doivent jamais être placées dans le navigateur ou dans les conversations.</p>
-      </Panel>
-
-      <div className="space-y-3">
+          <div className="space-y-3">
             <p className="text-sm text-muted-foreground">Connecte un jeton d'accès personnel GitHub finement limité. Il sera vérifié côté serveur puis gardé uniquement en mémoire jusqu'à la fermeture ou l'actualisation de l'application.</p>
             <label className="block space-y-1.5 text-sm font-medium">Jeton GitHub
               <Input type="password" autoComplete="off" value={tokenInput} onChange={(event) => setTokenInput(event.target.value)} placeholder="github_pat_…" className="h-11 rounded-xl" />
@@ -192,6 +175,38 @@ function IntegrationsPage() {
         )}
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <p className="flex items-start gap-2 border-t pt-3 text-xs text-muted-foreground"><LockKeyhole className="mt-0.5 size-4 shrink-0" /> Le jeton n'est ni enregistré dans le compte, ni placé dans les messages, ni envoyé au modèle IA. Il est transmis au serveur uniquement pour appeler l'API GitHub et disparaît au rechargement.</p>
+      </Panel>
+
+      <Panel className="space-y-4 border-blue-200 bg-white">
+        <div className="flex items-center gap-3"><span className="glow-icon flex size-11 items-center justify-center rounded-2xl"><Box className="size-5" /></span><div><h2 className="font-semibold">Meshy AI — génération 3D</h2><p className="text-xs text-muted-foreground">Premier connecteur API opérationnel · prévisualisation GLB</p></div></div>
+        <label className="block space-y-2 text-sm font-medium">Décris l'asset 3D à créer
+          <textarea value={meshyPrompt} onChange={(event) => setMeshyPrompt(event.target.value)} maxLength={800} rows={3} placeholder="Ex. : coffre médiéval en bois, ferrures métalliques, style réaliste..." className="w-full resize-y rounded-xl border border-blue-100 bg-white p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+          <span className="text-[10px] font-normal text-muted-foreground">{meshyPrompt.length}/800 caractères</span>
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={meshyBusy || meshyPrompt.trim().length < 5} onClick={async () => {
+            setMeshyBusy(true); setMeshyError(""); setMeshyStatus(null);
+            try { const result = await createMeshyPreview({ data: { prompt: meshyPrompt, model: "meshy-7.1" } }); setMeshyTaskId(result.taskId); setMeshyStatus({ status: "PENDING", progress: 0, modelUrl: null, thumbnailUrl: null, error: null }); }
+            catch (cause) { setMeshyError(cause instanceof Error ? cause.message : "Impossible de démarrer Meshy."); }
+            finally { setMeshyBusy(false); }
+          }}>{meshyBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />} Générer avec Meshy</Button>
+          {meshyTaskId && <Button type="button" variant="outline" disabled={meshyBusy} onClick={async () => {
+            setMeshyBusy(true); setMeshyError("");
+            try { setMeshyStatus(await getMeshyTask({ data: { taskId: meshyTaskId } })); }
+            catch (cause) { setMeshyError(cause instanceof Error ? cause.message : "Impossible de vérifier la tâche."); }
+            finally { setMeshyBusy(false); }
+          }}><RefreshCw className="mr-2 size-4" /> Actualiser le résultat</Button>}
+        </div>
+        {meshyTaskId && <p className="text-xs text-slate-500">Tâche : <code>{meshyTaskId}</code></p>}
+        {meshyStatus && <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+          <div className="flex justify-between gap-2 text-sm"><strong>{meshyStatus.status}</strong><span>{meshyStatus.progress}%</span></div>
+          <div className="h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: meshyStatus.progress + "%" }} /></div>
+          {meshyStatus.thumbnailUrl && <img src={meshyStatus.thumbnailUrl} alt="Aperçu du modèle Meshy" className="max-h-52 rounded-xl object-contain" />}
+          {meshyStatus.modelUrl && <a href={meshyStatus.modelUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Télécharger le modèle GLB</a>}
+          {meshyStatus.error && <p className="text-sm text-red-700">{meshyStatus.error}</p>}
+        </div>}
+        {meshyError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{meshyError}</p>}
+        <p className="text-xs leading-5 text-muted-foreground">Nécessite le secret serveur <code>MESHY_API_KEY</code>. La clé reste côté serveur. Cette première version crée et suit la prévisualisation ; la texturation et l'import direct dans Unity/Unreal viendront ensuite.</p>
       </Panel>
 
       <Panel className="space-y-4">
