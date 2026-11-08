@@ -2,7 +2,17 @@
 
 DEBS AI est un assistant IA mobile-first, en français, développé par **DEBS AI Studio** et créé par **Debs Boni**. Son premier modèle produit est **DEBS 1.1**.
 
-L’application est conçue pour être utilisée depuis un navigateur Android : interface de conversation, historique, pièces jointes et outils de développement. Le numéro de version représente une version produit et ses capacités vérifiables ; DEBS 1.1 n’est pas un modèle de fondation entraîné indépendamment.
+L’application est conçue pour être utilisée depuis un navigateur Android : interface de conversation, historique, pièces jointes et outils de développement. Le numéro de version représente une version produit et ses capacités vérifiables ; DEBS 1.1 n’est pas un modèle de fondation entraîné indépendamment. Le dépôt commence maintenant la construction d’une pile d’inférence auto-hébergée DEBS, distincte des API de fournisseurs externes.
+
+## DEBS Self-hosted Inference (prototype)
+
+Le dossier `inference/` contient le premier serveur d'inférence auto-hébergé :
+- Ollama exécute les poids du modèle sur le serveur contrôlé par DEBS.
+- Une passerelle FastAPI protège l'API compatible OpenAI avec une clé serveur.
+- Le modèle bootstrap par défaut est `qwen2.5:3b`, téléchargé sur le volume du serveur.
+- Le routeur de chat de l'application donne la priorité à ce serveur quand `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées.
+
+Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS. Il établit l'infrastructure d'exécution auto-hébergée nécessaire avant les étapes de données, entraînement/ajustement, évaluation et versions propres du modèle. Voir [inference/README.md](inference/README.md). Aucun serveur GPU n'est provisionné par le dépôt ; le déploiement réel exige une machine/VM avec RAM, stockage et idéalement GPU. La clé d'inférence reste exclusivement côté serveur.
 
 ## Interface
 - Interface claire sur fond blanc, avec contours lumineux rouges, adaptée aux petits écrans.
@@ -12,7 +22,7 @@ L’application est conçue pour être utilisée depuis un navigateur Android : 
 - Rendu Markdown et blocs de code ; les fichiers de code peuvent être présentés comme artefacts.
 
 ## Capacités de DEBS 1.1
-- **Moteur IA** : appels serveur au Lovable AI Gateway avec le modèle configuré openai/gpt-6-astra, réponses en streaming et erreurs contrôlées. La clé LOVABLE_API_KEY doit exister dans l’environnement serveur.
+- **Moteur IA** : le routeur serveur privilégie désormais DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Les adaptateurs Gemini et Lovable restent des solutions transitoires tant que le serveur DEBS n’est pas hébergé et vérifié.
 - **Modes spécialisés** : discussion, code, développement de jeux, conception, débogage, revue, architecture, tests, sécurité, performance, API, DevOps et spécialités Unity, Unreal, Godot, Blender et Three.js.
 - **Recherche Web** : mode /search qui demande l’outil de recherche Web au Gateway. Les sources et URL ne sont montrées que si l’outil renvoie effectivement des résultats.
 - **Comptes et historique cloud** : authentification Supabase par e-mail et mot de passe ; les conversations peuvent être synchronisées avec les tables conversations et chat_messages si les migrations correspondantes sont appliquées et que Supabase est correctement configuré. Sans compte, l’historique reste local à l’appareil.
