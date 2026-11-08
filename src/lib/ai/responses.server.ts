@@ -10,7 +10,7 @@ import {
 
 export function createResponsesCall(
   request: Request,
-    baseURL: `${gatewayBaseURL}/v1`,
+  config: { baseURL: string; apiKey: string; model: string },
   messages: ModelMessage[],
   instructions?: string,
   enableWebSearch = false,
@@ -20,7 +20,7 @@ export function createResponsesCall(
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const gatewayBaseURL = config.baseURL.endsWith("/v1") ? config.baseURL.slice(0, -3) : config.baseURL.endsWith("/") ? config.baseURL.slice(0, -1) : config.baseURL;
   const provider = createOpenAI({
-    baseURL: `${config.baseURL.replace(/\\/+$/, "").replace(/\\/v1$/, "")}/v1`,
+    baseURL: `${gatewayBaseURL}/v1`,
     apiKey: config.apiKey,
     headers: { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
     fetch: runIdFetch.fetch,
