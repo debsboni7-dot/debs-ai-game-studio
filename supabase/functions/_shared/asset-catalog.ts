@@ -17,8 +17,9 @@ export function extractPublicDownloadLinks(html: string, pageUrl: URL): URL[] {
     const attrs = (match[1] + " " + match[5]).toLowerCase();
     const hint = (url.pathname + url.search + " " + text + " " + attrs).toLowerCase();
     let score = 0;
-    if (/\.zip(?:$|[?#&])/i.test(url.href)) score += 10;
-    if (/download|télécharg|telecharg|export|asset|package|archive|\.zip/.test(hint)) score += 4;
+    if (/\.zip(?:$|[?#&])/i.test(url.href)) score += 12;
+    if (/\.(?:glb|gltf|fbx|obj|stl|usd|usdz|blend)(?:$|[?#&])/i.test(url.href)) score += 9;
+    if (/download|télécharg|telecharg|export|asset|package|archive|\.zip|\.(?:glb|gltf|fbx|obj|stl|usd|usdz|blend)/.test(hint)) score += 4;
     if (/button|download|asset|file/.test(attrs)) score += 2;
     if (score > 0) candidates.push({ url, score });
   }
