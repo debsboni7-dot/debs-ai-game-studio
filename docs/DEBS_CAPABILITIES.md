@@ -20,6 +20,7 @@ Le runtime initial est Qwen 2.5 3B via Ollama. C'est un modèle open-weight de d
 - Architecture : SearXNG auto-hébergé dans la pile Docker DEBS.
 - Le gateway DEBS expose `POST /v1/search`, authentifié par la même clé serveur que l'inférence.
 - Le chat expose le tool `web_search` au modèle, y compris en mode chat-compatible Ollama.
+- Le worker de missions persistantes appelle désormais directement `DEBS_INFERENCE_BASE_URL/v1/chat/completions` avec `DEBS_INFERENCE_API_KEY`. Il n'utilise plus la passerelle conversationnelle Lovable. Il exige un endpoint HTTPS et échoue fermé si DEBS est indisponible.
 - Les résultats fournissent titres, extraits et URL HTTPS. Un extrait de moteur de recherche n'est pas la preuve qu'une page complète a été lue.
 - Les réponses doivent citer les sources retournées et signaler une recherche indisponible plutôt que d'inventer des résultats.
 - Cette capacité devient opérationnelle sur un serveur lorsque la pile Compose est démarrée avec `SEARXNG_SECRET`. Le CI valide le contrat et la configuration ; il ne garantit pas la disponibilité des moteurs de recherche externes.
