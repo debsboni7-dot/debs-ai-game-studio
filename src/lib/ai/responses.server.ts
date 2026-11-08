@@ -10,7 +10,7 @@ import {
 
 export function createResponsesCall(
   request: Request,
-  config: { baseURL: string; apiKey: string; model: string },
+  config: { baseURL: string; apiKey: string; model: string; apiMode?: "responses" | "chat" },
   messages: ModelMessage[],
   instructions?: string,
   enableWebSearch = false,
@@ -20,13 +20,13 @@ export function createResponsesCall(
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const gatewayBaseURL = config.baseURL.endsWith("/v1") ? config.baseURL.slice(0, -3) : config.baseURL.endsWith("/") ? config.baseURL.slice(0, -1) : config.baseURL;
   const provider = createOpenAI({
-    baseURL: `${gatewayBaseURL}/v1`,
+    baseURL: config.apiMode === "chat" ? config.baseURL : `${gatewayBaseURL}/v1`,
     apiKey: config.apiKey,
     headers: { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
     fetch: runIdFetch.fetch,
   });
   const reasoning = config.model !== "openai/chat-latest";
-  const webSearch = enableWebSearch
+  const webSearch = enableWebSearch && config.apiMode !== "chat"
     ? provider.tools.webSearch({ externalWebAccess: true, searchContextSize: "medium" })
     : undefined;
 
@@ -119,7 +119,7 @@ export function createResponsesCall(
     ...(importGameAssets ? { import_game_assets: importGameAssets } : {}),
   };
   const result = streamText({
-    model: provider.responses(config.model),
+    model: config.apiMode === "chat" ? provider.chat(config.model) : provider.responses(config.model),
     ...(instructions ? { instructions } : {}),
     messages,
     tools,
