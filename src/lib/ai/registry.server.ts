@@ -5,7 +5,16 @@ import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
 const MODEL = "openai/gpt-6-astra";
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 function getLovableApiKey(): string | undefined { return process.env.LOVABLE_API_KEY?.trim() || undefined; }
+function getGeminiApiKey(): string | undefined { return process.env.GEMINI_API_KEY?.trim() || undefined; }
+function getActiveProvider() {
+  const geminiApiKey = getGeminiApiKey();
+  if (geminiApiKey) return { label: "Google Gemini", baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/", apiKey: geminiApiKey, model: GEMINI_MODEL, apiMode: "chat" as const };
+  const apiKey = getLovableApiKey();
+  if (apiKey) return { label: "Lovable AI Gateway", baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL, apiMode: "responses" as const };
+  return null;
+}
 
 /** Enable asset tools only when the user's latest message explicitly requests asset discovery/download/import. */
 function requestsAssetImport(messages: Array<{ role: string; content: string }>): boolean {
@@ -59,8 +68,8 @@ const modeInstructions: Record<ChatTask, string> = {
 const lovableProvider: CodeModelProvider = {
   id: "lovable-ai", label: "Lovable AI Gateway", isConfigured: () => Boolean(getLovableApiKey()),
   async complete(req, signal) {
-    const apiKey = getLovableApiKey();
-    if (!apiKey) throw new GatewayError("Lovable AI n'est pas configuré sur le serveur.");
+    const providerConfig = getActiveProvider();
+    if (!providerConfig) throw new GatewayError("Aucun fournisseur IA n'est configuré. Ajoute GEMINI_API_KEY ou configure Lovable AI Gateway.");
     const messages = req.messages.map((message) => {
       if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
       if (message.role === "user" && message.attachments?.length) return { role: "user" as const, content: [
@@ -74,7 +83,7 @@ const lovableProvider: CodeModelProvider = {
     try {
       const request = new Request("https://debs.internal/chat", signal ? { signal } : undefined);
       const task = req.task ?? "chat";
-      const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
+      const { result } = createResponsesCall(request, providerConfig, messages,
         "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: " + CREATOR_IDENTITY_REPLY + " Do not invent additional founders, studios, or ownership claims." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. When a user explicitly asks to find, download or integrate game assets in a game-engine task, use web search to locate official source pages, verify the exact license and direct ZIP URL, then call import_game_assets with the official license evidence. Never call this tool for vague suggestions, never guess download URLs or licenses, and explain that the result is a draft GitHub pull request requiring review. " + modeInstructions[task],
         (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages) || requestsChatFileAction(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
       let streamError: unknown;
@@ -113,8 +122,8 @@ export function resolveProvider(): CodeModelProvider | null { return adapters.fi
 
 /** Raw NDJSON stream used by the chat UI to display text and confirmed tool activity as it happens. */
 export function streamChatResponse(req: CodeModelRequest, request: Request): Response {
-  const apiKey = getLovableApiKey();
-  if (!apiKey) return Response.json({ message: "Lovable AI n'est pas configuré sur le serveur." }, { status: 503 });
+  const providerConfig = getActiveProvider();
+  if (!providerConfig) return Response.json({ message: "Aucun fournisseur IA n'est configuré. Ajoute GEMINI_API_KEY ou configure Lovable AI Gateway." }, { status: 503 });
   const task = req.task ?? "chat";
   const messages = req.messages.map((message) => {
     if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
@@ -135,7 +144,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
       const started = Date.now();
       const activity = new Map<string, ChatActivityEvent>();
       const send = (payload: Record<string, unknown>) => controller.enqueue(encoder.encode(JSON.stringify(payload) + "\n"));
-      const modelEvent: ChatActivityEvent = { id: "model", connector: "Lovable AI Gateway", action: "Génération IA", status: "running", summary: "Le modèle traite la demande." };
+      const modelEvent: ChatActivityEvent = { id: "model", connector: providerConfig.label, action: "Génération IA", status: "running", summary: "Le modèle traite la demande." };
       activity.set(modelEvent.id, modelEvent);
       send({ type: "activity", event: modelEvent });
       let toolIndex = 0;
@@ -175,7 +184,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
         const completedModel: ChatActivityEvent = { ...modelEvent, status: "completed", summary: "Réponse terminée.", durationMs: Date.now() - started };
         activity.set(modelEvent.id, completedModel);
         send({ type: "activity", event: completedModel });
-        send({ type: "done", model, provider: "Lovable AI Gateway" });
+        send({ type: "done", model, provider: providerConfig.label });
       } catch (error) {
         const safe = safeGatewayError(error);
         const failed: ChatActivityEvent = { ...modelEvent, status: "failed", summary: "La génération a échoué : " + safe.message, durationMs: Date.now() - started };
