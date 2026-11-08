@@ -1,4 +1,4 @@
-"""Real-model smoke test for the DEBS gateway (stdlib only)."""
+"""Real non-streaming inference smoke test for the DEBS gateway (stdlib only)."""
 import json
 import os
 import time
