@@ -6,6 +6,9 @@ Ce module fournit une file de missions persistantes pilotée par le serveur d’
 - Sessions appartenant à l'utilisateur, échéance de 1 à 168 heures et limite d'étapes.
 - File de tâches persistante et réservation atomique avec verrou temporaire.
 - Checkpoints, journal d'événements, tentatives automatiques et délais exponentiels.
+- Planification en deux phases : DEBS prépare d’abord un plan structuré, puis une proposition de code multi-fichiers.
+- Aperçu de diff borné, calculé contre un SHA immuable de la branche cible ; le SHA est revalidé au moment de l’approbation.
+- Statut `awaiting_review` : aucun commit ni PR n’est créé avant l’action utilisateur `approve_changes`. `reject_changes` clôt la proposition sans envoyer de code à GitHub.
 - Actions serveur create, status, pause, resume, cancel.
 - Worker Supabase Edge Function qui exécute une étape IA courte par invocation.
 - RLS : un utilisateur ne lit que ses propres missions, tâches et événements ; les changements de statut/checkpoint passent par l'Edge Function de confiance.
@@ -23,7 +26,7 @@ Ce module fournit une file de missions persistantes pilotée par le serveur d’
 - Une invocation réalise une seule étape, avec un délai d'attente de 95 secondes. Le scheduler doit déclencher les étapes suivantes.
 - La gateway DEBS doit être démarrée et joignable depuis Supabase Edge en HTTPS. Sans cela, le worker refuse la mission ; aucun fournisseur IA externe n'est utilisé comme secours.
 - Le prompt de mission est borné à 19 000 caractères pour respecter la limite de la gateway. Le contexte GitHub transmis au modèle est limité à cinq fichiers et environ 9 Ko de contenu, en plus d'une liste d'arborescence raccourcie.
-- Lorsque le modèle renvoie une liste de fichiers complète, le worker peut créer un commit sur une branche `debs-ai/` isolée et ouvrir un Pull Request en brouillon. Il ne pousse jamais directement sur la branche cible et ne fusionne jamais le PR. Les propositions sont limitées à 12 fichiers, 80 Ko par fichier et 300 Ko au total. Les validateurs serveur rejettent les chemins sensibles (dont .env, clés privées et .github/workflows), les doublons et plusieurs formats courants de secrets.
+- Après génération, une proposition de code normale est stockée dans le checkpoint et présentée dans `/missions` avec le plan, la liste des fichiers et un aperçu de diff. Aucun commit ni PR n’est créé tant que l’utilisateur n’a pas cliqué sur « Valider et créer le PR ». Le serveur revalide les chemins, les secrets et le SHA de base avant d’ouvrir un PR brouillon. Les propositions sont limitées à 12 fichiers, 80 Ko par fichier et 300 Ko au total. Les validateurs serveur rejettent les chemins sensibles (dont .env, clés privées et .github/workflows), les doublons et plusieurs formats courants de secrets.
 - Après ouverture du PR, le serveur interroge les GitHub Check Runs pendant au plus 20 secondes. Si les contrôles sont encore en attente, une tâche dédiée les recontrôle chaque minute, jusqu'à 120 fois (environ 2 heures). En cas d'échec CI, le worker récupère les annotations GitHub et peut demander au modèle un correctif minimal. Le correctif est validé et poussé comme nouveau commit sur la branche du PR existant. Le nombre de réparations automatiques est limité à deux.
 - Le worker ne dispose pas encore d'une sandbox d'exécution du code généré. Les tests CI du dépôt vérifient le typage et le contrat de requête, pas une exécution réelle du modèle via Supabase Edge.
 
