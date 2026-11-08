@@ -8,12 +8,19 @@
 - Si le serveur DEBS est absent ou indisponible, l'interface affiche une erreur explicite et ne bascule pas vers un tiers.
 
 
+## Recherche Internet auto-hébergée
+
+- **SearXNG** : moteur de métarecherche auto-hébergé dans la pile Docker DEBS, sans API conversationnelle tierce.
+- Le gateway expose `POST /v1/search` avec authentification DEBS ; le tool `web_search` est disponible au modèle local en mode chat-compatible.
+- La pile doit être démarrée avec `SEARXNG_SECRET`. Les résultats sont des extraits et liens HTTPS ; ils ne prouvent pas qu'une page complète a été consultée.
+
 ## Fonctionnel dans cette version
 
 - **GitHub (lecture)** : connexion par jeton personnel finement limité ; validation du compte côté serveur ; liste des dépôts accessibles ; lecture de l'arborescence ; import de six fichiers texte maximum dans le contexte courant du chat.
 - Le jeton GitHub reste dans l'état mémoire React. Il n'est pas stocké dans localStorage, dans Supabase, dans les conversations ni dans le prompt envoyé au modèle. Il disparaît au rechargement ou à la fermeture de l'application.
 - Les fichiers importés sont un instantané en lecture seule. Les chemins secrets (fichiers .env, clés privées et extensions sensibles) sont exclus.
 - **Spécialisations IA** : commandes /code, /github, /unity, /unreal, /godot, /blender et /threejs.
+- **Fichiers de conversation** : outils serveur de création de fichiers et de téléchargement de fichiers individuels via la fonction Edge `chat-files` ; nécessite son déploiement et le bucket privé `chat-files`.
 
 ## Pas encore activé
 
