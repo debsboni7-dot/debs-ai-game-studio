@@ -23,6 +23,29 @@ create table if not exists public.debs_memories (
   constraint debs_memories_expiry_after_creation check (expires_at is null or expires_at > created_at)
 );
 
+create or replace function public.debs_validate_memory_source_owner()
+returns trigger
+language plpgsql
+as $
+begin
+  if new.source_conversation_id is not null and not exists (
+    select 1
+    from public.conversations c
+    where c.id = new.source_conversation_id
+      and c.user_id = new.user_id
+  ) then
+    raise exception 'Source conversation must belong to the memory owner';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists debs_memories_validate_source_owner on public.debs_memories;
+create trigger debs_memories_validate_source_owner
+  before insert or update of source_conversation_id, user_id
+  on public.debs_memories
+  for each row execute function public.debs_validate_memory_source_owner();
+
 create index if not exists debs_memories_user_recent_idx
   on public.debs_memories(user_id, updated_at desc);
 create index if not exists debs_memories_user_type_idx
