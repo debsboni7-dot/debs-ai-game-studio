@@ -10,9 +10,7 @@ services:
     volumes:
       - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
       - searxng_data:/var/cache/searxng
-    expose:
-      - "8080"
-
+    expose: ["8080"]
   ollama:
     image: ollama/ollama:latest
     container_name: debs-ollama
@@ -22,15 +20,13 @@ services:
       OLLAMA_MAX_LOADED_MODELS: "1"
     volumes:
       - ollama_data:/root/.ollama
-    expose:
-      - "11434"
+    expose: ["11434"]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 15s
       timeout: 10s
       retries: 10
       start_period: 20s
-
   model-init:
     image: ollama/ollama:latest
     container_name: debs-model-init
@@ -38,12 +34,11 @@ services:
       OLLAMA_HOST: http://ollama:11434
       DEBS_MODEL: ${DEBS_MODEL:-qwen2.5:3b}
     entrypoint: ["/bin/sh", "-c"]
-    command: ["ollama pull \"$${DEBS_MODEL}\""]
+    command: ["ollama pull \"$$DEBS_MODEL\""]
     depends_on:
       ollama:
         condition: service_healthy
     restart: "no"
-
   debs-inference:
     build:
       context: ./gateway
@@ -54,9 +49,8 @@ services:
       DEBS_INFERENCE_API_KEY: ${DEBS_INFERENCE_API_KEY:?Set DEBS_INFERENCE_API_KEY in inference/.env}
       DEBS_MODEL: ${DEBS_MODEL:-qwen2.5:3b}
       DEBS_SEARCH_BASE_URL: http://searxng:8080
-      DEBS_MAX_CONCURRENT_REQUESTS: ${DEBS_MAX_CONCURRENT_REQUESTS:-2}
-    ports:
-      - "127.0.0.1:8080:8080"
+      DEBS_MAX_CONCURRENT_REQUESTS: ${DEBS_MAX_CONCURRENT_REQUESTS:-1}
+    expose: ["8080"]
     depends_on:
       searxng:
         condition: service_started
@@ -68,7 +62,39 @@ services:
       timeout: 8s
       retries: 5
       start_period: 30s
-
+  caddy:
+    image: caddy:2
+    container_name: debs-caddy
+    restart: unless-stopped
+    environment:
+      DEBS_DOMAIN: ${DEBS_DOMAIN:?Set DEBS_DOMAIN in inference/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      debs-inference:
+        condition: service_healthy
+  duckdns:
+    image: alpine:3.21
+    container_name: debs-duckdns
+    restart: unless-stopped
+    environment:
+      DUCKDNS_SUBDOMAIN: ${DUCKDNS_SUBDOMAIN:?Set DUCKDNS_SUBDOMAIN in inference/.env}
+      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:?Set DUCKDNS_TOKEN in inference/.env}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          wget -qO- "https://www.duckdns.org/update?domains=$$DUCKDNS_SUBDOMAIN&token=$$DUCKDNS_TOKEN&ip=" || true
+          sleep 300
+        done
 volumes:
   searxng_data:
   ollama_data:
+  caddy_data:
+  caddy_config:
