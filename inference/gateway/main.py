@@ -183,9 +183,6 @@ async def web_search(
 ) -> JSONResponse:
     """Search the public web through DEBS-owned SearXNG; never forwards chat to an AI vendor."""
     authorize(authorization)
-    if not SEARXNG_BASE_URL:
-        raise HTTPException(status_code=503, detail="DEBS web search is not configured")
-
     try:
         payload = await request.json()
     except Exception as exc:
@@ -202,6 +199,8 @@ async def web_search(
     language = payload.get("language", "all")
     if not isinstance(language, str) or not (language == "all" or len(language) <= 12):
         raise HTTPException(status_code=422, detail="language is invalid")
+    if not SEARXNG_BASE_URL:
+        raise HTTPException(status_code=503, detail="DEBS web search is not configured")
 
     params = {"q": query.strip(), "format": "json", "language": language, "safesearch": "1"}
     try:
