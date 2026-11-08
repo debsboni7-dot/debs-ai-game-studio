@@ -5,6 +5,20 @@ import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
 const DEBS_MODEL = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+function getGeminiConfig() {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return null;
+  return {
+    label: "Gemini",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    apiKey,
+    model: GEMINI_MODEL,
+    apiMode: "chat" as const,
+    searchBaseURL: process.env.DEBS_INFERENCE_BASE_URL?.trim()?.replace(/\/+$/, ""),
+    searchApiKey: process.env.DEBS_INFERENCE_API_KEY?.trim(),
+  };
+}
 function getDebsInferenceConfig() {
   const baseURL = process.env.DEBS_INFERENCE_BASE_URL?.trim();
   const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
@@ -12,8 +26,8 @@ function getDebsInferenceConfig() {
   return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const };
 }
 function getActiveProvider() {
-  // DEBS is the only permitted intelligence provider. Never silently fall back to a third party.
-  return getDebsInferenceConfig();
+  // Prefer the explicitly configured Gemini API key; retain the self-hosted provider as a fallback.
+  return getGeminiConfig() ?? getDebsInferenceConfig();
 }
 
 /** Enable asset tools only when the user's latest message explicitly requests asset discovery/download/import. */
@@ -84,7 +98,7 @@ const debsProvider: CodeModelProvider = {
       const request = new Request("https://debs.internal/chat", signal ? { signal } : undefined);
       const task = req.task ?? "chat";
       const { result } = createResponsesCall(request, providerConfig, messages,
-        "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running on the self-hosted DEBS Server using the open-weight runtime model " + providerConfig.model + ". DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: " + CREATOR_IDENTITY_REPLY + " Do not invent additional founders, studios, or ownership claims." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. When a user explicitly asks to find, download or integrate game assets in a game-engine task, use web search to locate official source pages, verify the exact license and direct ZIP URL, then call import_game_assets with the official license evidence. Never call this tool for vague suggestions, never guess download URLs or licenses, and explain that the result is a draft GitHub pull request requiring review. " + modeInstructions[task],
+        "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running through " + providerConfig.model + ". DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: " + CREATOR_IDENTITY_REPLY + " Do not invent additional founders, studios, or ownership claims." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. When a user explicitly asks to find, download or integrate game assets in a game-engine task, use web search to locate official source pages, verify the exact license and direct ZIP URL, then call import_game_assets with the official license evidence. Never call this tool for vague suggestions, never guess download URLs or licenses, and explain that the result is a draft GitHub pull request requiring review. " + modeInstructions[task],
         true, ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
       let streamError: unknown;
       const activity: ChatActivityEvent[] = [];
@@ -136,7 +150,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
     return { role: message.role, content: message.content };
   });
   const { result } = createResponsesCall(request, providerConfig, messages,
-    `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running on the self-hosted DEBS Server using the open-weight runtime model ${providerConfig.model}. DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. ${modeInstructions[task]}`,
+    `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running through ${providerConfig.label} using model ${providerConfig.model}. DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. ${modeInstructions[task]}`,
     (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages) || requestsChatFileAction(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)), (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
