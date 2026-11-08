@@ -1,6 +1,6 @@
 # Moteur de missions persistantes
 
-Ce changement ajoute la fondation durable d'exécution autonome.
+Ce module fournit une file de missions persistantes pilotée par le serveur d’inférence auto-hébergé DEBS.
 
 ## Inclus
 - Sessions appartenant à l'utilisateur, échéance de 1 à 168 heures et limite d'étapes.
@@ -8,30 +8,40 @@ Ce changement ajoute la fondation durable d'exécution autonome.
 - Checkpoints, journal d'événements, tentatives automatiques et délais exponentiels.
 - Actions serveur create, status, pause, resume, cancel.
 - Worker Supabase Edge Function qui exécute une étape IA courte par invocation.
-- RLS : un utilisateur ne lit que ses propres missions, tâches et événements ; les changements de statut/checkpoint passent par l'Edge Function de confiance, avec contrôle des transitions et protection contre les mises à jour concurrentes.
+- RLS : un utilisateur ne lit que ses propres missions, tâches et événements ; les changements de statut/checkpoint passent par l'Edge Function de confiance.
+- Le worker utilise exclusivement le contrat OpenAI-compatible du serveur DEBS : `POST /v1/chat/completions`. Il ne dépend pas d'une clé Lovable, Gemini, OpenAI ou d'un autre fournisseur de conversation.
 
 ## Activation obligatoire avant toute exécution continue
-1. Dans le SQL Editor, exécuter d'abord `supabase/preflight-agent-work.sql` pour voir l'état des tables/extensions, puis appliquer la migration `supabase/migrations/20261107000100_agent_work_sessions.sql`. Relancer le preflight : les trois tables, la fonction RPC et RLS doivent être présents.
+1. Dans le SQL Editor, exécuter d'abord `supabase/preflight-agent-work.sql`, puis appliquer `supabase/migrations/20261107000100_agent_work_sessions.sql`. Relancer le preflight : les trois tables, la fonction RPC et RLS doivent être présents.
 2. Déployer la fonction Edge agent-work.
-3. Définir les secrets de fonction : SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, LOVABLE_API_KEY, AGENT_WORKER_SECRET, GITHUB_TOKEN, GITHUB_REPOSITORY et GITHUB_BASE_BRANCH. Le jeton GitHub doit être limité au dépôt autorisé avec Contents: Read and write, Pull requests: Read and write et Checks: Read. Ne jamais le placer dans le navigateur.
-4. Configurer un scheduler fiable qui envoie chaque minute un POST avec le corps {"action":"worker"} et l'en-tête x-agent-worker-secret. Conserver le secret côté serveur, idéalement dans Vault.
-5. L'interface /missions est ajoutée au projet et appelle les actions create/status/pause/resume/cancel avec la session Supabase de l'utilisateur connecté.
+3. Définir les secrets Edge : `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DEBS_INFERENCE_BASE_URL`, `DEBS_INFERENCE_API_KEY`, `DEBS_MODEL` (facultatif, défaut `qwen2.5:3b`), `AGENT_WORKER_SECRET`, `GITHUB_TOKEN`, `GITHUB_REPOSITORY` et `GITHUB_BASE_BRANCH`. `DEBS_INFERENCE_BASE_URL` doit être une URL HTTPS accessible depuis Supabase Edge et se terminer par `/v1` (ex. `https://votre-hote-prive/v1`). La clé doit être la clé serveur de la gateway DEBS, jamais une clé de navigateur. Le jeton GitHub doit être limité au dépôt autorisé avec Contents: Read and write, Pull requests: Read and write et Checks: Read.
+4. Configurer un scheduler fiable qui envoie chaque minute un POST avec le corps `{"action":"worker"}` et l'en-tête `x-agent-worker-secret`. Conserver le secret côté serveur, idéalement dans Vault.
+5. L'interface /missions appelle les actions create/status/pause/resume/cancel avec la session Supabase de l'utilisateur connecté.
 
 ## Limites actuelles
-- Le code de cette branche ne déploie pas la migration ni la fonction et ne configure pas le scheduler ou les secrets.
+- Le code ne déploie pas automatiquement la migration, la fonction Edge, les secrets ou le scheduler.
 - Une invocation réalise une seule étape, avec un délai d'attente de 95 secondes. Le scheduler doit déclencher les étapes suivantes.
-- La disponibilité dépend de Supabase, du scheduler, du fournisseur IA, de ses quotas et du réseau. Aucune disponibilité 24 h/24 absolue n'est garantie.
-- Lorsque le modèle renvoie une liste de fichiers complète, le worker peut créer un commit sur une branche debs-ai/ isolée et ouvrir un Pull Request en brouillon. Il ne pousse jamais directement sur la branche cible et ne fusionne jamais le PR. Le worker lit jusqu'à 8 fichiers pertinents (60 Ko de texte maximum) et transmet les extraits au modèle. Les propositions sont limitées à 12 fichiers, 80 Ko par fichier et 300 Ko au total. Les deux Edge Functions réutilisent le même validateur testé : il rejette les chemins sensibles (dont .env, clés privées et .github/workflows), les doublons et plusieurs formats courants de secrets. Après ouverture du PR, le serveur interroge les GitHub Check Runs pendant au plus 20 secondes. Si les contrôles sont encore en attente, une tâche dédiée les recontrôle chaque minute, jusqu'à 120 fois (environ 2 heures). Les résultats finaux et les résumés de diagnostic des contrôles sont enregistrés dans le journal et affichés dans l'interface. Une réussite clôt la mission ; un échec ou un délai de suivi dépassé la marque en échec. Les actions pause/annulation sont respectées pendant ce suivi. En cas d'échec CI, le worker récupère les annotations GitHub des contrôles (fichier, ligne, niveau et message), puis peut demander au modèle un correctif minimal. Le correctif est validé côté serveur et poussé comme nouveau commit sur la branche du PR existant, sans créer un second PR. Le suivi CI reprend ensuite. Le nombre de réparations automatiques est limité à deux par proposition ; si aucun correctif exploitable n'est produit ou si les contrôles échouent encore après cette limite, la mission est marquée en échec. Les logs complets des jobs ne sont pas téléchargés : l'analyse se base sur les résumés et annotations publiés par GitHub.
+- La gateway DEBS doit être démarrée et joignable depuis Supabase Edge en HTTPS. Sans cela, le worker refuse la mission ; aucun fournisseur IA externe n'est utilisé comme secours.
+- Le prompt de mission est borné à 19 000 caractères pour respecter la limite de la gateway. Le contexte GitHub transmis au modèle est limité à cinq fichiers et environ 9 Ko de contenu, en plus d'une liste d'arborescence raccourcie.
+- Lorsque le modèle renvoie une liste de fichiers complète, le worker peut créer un commit sur une branche `debs-ai/` isolée et ouvrir un Pull Request en brouillon. Il ne pousse jamais directement sur la branche cible et ne fusionne jamais le PR. Les propositions sont limitées à 12 fichiers, 80 Ko par fichier et 300 Ko au total. Les validateurs serveur rejettent les chemins sensibles (dont .env, clés privées et .github/workflows), les doublons et plusieurs formats courants de secrets.
+- Après ouverture du PR, le serveur interroge les GitHub Check Runs pendant au plus 20 secondes. Si les contrôles sont encore en attente, une tâche dédiée les recontrôle chaque minute, jusqu'à 120 fois (environ 2 heures). En cas d'échec CI, le worker récupère les annotations GitHub et peut demander au modèle un correctif minimal. Le correctif est validé et poussé comme nouveau commit sur la branche du PR existant. Le nombre de réparations automatiques est limité à deux.
+- Le worker ne dispose pas encore d'une sandbox d'exécution du code généré. Les tests CI du dépôt vérifient le typage et le contrat de requête, pas une exécution réelle du modèle via Supabase Edge.
 
-## Exemple de planification Supabase Cron (à exécuter après configuration)
+## Tests locaux
+```sh
+deno test supabase/functions/agent-work/debs-inference.test.ts
+deno check supabase/functions/agent-work/index.ts
+```
 
-La fonction utilise un en-tête secret personnalisé pour le worker. Déploie-la avec la vérification JWT désactivée **uniquement** parce que l'action worker valide elle-même `AGENT_WORKER_SECRET` :
+## Exemple de planification Supabase Cron
+
+Déploie la fonction avec la vérification JWT désactivée uniquement parce que l'action worker valide elle-même `AGENT_WORKER_SECRET` :
 
 ```sh
 supabase functions deploy agent-work --no-verify-jwt
 ```
 
-Dans le Dashboard Supabase, active `pg_cron` et `pg_net` depuis Database → Extensions (Vault doit être disponible), puis relance `supabase/preflight-agent-work.sql`. Le contrôle `cron.job relation` doit devenir vrai après activation de pg_cron. Stocke ensuite l'URL et le secret du worker dans Vault (ne les écris pas en clair dans une migration) :
+Active `pg_cron`, `pg_net` et Vault dans le Dashboard Supabase, puis stocke l'URL et le secret du worker dans Vault :
 
 ```sql
 select vault.create_secret(
@@ -56,6 +66,6 @@ select cron.schedule(
 );
 ```
 
-Remplace l'URL si le projet Supabase est différent. Vérifie l'exécution dans les journaux Edge Functions et dans les tables `agent_work_events`. Pour désactiver le scheduler : `select cron.unschedule('debs-agent-work-every-minute');`.
+Vérifie l'exécution dans les journaux Edge Functions et dans `agent_work_events`. Pour désactiver le scheduler : `select cron.unschedule('debs-agent-work-every-minute');`.
 
-**Important :** les clients authentifiés ne disposent que d'un droit de lecture RLS sur leurs missions. La création, les transitions d'état, les tâches et les événements sont réservés au service role utilisé par l'Edge Function. La fonction doit aussi recevoir `LOVABLE_API_KEY` comme secret Supabase Edge Function. Cette clé ne se transmet pas automatiquement depuis les secrets de l'application Lovable. Le service-role key reste strictement côté serveur.
+**Sécurité :** les clients authentifiés ne disposent que d'un droit de lecture RLS sur leurs missions. La création, les transitions d'état, les tâches et les événements sont réservés au service role utilisé par l'Edge Function. Les secrets DEBS, Supabase et GitHub restent côté serveur.

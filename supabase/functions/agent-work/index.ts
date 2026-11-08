@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch } from "./github-executor.ts";
 import type { ProposedFile } from "../_shared/github-validation.ts";
 import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
+import { buildAgentCompletionPayload, extractAgentCompletionText } from "./debs-inference.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -17,7 +18,10 @@ Deno.serve(async(request)=>{
   const secret=env("AGENT_WORKER_SECRET");
   if(!secret||request.headers.get("x-agent-worker-secret")!==secret)return json({error:"Worker non autorisé."},401);
   await admin.from("agent_work_sessions").update({status:"expired",updated_at:new Date().toISOString()}).in("status",["queued","running"]).lt("deadline_at",new Date().toISOString());
-  if(!env("LOVABLE_API_KEY"))return json({error:"LOVABLE_API_KEY absent."},503);
+  const inferenceBase=env("DEBS_INFERENCE_BASE_URL").replace(/\/+$/, "");
+  const inferenceKey=env("DEBS_INFERENCE_API_KEY");
+  if(!inferenceBase||!inferenceKey)return json({error:"Serveur d’inférence DEBS non configuré : DEBS_INFERENCE_BASE_URL et DEBS_INFERENCE_API_KEY sont requis."},503);
+  if(!inferenceBase.startsWith("https://"))return json({error:"DEBS_INFERENCE_BASE_URL doit utiliser HTTPS."},503);
   const {data:claimed,error:claimError}=await admin.rpc("claim_agent_work_task",{p_lease_seconds:180});
   if(claimError)return json({error:"Réservation de tâche impossible.",detail:claimError.message},500);
   const task=Array.isArray(claimed)?claimed[0]:claimed;if(!task)return json({ok:true,claimed:false});
@@ -68,8 +72,8 @@ Deno.serve(async(request)=>{
     "Étudie d'abord les extraits de fichiers fournis. Respecte les conventions et l'architecture existantes ; ne remplace pas un fichier entier sans nécessité. Si le contexte est insuffisant, explique-le et ne propose pas de code spéculatif.",
     "Pour une mission de programmation, prépare une seule proposition cohérente et finale dans files (maximum 12 fichiers), puis mets done=true. Une proposition de fichiers clôt cette mission et crée un unique PR brouillon. N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Si aucun changement concret n'est prêt, files doit être [].",
     "Pour une tâche github_ci_repair, propose uniquement le correctif minimal des erreurs CI. Les fichiers seront commités sur la branche du PR existant ; ne crée pas une nouvelle branche et ne modifie jamais .github/workflows.",
-    "Objectif : "+session.goal,"Checkpoint : "+JSON.stringify(session.checkpoint??{}),
-    "Résultat précédent / diagnostics CI : "+JSON.stringify(task.input??{}),"TÂCHE DE RÉPARATION : "+(task.task_type==="github_ci_repair"?"Tu dois corriger uniquement les causes des contrôles CI échoués. Lis les fichiers de la branche du PR, corrige les erreurs indiquées par les annotations, ne touche pas aux workflows ni aux secrets, et ne fais pas de refonte sans rapport. Retourne uniquement les fichiers modifiés nécessaires.":"Mission normale."),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
+    "Objectif : "+String(session.goal??"").slice(0,4000),"Checkpoint : "+JSON.stringify(session.checkpoint??{}).slice(0,1500),
+    "Résultat précédent / diagnostics CI : "+JSON.stringify(task.input??{}).slice(0,1500),"TÂCHE DE RÉPARATION : "+(task.task_type==="github_ci_repair"?"Tu dois corriger uniquement les causes des contrôles CI échoués. Lis les fichiers de la branche du PR, corrige les erreurs indiquées par les annotations, ne touche pas aux workflows ni aux secrets, et ne fais pas de refonte sans rapport. Retourne uniquement les fichiers modifiés nécessaires.":"Mission normale."),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
     "Contexte du dépôt GitHub (arborescence et extraits réels) : "+JSON.stringify(await (async()=>{try{
       const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY"),branch=(task.task_type==="github_ci_repair"&&typeof task.input?.branch==="string"?task.input.branch:env("GITHUB_BASE_BRANCH")||"main");
@@ -88,10 +92,10 @@ Deno.serve(async(request)=>{
         (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
         (/(src[/]|supabase[/]functions[/])/i.test(x.path)?3:0)+
         (/[.](tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a:{path:string;size:number;score:number},b:{path:string;size:number;score:number})=>b.score-a.score);
-      const selected=ranked.slice(0,8);
+      const selected=ranked.slice(0,5);
       const contents=[];let total=0;
       for(const item of selected){
-        if(total>=60000)break;
+        if(total>=9000)break;
         try{
           const fileResponse=await fetch("https://api.github.com/repos/"+repo+"/contents/"+item.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch),{headers});
           if(!fileResponse.ok)continue;
@@ -99,21 +103,20 @@ Deno.serve(async(request)=>{
           if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")continue;
           const binary=atob(fileData.content.replace(/\s/g,""));
           const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
-          const text=new TextDecoder().decode(bytes).slice(0,Math.min(12000,60000-total));
+          const text=new TextDecoder().decode(bytes).slice(0,Math.min(2500,9000-total));
           contents.push({path:item.path,content:text});total+=text.length;
         }catch{/* fichier ignoré : le contexte reste borné */}
       }
-      return {branch,truncated:Boolean(treeData.truncated),files:ranked.slice(0,100).map(x=>x.path),contents};
+      return {branch,truncated:Boolean(treeData.truncated),files:ranked.slice(0,40).map(x=>x.path),contents};
     }catch{return {files:[],contents:[],warning:"Contexte GitHub indisponible."};}})()),
     "Échéance : "+session.deadline_at
    ].join("\n\n");
-   const response=await fetch("https://ai.gateway.lovable.dev/v1/responses",{method:"POST",signal:controller.signal,
-    headers:{"Authorization":"Bearer "+env("LOVABLE_API_KEY"),"Content-Type":"application/json"},
-    body:JSON.stringify({model:"openai/gpt-6-astra",instructions:"Réponds en français, JSON strict, sans markdown. Une étape utile et honnête.",input:[{role:"user",content:[{type:"input_text",text:prompt}]}],max_output_tokens:10000,store:false})});
-   clearTimeout(timeout);if(!response.ok)throw new Error("Passerelle IA HTTP "+response.status+".");
-   const payload=await response.json();const outputText=typeof payload.output_text==="string"?payload.output_text:
-    (payload.output??[]).flatMap((item:{content?:Array<{text?:string}>})=>item.content??[]).map((part:{text?:string})=>part.text??"").join("\n");
-   if(!outputText.trim())throw new Error("Réponse vide du modèle.");
+   const boundedPrompt=prompt.length>19000?prompt.slice(0,19000):prompt;
+   const response=await fetch(inferenceBase+"/chat/completions",{method:"POST",signal:controller.signal,
+    headers:{"Authorization":"Bearer "+inferenceKey,"Content-Type":"application/json"},
+    body:JSON.stringify(buildAgentCompletionPayload(env("DEBS_MODEL")||"qwen2.5:3b",boundedPrompt))});
+   clearTimeout(timeout);if(!response.ok)throw new Error("Serveur d’inférence DEBS HTTP "+response.status+".");
+   const payload=await response.json();const outputText=extractAgentCompletionText(payload);
    let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string;files?:ProposedFile[]};
    try{parsed=JSON.parse(outputText);}catch{parsed={done:false,summary:outputText.slice(0,4000),checkpoint:{raw:outputText.slice(0,12000)},next_action:"Reprendre depuis ce résultat."};}
    const now=new Date().toISOString(),steps=Number(session.step_count??0)+1,expired=Date.now()>=new Date(session.deadline_at).getTime();
