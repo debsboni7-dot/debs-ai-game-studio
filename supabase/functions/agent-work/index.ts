@@ -3,6 +3,7 @@ import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotation
 import type { ProposedFile } from "../_shared/github-validation.ts";
 import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
 import { buildAgentCompletionPayload, extractAgentCompletionText } from "./debs-inference.ts";
+import { selectRelevantRepositoryFiles } from "./repository-context.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -86,16 +87,12 @@ Deno.serve(async(request)=>{
         !/(^|[/])(node_modules|dist|build|coverage|[.]git|[.]next|vendor)([/]|$)/i.test(x.path)&&
         !/(^|[/])([.]env[^/]*|secrets?[^/]*|id_rsa([.]pub)?|.*[.]lock)([/]|$)/i.test(x.path)&&
         /[.](tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
-      const repairPaths=new Set(Array.isArray(task.input?.annotations)?task.input.annotations.map((a:{path?:string})=>String(a.path??"")).filter(Boolean):[]);
-      const ranked:Array<{path:string;size:number;score:number}>=paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0,score:(repairPaths.has(x.path)?100:0)+
-        
-        (/^(README|package\.json|tsconfig|vite\.config|bun\.fig|deno\.json)/i.test(x.path.split("/").pop()??"")?5:0)+
-        (/(src[/]|supabase[/]functions[/])/i.test(x.path)?3:0)+
-        (/[.](tsx?|jsx?|sql)$/.test(x.path)?2:0)})).sort((a:{path:string;size:number;score:number},b:{path:string;size:number;score:number})=>b.score-a.score);
-      const selected=ranked.slice(0,5);
+      const repairPaths=Array.isArray(task.input?.annotations)?task.input.annotations.map((a:{path?:string})=>String(a.path??"")).filter(Boolean):[];
+      const ranked=selectRelevantRepositoryFiles(paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0})),String(session.goal??""),repairPaths,8);
+      const selected=ranked;
       const contents=[];let total=0;
       for(const item of selected){
-        if(total>=9000)break;
+        if(total>=14000)break;
         try{
           const fileResponse=await fetch("https://api.github.com/repos/"+repo+"/contents/"+item.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch),{headers});
           if(!fileResponse.ok)continue;
@@ -103,11 +100,11 @@ Deno.serve(async(request)=>{
           if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")continue;
           const binary=atob(fileData.content.replace(/\s/g,""));
           const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
-          const text=new TextDecoder().decode(bytes).slice(0,Math.min(2500,9000-total));
+          const text=new TextDecoder().decode(bytes).slice(0,Math.min(3000,14000-total));
           contents.push({path:item.path,content:text});total+=text.length;
         }catch{/* fichier ignoré : le contexte reste borné */}
       }
-      return {branch,truncated:Boolean(treeData.truncated),files:ranked.slice(0,40).map(x=>x.path),contents};
+      return {branch,truncated:Boolean(treeData.truncated),files:ranked.slice(0,60).map(x=>x.path),contents};
     }catch{return {files:[],contents:[],warning:"Contexte GitHub indisponible."};}})()),
     "Échéance : "+session.deadline_at
    ].join("\n\n");

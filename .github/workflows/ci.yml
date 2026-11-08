@@ -63,8 +63,11 @@ jobs:
       - name: Test DEBS agent inference contract
         run: deno test supabase/functions/agent-work/debs-inference.test.ts
 
+      - name: Test DEBS repository context ranking
+        run: deno test supabase/functions/agent-work/repository-context.test.ts
+
       - name: Type-check Supabase Edge Functions
-        run: deno check supabase/functions/agent-work/index.ts supabase/functions/agent-work/debs-inference.test.ts supabase/functions/github-agent/index.ts supabase/functions/asset-import/index.ts supabase/functions/chat-files/index.ts
+        run: deno check supabase/functions/agent-work/index.ts supabase/functions/agent-work/debs-inference.test.ts supabase/functions/agent-work/repository-context.test.ts supabase/functions/github-agent/index.ts supabase/functions/asset-import/index.ts supabase/functions/chat-files/index.ts
 
       - name: Run tests
         run: bun run test
