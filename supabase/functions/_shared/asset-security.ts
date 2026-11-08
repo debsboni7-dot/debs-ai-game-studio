@@ -43,7 +43,10 @@ async function assertPublicHost(hostname: string, resolveDns: DnsResolver): Prom
   }
 }
 
-export async function validateAssetSourceUrl(\n  raw: string,\n  resolveDns: DnsResolver = (hostname, recordType) => Deno.resolveDns(hostname, recordType),\n): Promise<URL> {
+export async function validateAssetSourceUrl(
+  raw: string,
+  resolveDns: DnsResolver = (hostname, recordType) => Deno.resolveDns(hostname, recordType),
+): Promise<URL> {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error("URL de ressource invalide."); }
   if (url.protocol !== "https:") throw new Error("Seules les URL HTTPS sont autorisées.");
