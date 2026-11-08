@@ -25,6 +25,16 @@ curl http://127.0.0.1:8080/v1/chat/completions \
   -d '{"messages":[{"role":"user","content":"Bonjour"}],"stream":false}'
 ```
 
+## Autonomous web research
+
+The Compose stack includes a private SearXNG metasearch service. It is not an AI provider: it queries public search engines and returns source titles, HTTPS URLs and snippets to the DEBS model through the authenticated gateway.
+
+- SearXNG is exposed only on the internal Compose network.
+- The gateway exposes authenticated `POST /v1/search`; the app's server-side `web_search` tool calls this endpoint.
+- Set a private `SEARXNG_SECRET` in `.env` before starting the stack.
+- Search results are source leads/snippets, not proof that every page was opened or independently verified.
+- If SearXNG or the upstream search engines are unavailable, DEBS reports that search is unavailable rather than inventing sources.
+
 ## Connect the DEBS web app
 
 Configure these server-only environment variables in the web app's hosting environment:

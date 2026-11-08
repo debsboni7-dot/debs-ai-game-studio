@@ -22,7 +22,7 @@ Quaternius publie actuellement la licence QAL v1.0 : https://quaternius.com/lice
 ## Sécurité et limites
 
 - Authentification Supabase obligatoire ; l'identité est vérifiée côté serveur.
-- Téléchargement limité à 12 Mo par archive, extraction à 18 Mo, 60 fichiers maximum et 5 Mo par fichier.
+- Téléchargement limité à 25 Mio par archive, extraction à 50 Mio, 100 fichiers maximum et 5 Mio par fichier. Le service de téléchargement individuel dans le chat applique une limite séparée de 15 Mio.
 - Protection contre Zip Slip, chemins absolus, fichiers cachés, extensions exécutables et redirections vers des domaines locaux ou réseaux privés/réservés.
 - Les binaires sont envoyés directement à GitHub en blobs base64 ; ils ne transitent jamais par le navigateur.
 - Le résultat est une branche `debs-ai/assets-...` et une PR brouillon. Aucun ajout à `main` ni déploiement automatique.

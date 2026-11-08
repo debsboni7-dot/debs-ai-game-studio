@@ -46,6 +46,7 @@ jobs:
         working-directory: inference
         env:
           DEBS_INFERENCE_API_KEY: ci-only-secret-that-is-long-enough-32
+          SEARXNG_SECRET: ci-only-searxng-secret-that-is-long-enough
         run: docker compose config --quiet
 
       - name: Build DEBS inference gateway image

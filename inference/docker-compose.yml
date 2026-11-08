@@ -1,4 +1,18 @@
 services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: debs-searxng
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Set SEARXNG_SECRET in inference/.env}
+      SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_data:/var/cache/searxng
+    expose:
+      - "8080"
+
   ollama:
     image: ollama/ollama:latest
     container_name: debs-ollama
@@ -39,10 +53,13 @@ services:
       OLLAMA_OPENAI_BASE_URL: http://ollama:11434/v1
       DEBS_INFERENCE_API_KEY: ${DEBS_INFERENCE_API_KEY:?Set DEBS_INFERENCE_API_KEY in inference/.env}
       DEBS_MODEL: ${DEBS_MODEL:-qwen2.5:3b}
+      DEBS_SEARCH_BASE_URL: http://searxng:8080
       DEBS_MAX_CONCURRENT_REQUESTS: ${DEBS_MAX_CONCURRENT_REQUESTS:-2}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
+      searxng:
+        condition: service_started
       model-init:
         condition: service_completed_successfully
     healthcheck:
@@ -53,4 +70,5 @@ services:
       start_period: 30s
 
 volumes:
+  searxng_data:
   ollama_data:
