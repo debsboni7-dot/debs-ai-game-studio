@@ -51,6 +51,9 @@ jobs:
       - name: Build DEBS inference gateway image
         run: docker build --tag debs-inference:ci inference/gateway
 
+      - name: Validate DEBS app inference smoke test syntax
+        run: python -m py_compile inference/app_smoke_test.py
+
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
