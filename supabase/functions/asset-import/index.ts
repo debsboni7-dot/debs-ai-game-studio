@@ -59,7 +59,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 async function downloadZip(start: URL): Promise<Uint8Array> {
   let url = start;
   for (let hop = 0; hop <= 4; hop++) {
-    validateAssetSourceUrl(url.toString());
+    await validateAssetSourceUrl(url.toString());
     const response = await fetch(url, { redirect: "manual", headers: { "User-Agent": "DEBS-AI-AssetImporter/1.0", Accept: "application/zip,application/octet-stream,*/*" } });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location");
@@ -114,7 +114,7 @@ Deno.serve(async (request) => {
     return json({ error: "Indique la licence exacte, son URL officielle et un court extrait de preuve. L'import ne doit pas deviner les droits d'utilisation." }, 400);
   }
   let sourceUrl: URL;
-  try { sourceUrl = validateAssetSourceUrl(source); } catch (error) { return json({ error: error instanceof Error ? error.message : "Source refusée." }, 400); }
+  try { sourceUrl = await validateAssetSourceUrl(source); } catch (error) { return json({ error: error instanceof Error ? error.message : "Source refusée." }, 400); }
   const token = env("GITHUB_TOKEN");
   const repository = env("GITHUB_REPOSITORY");
   const baseBranch = env("GITHUB_BASE_BRANCH") || "main";
