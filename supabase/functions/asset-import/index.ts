@@ -56,28 +56,97 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function downloadZip(start: URL): Promise<Uint8Array> {
+type DownloadedAssetArchive = { bytes: Uint8Array; downloadUrl: URL };
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&#(\\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)));
+}
+
+function extractDownloadLinks(html: string, pageUrl: URL): URL[] {
+  const candidates: Array<{ url: URL; score: number }> = [];
+  const anchorPattern = /<a\\b([^>]*?)href\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))([^>]*)>([\\s\\S]*?)<\\/a\\s*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = anchorPattern.exec(html)) !== null) {
+    const href = decodeHtml(match[2] ?? match[3] ?? match[4] ?? "").trim();
+    if (!href || /^(?:javascript:|mailto:|data:|#)/i.test(href)) continue;
+    let url: URL;
+    try { url = new URL(href, pageUrl); } catch { continue; }
+    if (url.protocol !== "https:") continue;
+    const text = decodeHtml((match[6] ?? "").replace(/<[^>]+>/g, " ")).replace(/\\s+/g, " ").trim();
+    const attrs = (match[1] + " " + match[5]).toLowerCase();
+    const hint = (url.pathname + url.search + " " + text + " " + attrs).toLowerCase();
+    let score = 0;
+    if (/\\.zip(?:$|[?#&])/i.test(url.href)) score += 10;
+    if (/download|télécharg|telecharg|export|asset|package|archive|\.zip/.test(hint)) score += 4;
+    if (/button|download|asset|file/.test(attrs)) score += 2;
+    if (score > 0) candidates.push({ url, score });
+  }
+  const unique = new Map<string, { url: URL; score: number }>();
+  for (const item of candidates) {
+    const key = item.url.toString();
+    if (!unique.has(key) || unique.get(key)!.score < item.score) unique.set(key, item);
+  }
+  return [...unique.values()].sort((a, b) => b.score - a.score).slice(0, 8).map((item) => item.url);
+}
+
+async function fetchFollowingRedirects(start: URL): Promise<{ response: Response; finalUrl: URL }> {
   let url = start;
   for (let hop = 0; hop <= 4; hop++) {
     await validateAssetSourceUrl(url.toString());
-    const response = await fetch(url, { redirect: "manual", headers: { "User-Agent": "DEBS-AI-AssetImporter/1.0", Accept: "application/zip,application/octet-stream,*/*" } });
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: {
+        "User-Agent": "DEBS-AI-AssetImporter/1.0",
+        Accept: "application/zip,application/octet-stream,text/html;q=0.9,*/*;q=0.8",
+      },
+    });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location");
       if (!location || hop === 4) throw new Error("Redirection de téléchargement invalide ou trop longue.");
       url = new URL(location, url);
       continue;
     }
-    if (!response.ok) throw new Error("Téléchargement refusé par la source (HTTP " + response.status + ").");
-    const length = Number(response.headers.get("content-length") ?? 0);
-    if (length > MAX_ARCHIVE) throw new Error("Archive trop volumineuse (maximum 12 Mo).");
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.length > MAX_ARCHIVE) throw new Error("Archive trop volumineuse (maximum 12 Mo).");
-    if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Le lien doit pointer directement vers une archive ZIP.");
-    return bytes;
+    return { response, finalUrl: url };
   }
   throw new Error("Téléchargement impossible.");
 }
 
+async function downloadZip(start: URL): Promise<DownloadedAssetArchive> {
+  const visited = new Set<string>();
+  const tryUrl = async (url: URL, depth: number): Promise<DownloadedAssetArchive> => {
+    if (visited.has(url.toString())) throw new Error("Lien de téléchargement déjà exploré.");
+    visited.add(url.toString());
+    const { response, finalUrl } = await fetchFollowingRedirects(url);
+    if (!response.ok) throw new Error("La source a refusé la requête (HTTP " + response.status + ").");
+    const length = Number(response.headers.get("content-length") ?? 0);
+    const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+    if (length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) return { bytes, downloadUrl: finalUrl };
+    if (depth >= 2 || (!contentType.includes("text/html") && !contentType.includes("application/xhtml"))) {
+      throw new Error("La page ne fournit pas directement une archive ZIP.");
+    }
+    if (bytes.length > 2 * 1024 * 1024) throw new Error("Page de catalogue trop volumineuse (maximum 2 Mo).");
+    const html = new TextDecoder().decode(bytes);
+    const links = extractDownloadLinks(html, finalUrl).filter((candidate) => !visited.has(candidate.toString()));
+    if (!links.length) throw new Error("Aucun lien de téléchargement public exploitable n'a été trouvé sur cette page.");
+    let lastError = "Aucune archive ZIP accessible n'a été trouvée dans les liens de téléchargement.";
+    for (const candidate of links) {
+      try { return await tryUrl(candidate, depth + 1); }
+      catch (error) {
+        lastError = error instanceof Error ? error.message : lastError;
+        if (/trop volumineux|réseau privé|DNS|redirection invalide/i.test(lastError)) throw error;
+      }
+    }
+    throw new Error(lastError);
+  };
+  return tryUrl(start, 0);
+}
 async function githubCall(api: string, token: string, route: string, body?: unknown) {
   const response = await fetch(api + route, {
     method: body ? "POST" : "GET",
