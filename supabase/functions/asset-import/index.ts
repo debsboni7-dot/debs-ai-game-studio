@@ -206,7 +206,7 @@ Deno.serve(async (request) => {
       title: "[DEBS AI] Import asset pack: " + packName.slice(0, 70), head: branchName, base: baseBranch, draft: true,
       body: "Import d'archive demandé par un utilisateur authentifié.\n\nSource: " + sourceUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
     });
-    return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
+    return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", download_url: archive.downloadUrl.toString(), formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Import interrompu." }, 400);
   }
