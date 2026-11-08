@@ -7,3 +7,7 @@ verify_jwt = false
 [functions.asset-import]
 # Authenticates the caller JWT inside the function before downloading or writing to GitHub.
 verify_jwt = false
+
+[functions.chat-files]
+# Authenticates the caller JWT internally before storing generated/downloaded chat files.
+verify_jwt = false
