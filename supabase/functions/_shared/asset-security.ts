@@ -18,7 +18,7 @@ function isPublicIpv6(address: string): boolean {
     !value.startsWith("2001:db8:");
 }
 
-async function assertPublicHost(hostname: string): Promise<void> {
+type DnsResolver = (hostname: string, recordType: "A" | "AAAA") => Promise<string[]>;\n\nasync function assertPublicHost(hostname: string, resolveDns: DnsResolver): Promise<void> {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
       host.endsWith(".internal") || host === "metadata.google.internal" ||
@@ -31,8 +31,8 @@ async function assertPublicHost(hostname: string): Promise<void> {
   }
   if (host.includes(":")) throw new Error("Les adresses IPv6 littérales ne sont pas autorisées.");
   let addresses: string[] = [];
-  try { addresses.push(...await Deno.resolveDns(host, "A")); } catch { /* no A record */ }
-  try { addresses.push(...await Deno.resolveDns(host, "AAAA")); } catch { /* no AAAA record */ }
+  try { addresses.push(...await resolveDns(host, "A")); } catch { /* no A record */ }
+  try { addresses.push(...await resolveDns(host, "AAAA")); } catch { /* no AAAA record */ }
   if (!addresses.length) throw new Error("Le domaine ne possède pas d'adresse DNS publique vérifiable.");
   for (const address of addresses) {
     if (address.includes(":") ? !isPublicIpv6(address) : isPrivateIpv4(address)) {
@@ -41,12 +41,12 @@ async function assertPublicHost(hostname: string): Promise<void> {
   }
 }
 
-export async function validateAssetSourceUrl(raw: string): Promise<URL> {
+export async function validateAssetSourceUrl(\n  raw: string,\n  resolveDns: DnsResolver = (hostname, recordType) => Deno.resolveDns(hostname, recordType),\n): Promise<URL> {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error("URL de ressource invalide."); }
   if (url.protocol !== "https:") throw new Error("Seules les URL HTTPS sont autorisées.");
   if (url.username || url.password || url.port) throw new Error("URL avec identifiants ou port personnalisé refusée.");
-  await assertPublicHost(url.hostname);
+  await assertPublicHost(url.hostname, resolveDns);
   return url;
 }
 
