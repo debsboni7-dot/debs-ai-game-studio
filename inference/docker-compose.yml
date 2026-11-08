@@ -1,0 +1,32 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: debs-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    expose:
+      - "11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  debs-inference:
+    build:
+      context: ./gateway
+    container_name: debs-inference
+    restart: unless-stopped
+    environment:
+      OLLAMA_OPENAI_BASE_URL: http://ollama:11434/v1
+      DEBS_INFERENCE_API_KEY: ${DEBS_INFERENCE_API_KEY:?Set DEBS_INFERENCE_API_KEY in inference/.env}
+      DEBS_MODEL: ${DEBS_MODEL:-qwen2.5:3b}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+volumes:
+  ollama_data:
