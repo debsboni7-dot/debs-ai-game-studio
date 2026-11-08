@@ -65,7 +65,7 @@ Deno.test("relative import resolution rejects unknown and external modules", () 
 
 Deno.test("dependency resolution stays bounded and deterministic", () => {
   const paths = Array.from({ length: 10 }, (_, i) => "src/lib/file" + i + ".ts");
-  const source = paths.map((path) => 'import "./' + path.split("/").pop()?.replace(".ts", "") + '";').join("\\n");
+  const source = paths.map((path) => 'import "../lib/' + path.split("/").pop()?.replace(".ts", "") + '";').join("\n");
   const first = resolveRelativeRepositoryImports("src/app.ts", source, paths, 2);
   const second = resolveRelativeRepositoryImports("src/app.ts", source, paths, 2);
   if (first.length !== 2 || first.join("|") !== second.join("|")) throw new Error("dependency expansion is not bounded and deterministic");
