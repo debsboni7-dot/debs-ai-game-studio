@@ -44,3 +44,33 @@ def test_chat_rejects_oversized_request():
             content=b"{}",
         )
     assert response.status_code == 413
+
+
+def test_chat_rejects_non_boolean_stream_flag():
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {main.API_KEY}"},
+            json={"messages": [{"role": "user", "content": "hi"}], "stream": "yes"},
+        )
+    assert response.status_code == 422
+
+
+def test_chat_rejects_oversized_message_text():
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {main.API_KEY}"},
+            json={"messages": [{"role": "user", "content": "x" * (main.MAX_TEXT_CHARS + 1)}]},
+        )
+    assert response.status_code == 413
+
+
+def test_chat_rejects_too_many_messages():
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/v1/chat/completions",
+            headers={"Authorization": f"Bearer {main.API_KEY}"},
+            json={"messages": [{"role": "user", "content": "hi"}] * (main.MAX_MESSAGES + 1)},
+        )
+    assert response.status_code == 413
