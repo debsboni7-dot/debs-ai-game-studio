@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export function createResponsesCall(
   request: Request,
-  config: { baseURL: string; apiKey: string; model: string; apiMode?: "responses" | "chat" },
+  config: { baseURL: string; apiKey: string; model: string; apiMode?: "responses" | "chat"; searchBaseURL?: string; searchApiKey?: string },
   messages: ModelMessage[],
   instructions?: string,
   enableWebSearch = false,
@@ -19,11 +19,13 @@ export function createResponsesCall(
   });
   const reasoning = config.apiMode !== "chat" && config.model !== "openai/chat-latest";
 
+  const searchBaseURL = config.searchBaseURL?.trim();
+  const searchApiKey = config.searchApiKey?.trim() || config.apiKey;
   const callWebSearch = async (input: { query: string; limit?: number; language?: string }) => {
     try {
-      const response = await fetch(config.baseURL.replace(/\/+$/, "") + "/search", {
+      const response = await fetch((searchBaseURL || config.baseURL.replace(/\/+$/, "")) + "/search", {
         method: "POST",
-        headers: { Authorization: "Bearer " + config.apiKey, "Content-Type": "application/json" },
+        headers: { Authorization: "Bearer " + searchApiKey, "Content-Type": "application/json" },
         body: JSON.stringify({ query: input.query, limit: input.limit ?? 6, language: input.language ?? "all" }),
         signal: request.signal,
       });
@@ -35,7 +37,7 @@ export function createResponsesCall(
     }
   };
 
-  const webSearch = enableWebSearch ? tool({
+  const webSearch = enableWebSearch && searchBaseURL ? tool({
     description: "Rechercher des informations actuelles sur Internet via le moteur de recherche autonome SearXNG hébergé avec DEBS. Utilise cet outil pour les demandes explicites de recherche, les informations récentes, les documentations et pour trouver des pages officielles de ressources. Retourne des titres, extraits et URL de sources HTTPS. Ne prétends jamais avoir ouvert une page complète : les extraits sont des résumés du moteur.",
     inputSchema: z.object({
       query: z.string().min(2).max(400),
