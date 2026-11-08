@@ -37,8 +37,28 @@ async function fetchPublicFile(rawUrl: string): Promise<{ bytes: Uint8Array; fil
     if (!response.ok) throw new Error("Téléchargement refusé (HTTP " + response.status + ").");
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
     if (declaredLength > MAX_BYTES) throw new Error("Fichier trop volumineux (maximum 15 Mo).");
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_BYTES) throw new Error("Fichier vide ou supérieur à 15 Mo.");
+    if (!response.body) throw new Error("Le serveur source n'a fourni aucun flux de fichier.");
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_BYTES) {
+          await reader.cancel();
+          throw new Error("Fichier supérieur à 15 Mo.");
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    if (!total) throw new Error("Fichier vide.");
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
     const disposition = response.headers.get("content-disposition") ?? "";
     const match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i) ?? disposition.match(/filename\s*=\s*(?:"([^"]+)"|([^;]+))/i);
     const fromHeader = match ? decodeURIComponent(match[1] ?? match[2] ?? "") : "";
