@@ -272,7 +272,7 @@ Deno.serve(async(request)=>{
    proposal=await createMissionPullRequest(files,String(session.title??"Mission DEBS AI"),String(review.summary??session.goal??""),String(review.base_sha??""));
   }catch(error){
    await admin.from("agent_work_sessions").update({status:"awaiting_review",last_summary:"La création du PR a échoué ; le diff reste disponible pour réessayer.",updated_at:new Date().toISOString()}).eq("id",id).eq("status","running");
-   throw error;
+   return json({error:error instanceof Error?error.message:"Création du PR impossible."},502);
   }
   const checks=(proposal.checks??{}) as {state?:string};
   const proposalWithReview={...proposal,approved_at:new Date().toISOString()};
