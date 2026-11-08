@@ -10,7 +10,7 @@ Le dossier `inference/` contient le premier serveur d'inférence auto-hébergé 
 - Ollama exécute les poids du modèle sur le serveur contrôlé par DEBS.
 - Une passerelle FastAPI protège l'API compatible OpenAI avec une clé serveur.
 - Le modèle bootstrap par défaut est `qwen2.5:3b`, téléchargé sur le volume du serveur.
-- Le routeur de chat de l'application donne la priorité à ce serveur quand `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées.
+- Le routeur de chat de l'application utilise exclusivement ce serveur lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Sans ces variables, le chat renvoie une erreur explicite : aucun recours automatique à Gemini, ChatGPT, Claude ou Lovable.
 
 Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS. Il établit l'infrastructure d'exécution auto-hébergée nécessaire avant les étapes de données, entraînement/ajustement, évaluation et versions propres du modèle. Voir [inference/README.md](inference/README.md). Aucun serveur GPU n'est provisionné par le dépôt ; le déploiement réel exige une machine/VM avec RAM, stockage et idéalement GPU. La clé d'inférence reste exclusivement côté serveur.
 
@@ -22,7 +22,7 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 - Rendu Markdown et blocs de code ; les fichiers de code peuvent être présentés comme artefacts.
 
 ## Capacités de DEBS 1.1
-- **Moteur IA** : le routeur serveur privilégie désormais DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Les adaptateurs Gemini et Lovable restent des solutions transitoires tant que le serveur DEBS n’est pas hébergé et vérifié.
+- **Moteur IA** : le routeur serveur privilégie désormais DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Aucun fournisseur IA tiers n'est utilisé comme solution de secours. Tant que le serveur DEBS n'est pas hébergé et vérifié, la génération reste indisponible.
 - **Modes spécialisés** : discussion, code, développement de jeux, conception, débogage, revue, architecture, tests, sécurité, performance, API, DevOps et spécialités Unity, Unreal, Godot, Blender et Three.js.
 - **Recherche Web** : mode /search qui demande l’outil de recherche Web au Gateway. Les sources et URL ne sont montrées que si l’outil renvoie effectivement des résultats.
 - **Comptes et historique cloud** : authentification Supabase par e-mail et mot de passe ; les conversations peuvent être synchronisées avec les tables conversations et chat_messages si les migrations correspondantes sont appliquées et que Supabase est correctement configuré. Sans compte, l’historique reste local à l’appareil.
@@ -35,7 +35,7 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 ## État des intégrations
 | Intégration | État réel |
 | --- | --- |
-| Lovable AI Gateway | Adaptateur serveur implémenté ; clé et exécution réelle requises |
+| DEBS Server (Ollama + FastAPI) | Prototype présent ; serveur distant et modèle non encore déployés |
 | Supabase Auth / historique | Code et migrations présents ; configuration cloud requise |
 | GitHub import | Lecture via jeton utilisateur, en mémoire |
 | GitHub agent / PR brouillon | Code Edge Function présent ; secrets et déploiement requis |
@@ -52,10 +52,9 @@ Les connecteurs affichés dans l’écran Intégrations ne signifient pas automa
 - Les fichiers de dépôt importés sont un instantané en lecture seule ; leur présence dans le contexte n’autorise aucune écriture GitHub.
 - Les écritures GitHub du worker sont prévues sur une branche dédiée et en PR brouillon ; aucune fusion automatique vers main.
 - Les actions de build/test ne sont considérées comme réussies que lorsqu’un runner renvoie des journaux réels.
-- DEBS 1.1 est servi par un fournisseur externe via Gateway ; ce n’est pas un modèle de fondation entraîné par DEBS AI Studio.
+- DEBS 1.1 utilise exclusivement le serveur d'inférence auto-hébergé configuré. Le modèle bootstrap Qwen est open weights et n'est pas un modèle de fondation entraîné par DEBS AI Studio.
 
 ## Développement
-- Projet Lovable : https://lovable.dev/projects/737971ca-5625-49df-a1df-d36c83653892
 - Dépôt : https://github.com/debsboni7-dot/debs-ai-game-studio
 - Installation : bun install
 - Démarrage : bun run dev
