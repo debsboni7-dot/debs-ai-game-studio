@@ -7,6 +7,14 @@ import { GatewayError, safeGatewayError } from "./gateway-error.server";
 const MODEL = "openai/gpt-6-astra";
 function getLovableApiKey(): string | undefined { return process.env.LOVABLE_API_KEY?.trim() || undefined; }
 
+/** Enable asset tools only when the user's latest message explicitly requests asset discovery/download/import. */
+function requestsAssetImport(messages: Array<{ role: string; content: string }>): boolean {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
+  const mentionsAsset = /\b(texture|textures|material|materials|asset|assets|mod[eè]le|mod[eè]les|image|photo|sound|audio|mesh|3d)\b/i.test(latestUserMessage);
+  const requestsAction = /\b(recherche|trouve|cherche|t[eé]l[eè]charge|importe|importer|int[eè]gre|r[eé]cup[eè]re|ajoute|download|import|fetch)\b/i.test(latestUserMessage);
+  return mentionsAsset && requestsAction;
+}
+
 function collectUrls(value: unknown, found = new Set<string>(), depth = 0): Set<string> {
   if (depth > 5 || found.size >= 30 || value == null) return found;
   if (typeof value === "string") {
@@ -60,7 +68,7 @@ const lovableProvider: CodeModelProvider = {
       const task = req.task ?? "chat";
       const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
         "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: " + CREATOR_IDENTITY_REPLY + " Do not invent additional founders, studios, or ownership claims." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When a user explicitly asks to find, download or integrate game assets in a game-engine task, use web search to locate official source pages, verify the exact license and direct ZIP URL, then call import_game_assets with the official license evidence. Never call this tool for vague suggestions, never guess download URLs or licenses, and explain that the result is a draft GitHub pull request requiring review. " + modeInstructions[task],
-        ["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", ["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task));
+        (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
       let streamError: unknown;
       const activity: ChatActivityEvent[] = [];
       const started = Date.now();
@@ -112,7 +120,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
   });
   const { result } = createResponsesCall(request, { baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL }, messages,
     `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through the configured Lovable AI Gateway model; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. ${modeInstructions[task]}`,
-    ["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", ["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task), ["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task));
+    (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)), (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
