@@ -30,10 +30,10 @@ export function createResponsesCall(
     ? provider.tools.webSearch({ externalWebAccess: true, searchContextSize: "medium" })
     : undefined;
   const importGameAssets = enableAssetImport ? tool({
-    description: "Télécharger et importer un pack de ressources de jeu dans le dépôt GitHub de l'utilisateur. À utiliser uniquement si l'utilisateur a explicitement demandé de télécharger ou intégrer des assets. Tu dois d'abord rechercher une source officielle, vérifier la licence exacte et fournir un lien HTTPS direct vers une archive ZIP. Ne jamais inventer le lien ni la licence. La fonction crée une branche et une Pull Request brouillon, sans fusion automatique.",
+    description: "Télécharger et importer un pack de ressources de jeu dans le dépôt GitHub de l'utilisateur. À utiliser uniquement si l'utilisateur a explicitement demandé de télécharger ou intégrer des assets. Tu dois rechercher des ressources sur tout site public pertinent, sans liste blanche de domaines. Le champ source_url peut être une page de catalogue ou un lien direct : le serveur explorera les liens publics de téléchargement pour trouver une archive ZIP. Vérifie la licence exacte sur une source officielle et ne l'invente jamais. N'essaie pas de contourner les connexions, paywalls, DRM ou protections anti-bot. La fonction crée une branche et une Pull Request brouillon, sans fusion automatique.",
     inputSchema: z.object({
       pack_name: z.string().min(2).max(100),
-      source_url: z.string().url().startsWith("https://"),
+      source_url: z.string().url().startsWith("https://").describe("URL HTTPS de la page de catalogue ou du téléchargement direct public."),
       license_name: z.string().min(2).max(80),
       license_url: z.string().url().startsWith("https://"),
       license_evidence: z.string().min(20).max(1200),
