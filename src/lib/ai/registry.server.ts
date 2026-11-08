@@ -5,10 +5,19 @@ import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
 const MODEL = "openai/gpt-6-astra";
+const DEBS_MODEL = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
 const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+function getDebsInferenceConfig() {
+  const baseURL = process.env.DEBS_INFERENCE_BASE_URL?.trim();
+  const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
+  if (!baseURL || !apiKey) return null;
+  return { label: "DEBS Self-hosted", baseURL: baseURL.replace(/\\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const };
+}
 function getLovableApiKey(): string | undefined { return process.env.LOVABLE_API_KEY?.trim() || undefined; }
 function getGeminiApiKey(): string | undefined { return process.env.GEMINI_API_KEY?.trim() || undefined; }
 function getActiveProvider() {
+  const debsInference = getDebsInferenceConfig();
+  if (debsInference) return debsInference;
   const geminiApiKey = getGeminiApiKey();
   if (geminiApiKey) return { label: "Google Gemini", baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/", apiKey: geminiApiKey, model: GEMINI_MODEL, apiMode: "chat" as const };
   const apiKey = getLovableApiKey();
