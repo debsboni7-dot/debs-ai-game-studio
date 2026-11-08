@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch } from "./github-executor.ts";
-import type { ProposedFile } from "../_shared/github-validation.ts";
+import { validateProposedFiles, type ProposedFile } from "../_shared/github-validation.ts";
 import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
 import { buildAgentCompletionPayload, extractAgentCompletionText } from "./debs-inference.ts";
 import { resolveRelativeRepositoryImports, selectRelevantRepositoryFiles } from "./repository-context.ts";
+import { createUnifiedDiff, summarizeReviewFiles } from "./review-diff.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -65,6 +66,8 @@ Deno.serve(async(request)=>{
     await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:checks.state==="success"?"github_ci_passed":"github_ci_failed",message:finalSummary,metadata:eventMetadata});
     return json({ok:true,claimed:true,ci_state:checks.state,session_id:session.id});
    }
+   const checkpointState=session.checkpoint&&typeof session.checkpoint==="object"&&!Array.isArray(session.checkpoint)?session.checkpoint as Record<string,unknown>:{};
+   const existingPlan=checkpointState.plan&&typeof checkpointState.plan==="object"?checkpointState.plan as Record<string,unknown>:null;
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),95000);
    const prompt=[
     "Tu es le worker autonome de DEBS AI. Avance une mission en une seule étape courte, vérifiable et récupérable.",
