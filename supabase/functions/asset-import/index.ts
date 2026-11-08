@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { unzipSync } from "https://esm.sh/fflate@0.8.2";
 import { assetSlug, isAllowedAssetFile, validateAssetSourceUrl } from "../_shared/asset-security.ts";
+import { extractPublicDownloadLinks } from "../_shared/asset-catalog.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -56,28 +57,63 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function downloadZip(start: URL): Promise<Uint8Array> {
+type DownloadedAssetArchive = { bytes: Uint8Array; downloadUrl: URL };
+
+
+async function fetchFollowingRedirects(start: URL): Promise<{ response: Response; finalUrl: URL }> {
   let url = start;
   for (let hop = 0; hop <= 4; hop++) {
     await validateAssetSourceUrl(url.toString());
-    const response = await fetch(url, { redirect: "manual", headers: { "User-Agent": "DEBS-AI-AssetImporter/1.0", Accept: "application/zip,application/octet-stream,*/*" } });
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: {
+        "User-Agent": "DEBS-AI-AssetImporter/1.0",
+        Accept: "application/zip,application/octet-stream,text/html;q=0.9,*/*;q=0.8",
+      },
+    });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location");
       if (!location || hop === 4) throw new Error("Redirection de téléchargement invalide ou trop longue.");
       url = new URL(location, url);
       continue;
     }
-    if (!response.ok) throw new Error("Téléchargement refusé par la source (HTTP " + response.status + ").");
-    const length = Number(response.headers.get("content-length") ?? 0);
-    if (length > MAX_ARCHIVE) throw new Error("Archive trop volumineuse (maximum 12 Mo).");
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.length > MAX_ARCHIVE) throw new Error("Archive trop volumineuse (maximum 12 Mo).");
-    if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Le lien doit pointer directement vers une archive ZIP.");
-    return bytes;
+    return { response, finalUrl: url };
   }
   throw new Error("Téléchargement impossible.");
 }
 
+async function downloadZip(start: URL): Promise<DownloadedAssetArchive> {
+  const visited = new Set<string>();
+  const tryUrl = async (url: URL, depth: number): Promise<DownloadedAssetArchive> => {
+    if (visited.has(url.toString())) throw new Error("Lien de téléchargement déjà exploré.");
+    visited.add(url.toString());
+    const { response, finalUrl } = await fetchFollowingRedirects(url);
+    if (!response.ok) throw new Error("La source a refusé la requête (HTTP " + response.status + ").");
+    const length = Number(response.headers.get("content-length") ?? 0);
+    const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+    if (length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) return { bytes, downloadUrl: finalUrl };
+    const looksLikeHtml = contentType.includes("text/html") || contentType.includes("application/xhtml") || /^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b)/i.test(new TextDecoder().decode(bytes.subarray(0, 512)));
+    if (depth >= 2 || !looksLikeHtml) {
+    }
+    if (bytes.length > 2 * 1024 * 1024) throw new Error("Page de catalogue trop volumineuse (maximum 2 Mo).");
+    const html = new TextDecoder().decode(bytes);
+    const links = extractPublicDownloadLinks(html, finalUrl).filter((candidate) => !visited.has(candidate.toString()));
+    if (!links.length) throw new Error("Aucun lien de téléchargement public exploitable n'a été trouvé sur cette page.");
+    let lastError = "Aucune archive ZIP accessible n'a été trouvée dans les liens de téléchargement.";
+    for (const candidate of links) {
+      try { return await tryUrl(candidate, depth + 1); }
+      catch (error) {
+        lastError = error instanceof Error ? error.message : lastError;
+        if (/trop volumineux|réseau privé|DNS|redirection invalide/i.test(lastError)) throw error;
+      }
+    }
+    throw new Error(lastError);
+  };
+  return tryUrl(start, 0);
+}
 async function githubCall(api: string, token: string, route: string, body?: unknown) {
   const response = await fetch(api + route, {
     method: body ? "POST" : "GET",
@@ -122,8 +158,8 @@ Deno.serve(async (request) => {
 
   try {
     const archive = await downloadZip(sourceUrl);
-    inspectZipLimits(archive);
-    const entries = unzipSync(archive);
+    inspectZipLimits(archive.bytes);
+    const entries = unzipSync(archive.bytes);
     const slug = assetSlug(packName);
     const files: Array<{ path: string; bytes: Uint8Array }> = [];
     let total = 0;
@@ -140,7 +176,8 @@ Deno.serve(async (request) => {
     if (!files.length) throw new Error("Aucun fichier de ressource autorisé dans cette archive.");
 
     const manifest = [
-      "# " + packName, "", "- Source: " + sourceUrl.toString(),
+      "# " + packName, "", "- Page source: " + sourceUrl.toString(),
+      "- Download URL: " + archive.downloadUrl.toString(),
       "- Importé le: " + new Date().toISOString(),
       "- Demandeur authentifié: " + user.id,
       "- Licence déclarée: " + licenseName,
@@ -167,9 +204,9 @@ Deno.serve(async (request) => {
     await githubCall(api, token, "/git/refs", { ref: "refs/heads/" + branchName, sha: commit.sha });
     const pr = await githubCall(api, token, "/pulls", {
       title: "[DEBS AI] Import asset pack: " + packName.slice(0, 70), head: branchName, base: baseBranch, draft: true,
-      body: "Import d'archive demandé par un utilisateur authentifié.\n\nSource: " + sourceUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
+      body: "Import d'archive demandé par un utilisateur authentifié.\n\nPage source: " + sourceUrl + "\nFichier téléchargé: " + archive.downloadUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
     });
-    return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
+    return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", download_url: archive.downloadUrl.toString(), formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Import interrompu." }, 400);
   }
