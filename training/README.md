@@ -24,6 +24,8 @@ Do not include private conversations, personal data, credentials, copyrighted tr
 
 Use `evals/baseline.jsonl` as a small hand-written smoke set. Evaluate correctness, instruction following, French fluency, coding validity, tool safety and refusal behavior. Record model name, quantization, runtime, date, prompt version and scores in each report. Never compare releases using different evaluation prompts without noting it.
 
+The broader coding benchmark is in `evals/coding.jsonl`. Run it against a live DEBS gateway with `python training/run_coding_eval.py`. The runner records responses and latency for manual review; it does not execute generated code or automatically certify correctness. See `evals/CODING_BENCHMARK.md`.
+
 ## Compute reality
 
 Free notebook GPU quotas are temporary and cannot host a permanent inference service. Use them only for experiments. The permanent server and training compute are separate decisions. Do not start a training job until a suitable GPU is available and dataset rights are checked.
