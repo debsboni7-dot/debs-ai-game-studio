@@ -11,7 +11,7 @@ A DEBS version number represents a tested capability release, not a branding cha
 5. Run the relevant automated tests and production build. Record exact CI run and commit.
 6. For agent/game-development releases, verify at least one end-to-end task against a disposable test repository or project. Record files changed, commands executed, test results, and known limitations.
 7. Keep a release changelog and compare against the previous release. If there is no measurable improvement, do not create a new version.
-8. Do not claim DEBS is an independently trained foundation model while it is served by an external gateway.
+8. Do not claim DEBS is an independently trained foundation model while it runs an imported open-weight base model. The application must use the self-hosted DEBS inference server only; third-party chat-model fallback is prohibited.
 
 ## DEBS 1.1 baseline
 
