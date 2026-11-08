@@ -12,9 +12,9 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   status, headers: { ...cors, "Content-Type": "application/json" },
 });
 const env = (name: string) => Deno.env.get(name)?.trim() ?? "";
-const MAX_ARCHIVE = 12 * 1024 * 1024;
-const MAX_EXTRACTED = 18 * 1024 * 1024;
-const MAX_FILES = 60;
+const MAX_ARCHIVE = 25 * 1024 * 1024;
+const MAX_EXTRACTED = 50 * 1024 * 1024;
+const MAX_FILES = 100;
 
 function inspectZipLimits(bytes: Uint8Array) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -68,6 +68,21 @@ function filenameFromResponse(response: Response, url: URL): string {
   return candidate.slice(-120) || "asset.bin";
 }
 
+function filenameFromContentType(contentType: string): string | null {
+  const mime = contentType.split(";")[0].trim().toLowerCase();
+  const extensions: Record<string, string> = {
+    "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif",
+    "image/avif": "avif", "image/svg+xml": "svg", "image/bmp": "bmp", "image/tiff": "tif",
+    "image/vnd.radiance": "hdr", "image/x-exr": "exr",
+    "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/flac": "flac",
+    "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
+    "font/ttf": "ttf", "font/otf": "otf", "font/woff2": "woff2",
+    "model/gltf-binary": "glb", "model/gltf+json": "gltf", "application/pdf": "pdf",
+  };
+  const extension = extensions[mime];
+  return extension ? "download." + extension : null;
+}
+
 function isZip(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b &&
     ((bytes[2] === 0x03 && bytes[3] === 0x04) || (bytes[2] === 0x05 && bytes[3] === 0x06) || (bytes[2] === 0x07 && bytes[3] === 0x08));
@@ -112,7 +127,8 @@ async function downloadAsset(start: URL): Promise<DownloadedAsset> {
     const looksLikeHtml = contentType.includes("text/html") || contentType.includes("application/xhtml") || /^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b)/i.test(new TextDecoder().decode(bytes.subarray(0, 512)));
     if (!looksLikeHtml) {
       const filename = filenameFromResponse(response, finalUrl);
-      const safeFilename = filename.split(/[\\/]/).pop() ?? "asset.bin";
+      const fallbackFilename = filename === "asset.bin" ? filenameFromContentType(contentType) : null;
+      const safeFilename = (fallbackFilename ?? filename).split(/[\\/]/).pop() ?? "asset.bin";
       if (!isAllowedAssetFile(safeFilename)) throw new Error("Le téléchargement n'est ni une archive ZIP ni un format de ressource autorisé.");
       return { bytes, downloadUrl: finalUrl, filename: safeFilename, isArchive: false };
     }
@@ -121,7 +137,7 @@ async function downloadAsset(start: URL): Promise<DownloadedAsset> {
     const html = new TextDecoder().decode(bytes);
     const links = extractPublicDownloadLinks(html, finalUrl).filter((candidate) => !visited.has(candidate.toString()));
     if (!links.length) throw new Error("Aucun lien de téléchargement public exploitable n'a été trouvé sur cette page.");
-    let lastError = "Aucune archive ZIP accessible n'a été trouvée dans les liens de téléchargement.";
+    let lastError = "Aucun fichier téléchargeable public compatible n'a été trouvé sur cette page.";
     for (const candidate of links) {
       try { return await tryUrl(candidate, depth + 1); }
       catch (error) {
