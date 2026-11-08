@@ -46,7 +46,7 @@ export function createResponsesCall(
         return { ok: false, error: "Import non disponible : session utilisateur ou configuration Supabase manquante." };
       }
       try {
-        const response = await fetch(supabaseUrl.replace(/\\/+$/, "") + "/functions/v1/asset-import", {
+        const response = await fetch((supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl) + "/functions/v1/asset-import", {
           method: "POST",
           headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json" },
           body: JSON.stringify(input),
