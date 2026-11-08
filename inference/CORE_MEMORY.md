@@ -9,7 +9,7 @@ This directory documents the first persistent-memory storage contract.
 - Memories are private to their owner and protected by Supabase Row Level Security.
 - Disabling memory blocks reads, inserts and updates through user-scoped access. Existing memories remain deletable by their owner.
 - Memory records are categorized as project, preference, fact or workflow.
-- A record may be linked to a conversation; deleting that conversation clears the source link, not the memory.
+- A record may be linked only to a conversation owned by the same user; deleting that conversation clears the source link, not the memory.
 - Expiration is optional and represented by `expires_at`.
 
 ## Deliberate limitations
