@@ -48,7 +48,7 @@ export function resolveRelativeRepositoryImports(
   const sourceParts = sourcePath.split("/");
   sourceParts.pop();
   const imports = new Set<string>();
-  const pattern = /(?:from\s*|import\s*\(|require\s*\()\s*["'](\.[^"']+)["']/g;
+  const pattern = /(?:from\s*|import\s*(?:\(\s*)?|require\s*\()\s*["'](\.[^"']+)["']/g;
   for (const match of source.matchAll(pattern)) {
     const specifier = match[1];
     const parts = [...sourceParts];
