@@ -15,7 +15,7 @@ const BUCKET = "chat-files";
 
 function cleanFilename(value: string): string {
   const name = value.replace(/\\/g, "/").split("/").pop()?.trim() ?? "";
-  if (!name || name.length > 120 || !safeAssetPath(name) || !isAllowedAssetFile(name)) {
+  if (!name || name.length > 120 || !safeAssetPath(name) || (!isAllowedAssetFile(name) && !name.toLowerCase().endsWith(".zip"))) {
     throw new Error("Nom ou format de fichier non pris en charge.");
   }
   return name;
