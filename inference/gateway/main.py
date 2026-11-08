@@ -131,7 +131,7 @@ async def chat_completions(
         raise HTTPException(status_code=502, detail="Local model runtime is unavailable") from exc
 
     if upstream.status_code >= 400:
-        body = await upstream.aread()
+        await upstream.aread()
         await upstream.aclose()
         await client.aclose()
         inference_slots.release()
@@ -145,10 +145,30 @@ async def chat_completions(
         await client.aclose()
         inference_slots.release()
 
+    response_headers = {
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    content_type = upstream.headers.get("content-type", "application/json")
+
+    if not payload.get("stream", False):
+        try:
+            body = await upstream.aread()
+        except httpx.HTTPError as exc:
+            await close_upstream()
+            raise HTTPException(status_code=502, detail="Local model response could not be read") from exc
+        await close_upstream()
+        return Response(
+            content=body,
+            status_code=upstream.status_code,
+            media_type=content_type,
+            headers=response_headers,
+        )
+
     return StreamingResponse(
         upstream.aiter_raw(),
         status_code=upstream.status_code,
-        media_type=upstream.headers.get("content-type", "text/event-stream"),
+        media_type=content_type,
         background=BackgroundTask(close_upstream),
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        headers=response_headers,
     )
