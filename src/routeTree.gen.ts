@@ -11,9 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AtelierRouteImport } from './routes/atelier'
+import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as MissionsRouteImport } from './routes/missions'
 import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as ApiChatStreamRouteImport } from './routes/api.chat-stream'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatThreadIdRouteImport } from './routes/chat.$threadId'
 
@@ -27,9 +30,19 @@ const AtelierRoute = AtelierRouteImport.update({
   path: '/atelier',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MissionsRoute = MissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParametresRoute = ParametresRouteImport.update({
@@ -40,6 +53,11 @@ const ParametresRoute = ParametresRouteImport.update({
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatStreamRoute = ApiChatStreamRouteImport.update({
+  id: '/api/chat-stream',
+  path: '/api/chat-stream',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -56,18 +74,24 @@ const ChatThreadIdRoute = ChatThreadIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/atelier': typeof AtelierRoute
+  '/connexion': typeof ConnexionRoute
   '/integrations': typeof IntegrationsRoute
+  '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
   '/chat/': typeof ChatIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/atelier': typeof AtelierRoute
+  '/connexion': typeof ConnexionRoute
   '/integrations': typeof IntegrationsRoute
+  '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
   '/chat': typeof ChatIndexRoute
 }
@@ -75,9 +99,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/atelier': typeof AtelierRoute
+  '/connexion': typeof ConnexionRoute
   '/integrations': typeof IntegrationsRoute
+  '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
   '/chat/': typeof ChatIndexRoute
 }
@@ -86,27 +113,36 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/atelier'
+    | '/connexion'
     | '/integrations'
+    | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/chat-stream'
     | '/chat/$threadId'
     | '/chat/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/atelier'
+    | '/connexion'
     | '/integrations'
+    | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/chat-stream'
     | '/chat/$threadId'
     | '/chat'
   id:
     | '__root__'
     | '/'
     | '/atelier'
+    | '/connexion'
     | '/integrations'
+    | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/chat-stream'
     | '/chat/$threadId'
     | '/chat/'
   fileRoutesById: FileRoutesById
@@ -114,9 +150,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AtelierRoute: typeof AtelierRoute
+  ConnexionRoute: typeof ConnexionRoute
   IntegrationsRoute: typeof IntegrationsRoute
+  MissionsRoute: typeof MissionsRoute
   ParametresRoute: typeof ParametresRoute
   StudioRoute: typeof StudioRoute
+  ApiChatStreamRoute: typeof ApiChatStreamRoute
   ChatThreadIdRoute: typeof ChatThreadIdRoute
   ChatIndexRoute: typeof ChatIndexRoute
 }
@@ -137,11 +176,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AtelierRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/integrations': {
       id: '/integrations'
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/missions': {
+      id: '/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof MissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parametres': {
@@ -156,6 +209,13 @@ declare module '@tanstack/react-router' {
       path: '/studio'
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat-stream': {
+      id: '/api/chat-stream'
+      path: '/api/chat-stream'
+      fullPath: '/api/chat-stream'
+      preLoaderRoute: typeof ApiChatStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/': {
@@ -178,9 +238,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AtelierRoute: AtelierRoute,
+  ConnexionRoute: ConnexionRoute,
   IntegrationsRoute: IntegrationsRoute,
+  MissionsRoute: MissionsRoute,
   ParametresRoute: ParametresRoute,
   StudioRoute: StudioRoute,
+  ApiChatStreamRoute: ApiChatStreamRoute,
   ChatThreadIdRoute: ChatThreadIdRoute,
   ChatIndexRoute: ChatIndexRoute,
 }
