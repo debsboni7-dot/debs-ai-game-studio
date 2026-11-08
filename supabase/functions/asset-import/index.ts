@@ -151,8 +151,8 @@ Deno.serve(async (request) => {
   }
   let sourceUrl: URL;
   try { sourceUrl = await validateAssetSourceUrl(source); } catch (error) { return json({ error: error instanceof Error ? error.message : "Source refusée." }, 400); }
-  const token = env("GITHUB_TOKEN");
-  const repository = env("GITHUB_REPOSITORY");
+  const token = env("ai-game") || env("GITHUB_TOKEN");
+  const repository = env("GITHUB_REPOSITORY") || "debsboni7-dot/debs-ai-game-studio";
   const baseBranch = env("GITHUB_BASE_BRANCH") || "main";
   if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return json({ error: "GitHub n'est pas configuré côté serveur." }, 503);
 
