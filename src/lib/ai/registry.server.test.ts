@@ -58,16 +58,35 @@ describe("DEBS self-hosted adapter", () => {
       model: "qwen2.5:3b",
       label: "DEBS Server",
       apiMode: "chat",
+      searchBaseURL: "http://debs-server:8080/v1",
+      searchApiKey: "test-only-key",
     });
     expect(state.call.mock.calls[0]?.[2]).toEqual(input.messages);
     expect(state.call).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores Gemini and Lovable credentials instead of falling back", () => {
-    vi.stubEnv("GEMINI_API_KEY", "third-party-test-key");
-    vi.stubEnv("LOVABLE_API_KEY", "third-party-test-key");
-    expect(resolveProvider()).toBeNull();
-    expect(state.call).not.toHaveBeenCalled();
+  it("prefers Gemini when its server-side key is configured", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test-key");
+    vi.stubEnv("DEBS_INFERENCE_BASE_URL", "http://debs-server:8080/v1");
+    vi.stubEnv("DEBS_INFERENCE_API_KEY", "test-only-key");
+    const provider = resolveProvider();
+    if (!provider) throw new Error("Expected configured Gemini provider");
+    state.call.mockReturnValue(result("Hello from Gemini"));
+    await provider.complete(input);
+    expect(state.call.mock.calls[0]?.[1]).toEqual({
+      label: "Gemini",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      apiKey: "gemini-test-key",
+      model: "gemini-2.5-flash",
+      apiMode: "chat",
+      searchBaseURL: "http://debs-server:8080/v1",
+      searchApiKey: "test-only-key",
+    });
+  });
+  it("falls back to the DEBS server when Gemini is not configured", () => {
+    vi.stubEnv("DEBS_INFERENCE_BASE_URL", "http://debs-server:8080/v1");
+    vi.stubEnv("DEBS_INFERENCE_API_KEY", "test-only-key");
+    expect(resolveProvider()?.label).toBe("DEBS Server");
   });
   it("keeps creator identity consistent in normal and streamed prompts", () => {
     configuredProvider();
