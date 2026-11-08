@@ -95,8 +95,8 @@ async function downloadZip(start: URL): Promise<DownloadedAssetArchive> {
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) return { bytes, downloadUrl: finalUrl };
-    const looksLikeHtml = contentType.includes("text/html") || contentType.includes("application/xhtml") || /^\\s*(?:<!doctype\\s+html|<html\\b|<head\\b|<body\\b)/i.test(new TextDecoder().decode(bytes.subarray(0, 512)));\n    if (depth >= 2 || !looksLikeHtml) {
-      throw new Error("La page ne fournit pas directement une archive ZIP.");
+    const looksLikeHtml = contentType.includes("text/html") || contentType.includes("application/xhtml") || /^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b)/i.test(new TextDecoder().decode(bytes.subarray(0, 512)));
+    if (depth >= 2 || !looksLikeHtml) {
     }
     if (bytes.length > 2 * 1024 * 1024) throw new Error("Page de catalogue trop volumineuse (maximum 2 Mo).");
     const html = new TextDecoder().decode(bytes);
@@ -204,7 +204,7 @@ Deno.serve(async (request) => {
     await githubCall(api, token, "/git/refs", { ref: "refs/heads/" + branchName, sha: commit.sha });
     const pr = await githubCall(api, token, "/pulls", {
       title: "[DEBS AI] Import asset pack: " + packName.slice(0, 70), head: branchName, base: baseBranch, draft: true,
-      body: "Import d'archive demandé par un utilisateur authentifié.\n\nSource: " + sourceUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
+      body: "Import d'archive demandé par un utilisateur authentifié.\n\nPage source: " + sourceUrl + "\nFichier téléchargé: " + archive.downloadUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
     });
     return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", download_url: archive.downloadUrl.toString(), formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
   } catch (error) {
