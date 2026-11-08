@@ -159,9 +159,13 @@ Deno.serve(async(request)=>{
     const token=env("GITHUB_TOKEN"),repository=env("GITHUB_REPOSITORY"),baseBranch=env("GITHUB_BASE_BRANCH")||"main";
     if(!token||!repository)throw new Error("GitHub non configuré pour préparer l'aperçu du diff.");
     const headers={Authorization:"Bearer "+token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+    const baseRefResponse=await fetch("https://api.github.com/repos/"+repository+"/git/ref/heads/"+encodeURIComponent(baseBranch),{headers});
+    if(!baseRefResponse.ok)throw new Error("Lecture de la branche de base impossible (HTTP "+baseRefResponse.status+").");
+    const baseSha=String((await baseRefResponse.json()).object?.sha??"");
+    if(!/^[a-f0-9]{40}$/i.test(baseSha))throw new Error("SHA de base GitHub invalide.");
     const diffParts:string[]=[];
     for(const file of proposed){
-     const fileUrl="https://api.github.com/repos/"+repository+"/contents/"+file.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(baseBranch);
+     const fileUrl="https://api.github.com/repos/"+repository+"/contents/"+file.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(baseSha);
      const originalResponse=await fetch(fileUrl,{headers});
      let original="";
      if(originalResponse.ok){
@@ -174,7 +178,7 @@ Deno.serve(async(request)=>{
      diffParts.push(createUnifiedDiff(file.path,original,file.content));
     }
     const fullDiff=diffParts.join("\n\n");
-    const reviewProposal={plan:existingPlan,summary,files:proposed,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(proposed),base_branch:baseBranch,created_at:now};
+    const reviewProposal={plan:existingPlan,summary,files:proposed,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(proposed),base_branch:baseBranch,base_sha:baseSha,created_at:now};
     const reviewCheckpoint={...checkpointState,phase:"awaiting_review",review_proposal:reviewProposal};
     const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,files:reviewProposal.files_summary},lease_until:null,updated_at:now}).eq("id",task.id);
     if(taskDoneError)throw taskDoneError;
@@ -265,7 +269,7 @@ Deno.serve(async(request)=>{
   if(claimError||!claimed)return json({error:"La mission a changé d’état. Actualise-la avant de réessayer."},409);
   let proposal:Record<string,unknown>;
   try{
-   proposal=await createMissionPullRequest(files,String(session.title??"Mission DEBS AI"),String(review.summary??session.goal??""));
+   proposal=await createMissionPullRequest(files,String(session.title??"Mission DEBS AI"),String(review.summary??session.goal??""),String(review.base_sha??""));
   }catch(error){
    await admin.from("agent_work_sessions").update({status:"awaiting_review",last_summary:"La création du PR a échoué ; le diff reste disponible pour réessayer.",updated_at:new Date().toISOString()}).eq("id",id).eq("status","running");
    throw error;
