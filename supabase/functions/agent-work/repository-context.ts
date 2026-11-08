@@ -37,6 +37,7 @@ export function selectRelevantRepositoryFiles(
   return ranked.sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, Math.max(1, Math.min(12, maxFiles)));
 }
 
+
 export function resolveRelativeRepositoryImports(
   sourcePath: string,
   source: string,
@@ -47,7 +48,7 @@ export function resolveRelativeRepositoryImports(
   const sourceParts = sourcePath.split("/");
   sourceParts.pop();
   const imports = new Set<string>();
-  const pattern = /(?:from\\s*|import\\s*\\(|require\\s*\\()\s*["'](\\.[^"']+)["']/g;
+  const pattern = /(?:from\s*|import\s*\(|require\s*\()\s*["'](\.[^"']+)["']/g;
   for (const match of source.matchAll(pattern)) {
     const specifier = match[1];
     const parts = [...sourceParts];
@@ -57,7 +58,7 @@ export function resolveRelativeRepositoryImports(
       else parts.push(part);
     }
     const base = parts.join("/");
-    const candidates = /\\.[a-z0-9]+$/i.test(base)
+    const candidates = /\.[a-z0-9]+$/i.test(base)
       ? [base]
       : [base + ".ts", base + ".tsx", base + ".js", base + ".jsx", base + ".json",
         base + "/index.ts", base + "/index.tsx", base + "/index.js"];
