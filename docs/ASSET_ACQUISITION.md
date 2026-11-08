@@ -10,11 +10,11 @@ La fonction Edge `asset-import` fournit un pipeline serveur authentifié pour im
 - VFX et données : JSON, XML, GLSL/HLSL, shaders, shader graphs, atlas et fichiers de données autorisés\n- Formats moteur : scènes/prefabs Unity, ressources UAsset/UMap Unreal, scènes/ressources/shaders Godot, polices TTF/OTF/WOFF2
 - Documentation et matériaux : MTL, TXT, MD
 
-Les archives ZIP doivent pointer directement vers un fichier téléchargeable. Les pages de catalogue HTML ne sont pas encore explorées automatiquement.
+L'utilisateur ou DEBS peut fournir soit une URL directe, soit une page de catalogue HTML publique. Le résolveur inspecte les liens HTML pertinents, les classe, puis tente jusqu'à huit candidats sur deux niveaux maximum pour trouver une archive ZIP téléchargeable. Chaque redirection et chaque domaine candidat est soumis à la validation HTTPS/DNS.
 
 ## Sources permises
 
-Les domaines autorisés incluent Kenney, Quaternius, itch.io / itch.zone, Poly Haven, ambientCG, Catenarius/Cartenarius et les liens GitHub Releases. Le lien doit être HTTPS et rediriger uniquement vers un domaine autorisé. L'import ne contourne pas les pages de connexion, paywalls, DRM, protections anti-bot ni restrictions d'accès.
+Aucune liste blanche de domaines : tout site public pertinent peut être une source (catalogues d'assets, marketplaces, dépôts GitHub, bibliothèques 3D/audio/VFX/textures, etc.). Kenney, Quaternius, Poly Haven et ambientCG ne sont que des exemples. Les URL doivent être HTTPS et les hôtes doivent résoudre vers des adresses publiques ; chaque redirection est revalidée. L'import ne contourne pas les pages de connexion, paywalls, DRM, protections anti-bot ni restrictions d'accès.
 
 Kenney indique que ses ressources des pages d'assets sont sous CC0, y compris pour les projets commerciaux : https://kenney.nl/support
 Quaternius publie actuellement la licence QAL v1.0 : https://quaternius.com/license.html. Elle permet l'intégration dans un produit, mais interdit la redistribution des fichiers d'assets en tant que tels. Vérifier la licence correspondant précisément au pack téléchargé.
@@ -41,7 +41,7 @@ Secrets Edge Functions requis :
 
 Le jeton GitHub doit être limité au dépôt ciblé, avec Contents: Read and write et Pull requests: Read and write. La fonction `asset-import` valide elle-même le JWT ; la configuration Supabase utilise donc `verify_jwt = false` et le contrôle d'identité dans le code est obligatoire.
 
-## Intégration dans le chat DEBS AI\n\nLe chat spécialisé `/game-dev`, `/unity`, `/unreal`, `/godot`, `/blender` et `/threejs` expose le tool serveur `import_game_assets`. Lorsqu'un utilisateur demande explicitement de rechercher, télécharger ou intégrer des assets, le modèle peut lancer une recherche web, vérifier la source et la licence, puis appeler ce tool. Le navigateur transmet uniquement le JWT de session ; le jeton GitHub reste côté serveur. Le composer contient aussi un formulaire d'import manuel.\n\nLe tool exige une URL ZIP directe sur un domaine autorisé et une preuve de licence. Il prépare une PR brouillon et ne fusionne jamais automatiquement.\n\n## Appel de la fonction
+## Intégration dans le chat DEBS AI\n\nLe chat spécialisé `/game-dev`, `/unity`, `/unreal`, `/godot`, `/blender` et `/threejs` expose le tool serveur `import_game_assets`. Lorsqu'un utilisateur demande explicitement de rechercher, télécharger ou intégrer des assets, le modèle peut lancer une recherche web, vérifier la source et la licence, puis appeler ce tool. Le navigateur transmet uniquement le JWT de session ; le jeton GitHub reste côté serveur. Le composer contient aussi un formulaire d'import manuel.\n\nLe tool accepte une page de catalogue publique ou une URL ZIP directe, sans liste blanche de sites, et exige une preuve de licence. Le serveur inspecte les liens de téléchargement statiques de la page, suit les redirections avec validation DNS et tente un maximum de huit liens. Il ne peut pas exécuter le JavaScript d'un site, résoudre les boutons créés uniquement côté navigateur, contourner une connexion, un paywall, un DRM ou un anti-bot. Il accepte actuellement les archives ZIP uniquement. Il prépare une PR brouillon et ne fusionne jamais automatiquement.\n\n## Appel de la fonction
 
 Appeler `POST /functions/v1/asset-import` depuis un client connecté, avec son JWT Supabase dans l'en-tête Authorization et un corps JSON :
 
