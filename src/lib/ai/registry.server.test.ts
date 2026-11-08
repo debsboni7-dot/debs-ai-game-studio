@@ -37,6 +37,13 @@ describe("DEBS self-hosted adapter", () => {
     expect(resolveProvider()).toBeNull();
     expect(state.call).not.toHaveBeenCalled();
   });
+  it("makes the self-hosted web search tool available to coding tasks", async () => {
+    const provider = configuredProvider();
+    state.call.mockReturnValue(result("Found useful sources."));
+    await provider.complete({ ...input, task: "code" });
+    expect(state.call.mock.calls[0]?.[4]).toBe(true);
+  });
+
   it("uses only the DEBS server and reports upstream metadata", async () => {
     const provider = configuredProvider();
     state.call.mockReturnValue(result("Hello"));
