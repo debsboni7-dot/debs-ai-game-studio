@@ -1,21 +1,52 @@
-const ALLOWED_HOSTS = [
-  "kenney.nl", "quaternius.com", "itch.io", "itch.zone",
-  "polyhaven.com", "ambientcg.com", "catenarius.com", "cartenarius.com",
-  "github.com", "githubusercontent.com",
-];
+function isPrivateIpv4(address: string): boolean {
+  const octets = address.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true;
+  const [a, b] = octets;
+  return a === 0 || a === 10 || a === 127 || a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && (b === 0 || b === 168)) ||
+    (a === 198 && (b === 18 || b === 19));
+}
 
-export function validateAssetSourceUrl(raw: string): URL {
+function isPublicIpv6(address: string): boolean {
+  const value = address.toLowerCase().split("%")[0];
+  return value !== "::" && value !== "::1" &&
+    !value.startsWith("fc") && !value.startsWith("fd") &&
+    !/^fe[89ab]/.test(value) && !value.startsWith("::ffff:") &&
+    !value.startsWith("2001:db8:");
+}
+
+async function assertPublicHost(hostname: string): Promise<void> {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
+      host.endsWith(".internal") || host === "metadata.google.internal" ||
+      host === "metadata" || host.endsWith(".test") || host.endsWith(".invalid")) {
+    throw new Error("Les domaines locaux ou réservés ne sont pas autorisés.");
+  }
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+    if (isPrivateIpv4(host)) throw new Error("Les adresses IP privées ou réservées sont interdites.");
+    throw new Error("Utilise le nom de domaine public du site, pas une adresse IP.");
+  }
+  if (host.includes(":")) throw new Error("Les adresses IPv6 littérales ne sont pas autorisées.");
+  let addresses: string[] = [];
+  try { addresses.push(...await Deno.resolveDns(host, "A")); } catch { /* no A record */ }
+  try { addresses.push(...await Deno.resolveDns(host, "AAAA")); } catch { /* no AAAA record */ }
+  if (!addresses.length) throw new Error("Le domaine ne possède pas d'adresse DNS publique vérifiable.");
+  for (const address of addresses) {
+    if (address.includes(":") ? !isPublicIpv6(address) : isPrivateIpv4(address)) {
+      throw new Error("Le domaine pointe vers une adresse réseau privée ou réservée.");
+    }
+  }
+}
+
+export async function validateAssetSourceUrl(raw: string): Promise<URL> {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error("URL de ressource invalide."); }
   if (url.protocol !== "https:") throw new Error("Seules les URL HTTPS sont autorisées.");
   if (url.username || url.password || url.port) throw new Error("URL avec identifiants ou port personnalisé refusée.");
-  const host = url.hostname.toLowerCase();
-  if (!ALLOWED_HOSTS.some((domain) => host === domain || host.endsWith("." + domain))) {
-    throw new Error("Source non autorisée. Utilise Kenney, Quaternius, Poly Haven, ambientCG, itch.io ou une source approuvée.");
-  }
-  if (host === "github.com" && !url.pathname.includes("/releases/download/")) {
-    throw new Error("Pour GitHub, seuls les fichiers de releases sont acceptés.");
-  }
+  await assertPublicHost(url.hostname);
   return url;
 }
 
