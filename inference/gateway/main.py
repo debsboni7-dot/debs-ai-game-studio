@@ -17,6 +17,7 @@ app = FastAPI(
 )
 OLLAMA_BASE = os.getenv("OLLAMA_OPENAI_BASE_URL", "http://ollama:11434/v1").rstrip("/")
 DEBS_MODEL = os.getenv("DEBS_MODEL", "qwen2.5:3b")
+SEARXNG_BASE_URL = os.getenv("DEBS_SEARCH_BASE_URL", "").rstrip("/")
 API_KEY = os.getenv("DEBS_INFERENCE_API_KEY", "")
 MAX_REQUEST_BYTES = 24 * 1024 * 1024
 MAX_MESSAGES = 50
@@ -171,4 +172,76 @@ async def chat_completions(
         media_type=content_type,
         background=BackgroundTask(close_upstream),
         headers=response_headers,
+    )
+
+
+
+@app.post("/v1/search")
+async def web_search(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> JSONResponse:
+    """Search the public web through DEBS-owned SearXNG; never forwards chat to an AI vendor."""
+    authorize(authorization)
+    if not SEARXNG_BASE_URL:
+        raise HTTPException(status_code=503, detail="DEBS web search is not configured")
+
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object")
+
+    query = payload.get("query")
+    if not isinstance(query, str) or not 2 <= len(query.strip()) <= 400:
+        raise HTTPException(status_code=422, detail="query must contain 2 to 400 characters")
+    limit = payload.get("limit", 6)
+    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 10:
+        raise HTTPException(status_code=422, detail="limit must be an integer between 1 and 10")
+    language = payload.get("language", "all")
+    if not isinstance(language, str) or not (language == "all" or len(language) <= 12):
+        raise HTTPException(status_code=422, detail="language is invalid")
+
+    params = {"q": query.strip(), "format": "json", "language": language, "safesearch": "1"}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20, connect=5), follow_redirects=False) as client:
+            response = await client.get(f"{SEARXNG_BASE_URL}/search", params=params)
+            response.raise_for_status()
+            data = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="DEBS web search is temporarily unavailable") from exc
+
+    raw_results = data.get("results", []) if isinstance(data, dict) else []
+    results: list[dict[str, str]] = []
+    for item in raw_results:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        title = item.get("title")
+        if not isinstance(url, str) or not isinstance(title, str):
+            continue
+        try:
+            from urllib.parse import urlsplit
+            parsed = urlsplit(url)
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+                continue
+        except ValueError:
+            continue
+        content = item.get("content")
+        engine = item.get("engine")
+        published = item.get("publishedDate")
+        results.append({
+            "title": title[:240],
+            "url": url[:1600],
+            "snippet": content[:1000] if isinstance(content, str) else "",
+            "engine": engine[:80] if isinstance(engine, str) else "",
+            "published_at": published[:80] if isinstance(published, str) else "",
+        })
+        if len(results) >= limit:
+            break
+
+    return JSONResponse(
+        {"query": query.strip(), "count": len(results), "results": results},
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
