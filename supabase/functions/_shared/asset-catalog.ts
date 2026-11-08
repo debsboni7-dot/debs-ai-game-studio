@@ -17,9 +17,10 @@ export function extractPublicDownloadLinks(html: string, pageUrl: URL): URL[] {
     const attrs = (match[1] + " " + match[5]).toLowerCase();
     const hint = (url.pathname + url.search + " " + text + " " + attrs).toLowerCase();
     let score = 0;
-    if (/\.zip(?:$|[?#&])/i.test(url.href)) score += 10;
-    if (/download|télécharg|telecharg|export|asset|package|archive|\.zip/.test(hint)) score += 4;
-    if (/button|download|asset|file/.test(attrs)) score += 2;
+    if (/\.zip(?:$|[?#&])/i.test(url.href)) score += 12;
+    if (/\.(?:glb|gltf|fbx|obj|stl|usd|usdz|blend|png|jpe?g|webp|gif|tga|tif|tiff|dds|hdr|exr|svg|psd|wav|ogg|mp3|flac|mp4|webm|mov|ttf|otf|woff2)(?:$|[?#&])/i.test(url.href)) score += 9;
+    if (/download|télécharg|telecharg|export|asset|package|archive|\.zip|\.(?:glb|gltf|fbx|obj|stl|usd|usdz|blend|png|jpe?g|webp|gif|tga|tif|tiff|dds|hdr|exr|svg|psd|wav|ogg|mp3|flac|mp4|webm|mov|ttf|otf|woff2)/.test(hint)) score += 4;
+    if (/button|download|asset|file/.test(attrs) || /\bdownload\b/i.test(match[1] + " " + match[5])) score += 5;
     if (score > 0) candidates.push({ url, score });
   }
   const unique = new Map<string, { url: URL; score: number }>();

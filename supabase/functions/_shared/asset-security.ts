@@ -65,10 +65,10 @@ export function safeAssetPath(name: string): string | null {
 }
 
 const ALLOWED_EXTENSIONS = new Set([
-  "glb", "gltf", "fbx", "obj", "mtl", "stl", "usd", "usdz", "blend",
-  "png", "jpg", "jpeg", "webp", "tga", "tif", "tiff", "dds", "hdr", "exr", "svg",
-  "wav", "ogg", "mp3", "flac", "mp4", "webm",
-  "json", "txt", "md", "xml", "bin", "ktx", "ktx2", "glsl", "vert", "frag", "vsh", "fsh", "shader", "atlas", "ase", "aseprite", "ttf", "otf", "woff2", "unity", "prefab", "asset", "mat", "controller", "anim", "meta", "uasset", "umap", "tscn", "tres", "gdshader", "hlsl", "compute", "shadergraph", "shadersubgraph", "vfx",
+  "glb", "gltf", "fbx", "obj", "mtl", "stl", "usd", "usdz", "blend", "ply", "dae", "3ds", "abc", "3mf",
+  "png", "jpg", "jpeg", "webp", "gif", "bmp", "avif", "heic", "heif", "tga", "tif", "tiff", "dds", "hdr", "exr", "svg", "psd", "ai", "eps", "xcf", "kra",
+  "wav", "ogg", "mp3", "flac", "aac", "m4a", "aiff", "opus", "mp4", "webm", "mov", "mkv",
+  "json", "txt", "md", "xml", "pdf", "bin", "ktx", "ktx2", "glsl", "vert", "frag", "vsh", "fsh", "shader", "atlas", "ase", "aseprite", "ttf", "otf", "woff", "woff2", "unity", "prefab", "asset", "mat", "controller", "anim", "meta", "uasset", "umap", "tscn", "tres", "gdshader", "hlsl", "compute", "shadergraph", "shadersubgraph", "vfx",
 ]);
 
 export function isAllowedAssetFile(path: string): boolean {
