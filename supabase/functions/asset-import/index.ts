@@ -57,7 +57,21 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-type DownloadedAssetArchive = { bytes: Uint8Array; downloadUrl: URL };
+type DownloadedAsset = { bytes: Uint8Array; downloadUrl: URL; filename: string; isArchive: boolean };
+
+function filenameFromResponse(response: Response, url: URL): string {
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const encoded = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)?.[1];
+  const plain = disposition.match(/filename\s*=\s*(?:"([^"]+)"|([^;]+))/i);
+  let candidate = encoded ? decodeURIComponent(encoded) : (plain?.[1] ?? plain?.[2] ?? url.pathname.split("/").pop() ?? "asset.bin");
+  candidate = candidate.replace(/[/\\]/g, "_").replace(/[\r\n\0]/g, "").trim();
+  return candidate.slice(-120) || "asset.bin";
+}
+
+function isZip(bytes: Uint8Array): boolean {
+  return bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b &&
+    ((bytes[2] === 0x03 && bytes[3] === 0x04) || (bytes[2] === 0x05 && bytes[3] === 0x06) || (bytes[2] === 0x07 && bytes[3] === 0x08));
+}
 
 
 async function fetchFollowingRedirects(start: URL): Promise<{ response: Response; finalUrl: URL }> {
@@ -82,7 +96,7 @@ async function fetchFollowingRedirects(start: URL): Promise<{ response: Response
   throw new Error("Téléchargement impossible.");
 }
 
-async function downloadZip(start: URL): Promise<DownloadedAssetArchive> {
+async function downloadAsset(start: URL): Promise<DownloadedAsset> {
   const visited = new Set<string>();
   const tryUrl = async (url: URL, depth: number): Promise<DownloadedAssetArchive> => {
     if (visited.has(url.toString())) throw new Error("Lien de téléchargement déjà exploré.");
@@ -94,11 +108,16 @@ async function downloadZip(start: URL): Promise<DownloadedAssetArchive> {
     if (length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
-    if (bytes[0] === 0x50 && bytes[1] === 0x4b) return { bytes, downloadUrl: finalUrl };
+    if (isZip(bytes)) return { bytes, downloadUrl: finalUrl, filename: filenameFromResponse(response, finalUrl), isArchive: true };
     const looksLikeHtml = contentType.includes("text/html") || contentType.includes("application/xhtml") || /^\s*(?:<!doctype\s+html|<html\b|<head\b|<body\b)/i.test(new TextDecoder().decode(bytes.subarray(0, 512)));
-    if (depth >= 2 || !looksLikeHtml) {
+    if (!looksLikeHtml) {
+      const filename = filenameFromResponse(response, finalUrl);
+      const safeFilename = filename.split(/[\\/]/).pop() ?? "asset.bin";
+      if (!isAllowedAssetFile(safeFilename)) throw new Error("Le téléchargement n'est ni une archive ZIP ni un format de ressource autorisé.");
+      return { bytes, downloadUrl: finalUrl, filename: safeFilename, isArchive: false };
     }
-    if (bytes.length > 2 * 1024 * 1024) throw new Error("Page de catalogue trop volumineuse (maximum 2 Mo).");
+    if (depth >= 2) throw new Error("Profondeur maximale de catalogue atteinte (2 niveaux).");
+    if (bytes.length > 2 * 1024 * 1024) throw new Error("Page de catalogue trop volumineuse (maximum 2 Mo).")
     const html = new TextDecoder().decode(bytes);
     const links = extractPublicDownloadLinks(html, finalUrl).filter((candidate) => !visited.has(candidate.toString()));
     if (!links.length) throw new Error("Aucun lien de téléchargement public exploitable n'a été trouvé sur cette page.");
@@ -157,9 +176,8 @@ Deno.serve(async (request) => {
   if (!token || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return json({ error: "GitHub n'est pas configuré côté serveur." }, 503);
 
   try {
-    const archive = await downloadZip(sourceUrl);
-    inspectZipLimits(archive.bytes);
-    const entries = unzipSync(archive.bytes);
+    const download = await downloadAsset(sourceUrl);
+    const entries = download.isArchive ? (inspectZipLimits(download.bytes), unzipSync(download.bytes)) : { [download.filename]: download.bytes };
     const slug = assetSlug(packName);
     const files: Array<{ path: string; bytes: Uint8Array }> = [];
     let total = 0;
@@ -177,7 +195,7 @@ Deno.serve(async (request) => {
 
     const manifest = [
       "# " + packName, "", "- Page source: " + sourceUrl.toString(),
-      "- Download URL: " + archive.downloadUrl.toString(),
+      "- Download URL: " + download.downloadUrl.toString(),
       "- Importé le: " + new Date().toISOString(),
       "- Demandeur authentifié: " + user.id,
       "- Licence déclarée: " + licenseName,
@@ -204,9 +222,9 @@ Deno.serve(async (request) => {
     await githubCall(api, token, "/git/refs", { ref: "refs/heads/" + branchName, sha: commit.sha });
     const pr = await githubCall(api, token, "/pulls", {
       title: "[DEBS AI] Import asset pack: " + packName.slice(0, 70), head: branchName, base: baseBranch, draft: true,
-      body: "Import d'archive demandé par un utilisateur authentifié.\n\nPage source: " + sourceUrl + "\nFichier téléchargé: " + archive.downloadUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
+      body: "Import d'archive demandé par un utilisateur authentifié.\n\nPage source: " + sourceUrl + "\nFichier téléchargé: " + download.downloadUrl + "\nLicence déclarée: " + licenseName + " (" + licenseUrl + ")\n\n" + files.length + " fichiers, " + total + " octets extraits.\n\nVérifier la licence, les formats et l'intégration dans le moteur avant fusion.",
     });
-    return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", download_url: archive.downloadUrl.toString(), formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
+    return json({ ok: true, imported: files.length, bytes: total, branch: branchName, pull_request: pr.html_url, manifest: "game-assets/" + slug + "/ASSET_MANIFEST.md", download_url: download.downloadUrl.toString(), formats: [...new Set(files.map((file) => file.path.split(".").pop()?.toLowerCase()).filter(Boolean))] });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Import interrompu." }, 400);
   }
