@@ -132,6 +132,25 @@ Deno.serve(async(request)=>{
    let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string;plan?:unknown;files?:ProposedFile[]};
    try{parsed=JSON.parse(outputText);}catch{parsed={done:false,summary:outputText.slice(0,4000),checkpoint:{raw:outputText.slice(0,12000)},next_action:"Reprendre depuis ce résultat."};}
    const now=new Date().toISOString(),steps=Number(session.step_count??0)+1,expired=Date.now()>=new Date(session.deadline_at).getTime();
+   if(task.task_type==="agent_step"&&!existingPlan){
+    const candidate=parsed.plan&&typeof parsed.plan==="object"&&!Array.isArray(parsed.plan)?parsed.plan as Record<string,unknown>:null;
+    const planSummary=typeof candidate?.summary==="string"?candidate.summary.trim():"";
+    const planSteps=Array.isArray(candidate?.steps)?candidate.steps:[];
+    if(planSummary.length<8||planSteps.length<1||planSteps.length>12)throw new Error("Le plan de mission est absent ou invalide ; aucune modification n'a été préparée.");
+    const safePlan={summary:planSummary.slice(0,3000),steps:planSteps.slice(0,12).map((item,index)=>{
+     const step=item&&typeof item==="object"?item as Record<string,unknown>:{};
+     return {title:String(step.title??("Étape "+(index+1))).slice(0,160),description:String(step.description??"").slice(0,1000),files:Array.isArray(step.files)?step.files.filter((x):x is string=>typeof x==="string").slice(0,12).map(x=>x.slice(0,220)):[]};
+    })};
+    const nextCheckpoint={...checkpointState,plan:safePlan,phase:"implementation"};
+    const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary:"Plan de mission préparé.",plan:safePlan},lease_until:null,updated_at:now}).eq("id",task.id);
+    if(taskDoneError)throw taskDoneError;
+    const {error:sessionPlanError}=await admin.from("agent_work_sessions").update({status:"queued",checkpoint:nextCheckpoint,last_summary:"Plan prêt. DEBS prépare maintenant les modifications prévues.",step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
+    if(sessionPlanError)throw sessionPlanError;
+    const {error:nextTaskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{phase:"implementation",plan_ready:true}});
+    if(nextTaskError)throw nextTaskError;
+    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"mission_plan_ready",message:"Plan de mission préparé ; DEBS passe à la réalisation des changements.",metadata:{plan:safePlan}});
+    return json({ok:true,claimed:true,completed:false,plan_ready:true,session_id:session.id,step_count:steps,summary:"Plan préparé."});
+   }
    const hasFiles=Array.isArray(parsed.files)&&parsed.files.length>0;
    if(task.task_type==="github_ci_repair"&&!hasFiles)throw new Error("Aucun correctif de code exploitable proposé après analyse des erreurs CI.");
    let completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps);let ciFailure=false;const summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
