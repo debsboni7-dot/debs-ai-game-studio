@@ -23,9 +23,9 @@ Quaternius publie actuellement la licence QAL v1.0 : https://quaternius.com/lice
 
 - Authentification Supabase obligatoire ; l'identité est vérifiée côté serveur.
 - Téléchargement limité à 12 Mo par archive, extraction à 18 Mo, 60 fichiers maximum et 5 Mo par fichier.
-- Protection contre Zip Slip, chemins absolus, fichiers cachés, extensions exécutables et redirections vers des hôtes non autorisés.
+- Protection contre Zip Slip, chemins absolus, fichiers cachés, extensions exécutables et redirections vers des domaines locaux ou réseaux privés/réservés.
 - Les binaires sont envoyés directement à GitHub en blobs base64 ; ils ne transitent jamais par le navigateur.
-- Le résultat est une branche `debs-ai/assets-...` et une PR brouillon. Aucun ajout à `main) ni déploiement automatique.
+- Le résultat est une branche `debs-ai/assets-...` et une PR brouillon. Aucun ajout à `main` ni déploiement automatique.
 - L'utilisateur doit fournir le nom exact de la licence, son URL officielle et un extrait de preuve. Le système ne déduit jamais qu'un asset est libre.
 - Les fichiers originaux et le manifeste `ASSET_MANIFEST.md` sont conservés ensemble. Une vérification humaine de la licence, des formats et de l'intégration reste requise.
 - Ce service n'est pas un convertisseur de modèles, un outil de retopologie, un rigging automatique ou un importateur universel d'assets de moteur.
