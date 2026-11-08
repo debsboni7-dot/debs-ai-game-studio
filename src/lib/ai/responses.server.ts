@@ -10,7 +10,7 @@ import {
 
 export function createResponsesCall(
   request: Request,
-    baseURL: `${config.baseURL.replace(/\/+$/, "").replace(/\/v1$/, "")}/v1`,
+    baseURL: `${gatewayBaseURL}/v1`,
   messages: ModelMessage[],
   instructions?: string,
   enableWebSearch = false,
@@ -18,6 +18,7 @@ export function createResponsesCall(
   enableAssetImport = false,
 ) {
   const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
+  const gatewayBaseURL = config.baseURL.endsWith("/v1") ? config.baseURL.slice(0, -3) : config.baseURL.endsWith("/") ? config.baseURL.slice(0, -1) : config.baseURL;
   const provider = createOpenAI({
     baseURL: `${config.baseURL.replace(/\\/+$/, "").replace(/\\/v1$/, "")}/v1`,
     apiKey: config.apiKey,
