@@ -3,7 +3,7 @@ import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotation
 import type { ProposedFile } from "../_shared/github-validation.ts";
 import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
 import { buildAgentCompletionPayload, extractAgentCompletionText } from "./debs-inference.ts";
-import { selectRelevantRepositoryFiles } from "./repository-context.ts";
+import { resolveRelativeRepositoryImports, selectRelevantRepositoryFiles } from "./repository-context.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -89,21 +89,33 @@ Deno.serve(async(request)=>{
         /[.](tsx?|jsx?|json|md|toml|yaml|yml|sql|css)$/i.test(x.path)&&Number(x.size??0)<=30000);
       const repairPaths=Array.isArray(task.input?.annotations)?task.input.annotations.map((a:{path?:string})=>String(a.path??"")).filter(Boolean):[];
       const ranked=selectRelevantRepositoryFiles(paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0})),String(session.goal??""),repairPaths,8);
-      const selected=ranked;
+      const selected=ranked.slice(0,5);
       const contents=[];let total=0;
-      for(const item of selected){
-        if(total>=14000)break;
+      const loaded=new Set<string>();
+      const readRepositoryFile=async(path:string)=>{
+        if(loaded.has(path)||total>=14000)return "";
         try{
-          const fileResponse=await fetch("https://api.github.com/repos/"+repo+"/contents/"+item.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch),{headers});
-          if(!fileResponse.ok)continue;
+          const fileResponse=await fetch("https://api.github.com/repos/"+repo+"/contents/"+path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(branch),{headers});
+          if(!fileResponse.ok)return "";
           const fileData=await fileResponse.json();
-          if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")continue;
-          const binary=atob(fileData.content.replace(/\s/g,""));
+          if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")return "";
+          const binary=atob(fileData.content.replace(/\\s/g,""));
           const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
           const text=new TextDecoder().decode(bytes).slice(0,Math.min(3000,14000-total));
-          contents.push({path:item.path,content:text});total+=text.length;
-        }catch{/* fichier ignoré : le contexte reste borné */}
+          if(!text)return "";
+          contents.push({path,content:text});loaded.add(path);total+=text.length;
+          return text;
+        }catch{return "";}
+      };
+      for(const item of selected)await readRepositoryFile(item.path);
+      const availablePaths=ranked.map(x=>x.path);
+      const dependencyPaths=new Set<string>();
+      for(const item of contents.slice(0,5)){
+        for(const dependency of resolveRelativeRepositoryImports(item.path,item.content,availablePaths,3)){
+          if(!loaded.has(dependency))dependencyPaths.add(dependency);
+        }
       }
+      for(const dependency of [...dependencyPaths].slice(0,3))await readRepositoryFile(dependency);
       return {branch,truncated:Boolean(treeData.truncated),files:ranked.slice(0,60).map(x=>x.path),contents};
     }catch{return {files:[],contents:[],warning:"Contexte GitHub indisponible."};}})()),
     "Échéance : "+session.deadline_at
