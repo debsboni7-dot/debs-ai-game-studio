@@ -22,9 +22,9 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 - Rendu Markdown et blocs de code ; les fichiers de code peuvent être présentés comme artefacts.
 
 ## Capacités de DEBS 1.1
-- **Moteur IA** : le routeur serveur privilégie désormais DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Aucun fournisseur IA tiers n'est utilisé comme solution de secours. Tant que le serveur DEBS n'est pas hébergé et vérifié, la génération reste indisponible.
+- **Moteur IA** : le routeur serveur utilise exclusivement DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Aucun fournisseur IA tiers n'est utilisé comme solution de secours. Tant que le serveur DEBS n'est pas hébergé et vérifié, la génération reste indisponible.
 - **Modes spécialisés** : discussion, code, développement de jeux, conception, débogage, revue, architecture, tests, sécurité, performance, API, DevOps et spécialités Unity, Unreal, Godot, Blender et Three.js.
-- **Recherche Web** : mode /search qui demande l’outil de recherche Web au Gateway. Les sources et URL ne sont montrées que si l’outil renvoie effectivement des résultats.
+- **Recherche Web** : mode /search est présent, mais la recherche Web en direct n'est pas encore intégrée au moteur auto-hébergé ; DEBS ne doit pas inventer de sources.
 - **Comptes et historique cloud** : authentification Supabase par e-mail et mot de passe ; les conversations peuvent être synchronisées avec les tables conversations et chat_messages si les migrations correspondantes sont appliquées et que Supabase est correctement configuré. Sans compte, l’historique reste local à l’appareil.
 - **GitHub en lecture** : connexion par jeton personnel saisi dans l’écran Intégrations, vérification du compte, sélection du dépôt et import limité de fichiers en contexte de conversation. Le jeton de cette connexion reste en mémoire React et disparaît au rechargement.
 - **Agent GitHub serveur** : une Edge Function distincte peut inspecter un dépôt autorisé et le moteur de missions contient un flux de propositions sur branche et PR brouillon. Il nécessite les secrets Supabase documentés et son déploiement ; ne pas confondre cette capacité avec l’import GitHub en lecture.
