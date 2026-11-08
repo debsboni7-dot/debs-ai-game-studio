@@ -111,6 +111,7 @@ class FakeAsyncClient:
         self.kwargs = kwargs
         self.request = None
         self.sent_stream = None
+        self.upstream_response = None
         self.closed = False
         type(self).instances.append(self)
 
@@ -131,7 +132,8 @@ class FakeAsyncClient:
     async def send(self, request, stream=False):
         self.request = request
         self.sent_stream = stream
-        return type(self).next_response or FakeUpstreamResponse()
+        self.upstream_response = type(self).next_response or FakeUpstreamResponse()
+        return self.upstream_response
 
     async def aclose(self):
         self.closed = True
@@ -186,7 +188,7 @@ def test_chat_forwards_request_and_returns_upstream_response(monkeypatch):
     assert FakeAsyncClient.instances[0].request["json"]["model"] == main.DEBS_MODEL
     assert FakeAsyncClient.instances[0].sent_stream is False
     assert FakeAsyncClient.instances[0].closed is True
-    assert FakeAsyncClient.next_response.iterated is False
+    assert FakeAsyncClient.instances[0].upstream_response.iterated is False
 
 
 def test_chat_streams_upstream_chunks(monkeypatch):
@@ -208,7 +210,7 @@ def test_chat_streams_upstream_chunks(monkeypatch):
     assert "Salut" in response.text
     assert FakeAsyncClient.instances[0].sent_stream is True
     assert FakeAsyncClient.instances[0].closed is True
-    assert FakeAsyncClient.next_response.iterated is True
+    assert FakeAsyncClient.instances[0].upstream_response.iterated is True
 
 
 def test_chat_returns_generic_upstream_error(monkeypatch):
