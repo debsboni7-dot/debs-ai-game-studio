@@ -98,7 +98,7 @@ async function fetchFollowingRedirects(start: URL): Promise<{ response: Response
 
 async function downloadAsset(start: URL): Promise<DownloadedAsset> {
   const visited = new Set<string>();
-  const tryUrl = async (url: URL, depth: number): Promise<DownloadedAssetArchive> => {
+  const tryUrl = async (url: URL, depth: number): Promise<DownloadedAsset> => {
     if (visited.has(url.toString())) throw new Error("Lien de téléchargement déjà exploré.");
     visited.add(url.toString());
     const { response, finalUrl } = await fetchFollowingRedirects(url);
