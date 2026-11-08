@@ -4,25 +4,16 @@ import { CREATOR_IDENTITY_REPLY } from "../brand";
 import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
-const MODEL = "openai/gpt-6-astra";
 const DEBS_MODEL = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 function getDebsInferenceConfig() {
   const baseURL = process.env.DEBS_INFERENCE_BASE_URL?.trim();
   const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
   if (!baseURL || !apiKey) return null;
   return { label: "DEBS Self-hosted", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const };
 }
-function getLovableApiKey(): string | undefined { return process.env.LOVABLE_API_KEY?.trim() || undefined; }
-function getGeminiApiKey(): string | undefined { return process.env.GEMINI_API_KEY?.trim() || undefined; }
 function getActiveProvider() {
-  const debsInference = getDebsInferenceConfig();
-  if (debsInference) return debsInference;
-  const geminiApiKey = getGeminiApiKey();
-  if (geminiApiKey) return { label: "Google Gemini", baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/", apiKey: geminiApiKey, model: GEMINI_MODEL, apiMode: "chat" as const };
-  const apiKey = getLovableApiKey();
-  if (apiKey) return { label: "Lovable AI Gateway", baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: MODEL, apiMode: "responses" as const };
-  return null;
+  // DEBS is the only permitted intelligence provider. Never silently fall back to a third party.
+  return getDebsInferenceConfig();
 }
 
 /** Enable asset tools only when the user's latest message explicitly requests asset discovery/download/import. */
@@ -74,11 +65,11 @@ const modeInstructions: Record<ChatTask, string> = {
   devops: "Act as a senior DevOps/SRE engineer. Design CI/CD, reproducible builds, environment/secrets management, rollback, health checks, monitoring, deployment safety and cost controls.",
 };
 
-const lovableProvider: CodeModelProvider = {
-  id: "lovable-ai", label: "Configured AI provider", isConfigured: () => Boolean(getActiveProvider()),
+const debsProvider: CodeModelProvider = {
+  id: "debs-self-hosted", label: "DEBS Server", isConfigured: () => Boolean(getActiveProvider()),
   async complete(req, signal) {
     const providerConfig = getActiveProvider();
-    if (!providerConfig) throw new GatewayError("Aucun fournisseur IA n'est configuré. Ajoute GEMINI_API_KEY ou configure Lovable AI Gateway.");
+    if (!providerConfig) throw new GatewayError("Le serveur DEBS n'est pas configuré. Configure DEBS_INFERENCE_BASE_URL et DEBS_INFERENCE_API_KEY côté serveur.");
     const messages = req.messages.map((message) => {
       if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
       if (message.role === "user" && message.attachments?.length) return { role: "user" as const, content: [
@@ -93,7 +84,7 @@ const lovableProvider: CodeModelProvider = {
       const request = new Request("https://debs.internal/chat", signal ? { signal } : undefined);
       const task = req.task ?? "chat";
       const { result } = createResponsesCall(request, providerConfig, messages,
-        "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through " + providerConfig.label + "; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: " + CREATOR_IDENTITY_REPLY + " Do not invent additional founders, studios, or ownership claims." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. When a user explicitly asks to find, download or integrate game assets in a game-engine task, use web search to locate official source pages, verify the exact license and direct ZIP URL, then call import_game_assets with the official license evidence. Never call this tool for vague suggestions, never guess download URLs or licenses, and explain that the result is a draft GitHub pull request requiring review. " + modeInstructions[task],
+        "You are " + ACTIVE_MODEL_RELEASE.version + ", the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running on the self-hosted DEBS Server using the open-weight runtime model " + providerConfig.model + ". DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: " + CREATOR_IDENTITY_REPLY + " Do not invent additional founders, studios, or ownership claims." + " Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. When the user explicitly asks to create a playable browser game, produce complete files using one fenced block per file, starting with file:index.html and including every required asset or script as file:path blocks. The game must run in Chrome and include mobile touch controls when appropriate. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. When a user explicitly asks to find, download or integrate game assets in a game-engine task, use web search to locate official source pages, verify the exact license and direct ZIP URL, then call import_game_assets with the official license evidence. Never call this tool for vague suggestions, never guess download URLs or licenses, and explain that the result is a draft GitHub pull request requiring review. " + modeInstructions[task],
         (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages) || requestsChatFileAction(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
       let streamError: unknown;
       const activity: ChatActivityEvent[] = [];
@@ -118,21 +109,21 @@ const lovableProvider: CodeModelProvider = {
       }
       if (streamError) throw streamError;
       const text = await result.text;
-      if (!text.trim()) throw new GatewayError("Lovable AI n'a renvoyé aucun texte (réponse vide ou refus).");
+      if (!text.trim()) throw new GatewayError("Le serveur DEBS n'a renvoyé aucun texte (réponse vide ou refus).");
       if (sawWebSearch) activity.unshift({ id: "web-search", connector: "Recherche Web", action: "Recherche de sources", status: "completed", summary: urls.size + " adresse(s) de site distincte(s) observée(s) dans les résultats.", urls: [...urls], durationMs: Date.now() - started });
       const response = await result.response;
       return { text, model: response.modelId, activity };
     } catch (error) { throw safeGatewayError(error); }
   },
 };
-const adapters: CodeModelProvider[] = [lovableProvider];
+const adapters: CodeModelProvider[] = [debsProvider];
 export function resolveProvider(): CodeModelProvider | null { return adapters.find((adapter) => adapter.isConfigured()) ?? null; }
 
 
 /** Raw NDJSON stream used by the chat UI to display text and confirmed tool activity as it happens. */
 export function streamChatResponse(req: CodeModelRequest, request: Request): Response {
   const providerConfig = getActiveProvider();
-  if (!providerConfig) return Response.json({ message: "Aucun fournisseur IA n'est configuré. Ajoute GEMINI_API_KEY ou configure Lovable AI Gateway." }, { status: 503 });
+  if (!providerConfig) return Response.json({ message: "Le serveur DEBS n'est pas configuré. Configure DEBS_INFERENCE_BASE_URL et DEBS_INFERENCE_API_KEY côté serveur." }, { status: 503 });
   const task = req.task ?? "chat";
   const messages = req.messages.map((message) => {
     if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
@@ -145,7 +136,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
     return { role: message.role, content: message.content };
   });
   const { result } = createResponsesCall(request, providerConfig, messages,
-    `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are currently served through ${providerConfig.label}; do not claim that this release is a separately trained foundation model. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. ${modeInstructions[task]}`,
+    `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running on the self-hosted DEBS Server using the open-weight runtime model ${providerConfig.model}. DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. ${modeInstructions[task]}`,
     (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages) || requestsChatFileAction(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)), (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -188,7 +179,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
         }
         if (streamError) throw streamError;
         const text = await result.text;
-        if (!text.trim()) throw new GatewayError("Lovable AI n'a renvoyé aucun texte.");
+        if (!text.trim()) throw new GatewayError("Le serveur DEBS n'a renvoyé aucun texte.");
         const model = (await result.response).modelId;
         const completedModel: ChatActivityEvent = { ...modelEvent, status: "completed", summary: "Réponse terminée.", durationMs: Date.now() - started };
         activity.set(modelEvent.id, completedModel);
