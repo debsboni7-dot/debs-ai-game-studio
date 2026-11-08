@@ -97,11 +97,11 @@ describe("DEBS self-hosted adapter", () => {
     await expect(provider.complete(input)).rejects.toThrow("Aucun nouvel essai automatique");
     expect(state.call).toHaveBeenCalledTimes(1);
   });
-  it("redacts the managed credential from a safe upstream error", () => {
+  it("redacts the DEBS server credential from an upstream error", () => {
     configuredProvider();
     const error = new APICallError({
       message: "SDK diagnostics",
-      url: "https://ai.gateway.lovable.dev/v1/responses",
+      url: "http://debs-server:8080/v1/chat/completions",
       requestBodyValues: {},
       statusCode: 403,
       responseBody: JSON.stringify({ message: "Denied test-only-key" }),
