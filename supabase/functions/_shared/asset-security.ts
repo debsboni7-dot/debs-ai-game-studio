@@ -65,6 +65,7 @@ export function safeAssetPath(name: string): string | null {
 }
 
 const ALLOWED_EXTENSIONS = new Set([
+  "zip", "csv", "html", "htm", "css", "js", "mjs", "cjs", "ts", "tsx", "jsx", "py", "sh", "bat", "ps1", "yml", "yaml", "toml", "ini", "cfg", "conf", "sql", "docx", "xlsx", "pptx", "rtf", "odt", "ods", "odp",
   "glb", "gltf", "fbx", "obj", "mtl", "stl", "usd", "usdz", "blend", "ply", "dae", "3ds", "abc", "3mf",
   "png", "jpg", "jpeg", "webp", "gif", "bmp", "avif", "heic", "heif", "tga", "tif", "tiff", "dds", "hdr", "exr", "svg", "psd", "ai", "eps", "xcf", "kra",
   "wav", "ogg", "mp3", "flac", "aac", "m4a", "aiff", "opus", "mp4", "webm", "mov", "mkv",

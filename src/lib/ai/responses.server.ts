@@ -29,11 +29,64 @@ export function createResponsesCall(
   const webSearch = enableWebSearch
     ? provider.tools.webSearch({ externalWebAccess: true, searchContextSize: "medium" })
     : undefined;
+
+  const callChatFiles = async (input: {
+    action: "generate" | "download";
+    filename: string;
+    content_type?: string;
+    content?: string;
+    base64?: string;
+    source_url?: string;
+  }) => {
+    const authorization = request.headers.get("authorization");
+    const supabaseUrl = process.env.SUPABASE_URL?.trim();
+    const anonKey = process.env.SUPABASE_ANON_KEY?.trim();
+    if (!authorization || !supabaseUrl || !anonKey) {
+      return { ok: false, error: "Fichiers du chat indisponibles : session utilisateur ou configuration Supabase manquante." };
+    }
+    try {
+      const response = await fetch((supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl) + "/functions/v1/chat-files", {
+        method: "POST",
+        headers: { Authorization: authorization, apikey: anonKey, "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+        signal: request.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) return { ok: false, error: String(result.error ?? "Le service de fichiers a refusé la demande.").slice(0, 500) };
+      return result;
+    } catch {
+      return { ok: false, error: "Le service de fichiers est inaccessible pour le moment." };
+    }
+  };
+
+  const createChatFile = tool({
+    description: "Créer un vrai fichier téléchargeable directement dans la conversation, sans GitHub. À utiliser lorsque l'utilisateur demande de produire, générer ou fournir un fichier. Fournis le contenu texte dans content ou les octets encodés en base64 dans base64. Formats pris en charge : code et documents texte, images, sons, vidéos, modèles 3D et autres formats de ressources autorisés. Limite 15 Mo. Après réussite, donne le lien download_url dans la réponse finale Markdown.",
+    inputSchema: z.object({
+      filename: z.string().min(1).max(120),
+      content_type: z.string().max(120).optional(),
+      content: z.string().max(15_000_000).optional(),
+      base64: z.string().max(21_000_000).optional(),
+    }).refine((value) => Boolean(value.content) !== Boolean(value.base64), {
+      message: "Fournir exactement un des champs content ou base64.",
+    }),
+    execute: async (input) => callChatFiles({ action: "generate", ...input }),
+  });
+
+  const downloadChatFile = tool({
+    description: "Télécharger un fichier public depuis une URL HTTPS et le joindre directement à la conversation, sans GitHub ni Pull Request. À utiliser pour les demandes explicites de téléchargement de fichiers individuels (photo, texture, son, vidéo, document, modèle 3D, etc.). Il faut une URL directe vers un fichier public, pas une page de catalogue. Ne contourne jamais les connexions, paywalls, DRM ou protections anti-bot. Respecte les licences et cite la source dans la réponse finale. Limite 15 Mo. Après réussite, donne le lien download_url dans la réponse finale Markdown.",
+    inputSchema: z.object({
+      source_url: z.string().url().startsWith("https://"),
+      filename: z.string().min(1).max(120).optional(),
+      content_type: z.string().max(120).optional(),
+    }),
+    execute: async (input) => callChatFiles({ action: "download", filename: input.filename ?? "", ...input }),
+  });
+
   const importGameAssets = enableAssetImport ? tool({
-    description: "Télécharger et importer un pack de ressources de jeu dans le dépôt GitHub de l'utilisateur. À utiliser uniquement si l'utilisateur a explicitement demandé de télécharger ou intégrer des assets. Tu dois rechercher des ressources sur tout site public pertinent, sans liste blanche de domaines. Le champ source_url peut être une page de catalogue ou un lien direct : le serveur explorera les liens publics de téléchargement pour trouver une archive ZIP. Vérifie la licence exacte sur une source officielle et ne l'invente jamais. N'essaie pas de contourner les connexions, paywalls, DRM ou protections anti-bot. La fonction crée une branche et une Pull Request brouillon, sans fusion automatique.",
+    description: "Intégrer un pack de ressources de jeu dans le dépôt GitHub de l'utilisateur. À utiliser uniquement si l'utilisateur a explicitement demandé d'intégrer les assets dans son projet ou son dépôt. Pour un simple téléchargement dans le chat, utilise download_chat_file à la place. Recherche sur tout site public pertinent, sans liste blanche de domaines. Vérifie la licence exacte sur une source officielle. N'essaie pas de contourner les connexions, paywalls, DRM ou protections anti-bot. Crée une Pull Request brouillon, sans fusion automatique.",
     inputSchema: z.object({
       pack_name: z.string().min(2).max(100),
-      source_url: z.string().url().startsWith("https://").describe("URL HTTPS de la page de catalogue ou du téléchargement direct public."),
+      source_url: z.string().url().startsWith("https://"),
       license_name: z.string().min(2).max(80),
       license_url: z.string().url().startsWith("https://"),
       license_evidence: z.string().min(20).max(1200),
@@ -42,9 +95,7 @@ export function createResponsesCall(
       const authorization = request.headers.get("authorization");
       const supabaseUrl = process.env.SUPABASE_URL?.trim();
       const anonKey = process.env.SUPABASE_ANON_KEY?.trim();
-      if (!authorization || !supabaseUrl || !anonKey) {
-        return { ok: false, error: "Import non disponible : session utilisateur ou configuration Supabase manquante." };
-      }
+      if (!authorization || !supabaseUrl || !anonKey) return { ok: false, error: "Import GitHub indisponible : session ou configuration manquante." };
       try {
         const response = await fetch((supabaseUrl.endsWith("/") ? supabaseUrl.slice(0, -1) : supabaseUrl) + "/functions/v1/asset-import", {
           method: "POST",
@@ -56,19 +107,23 @@ export function createResponsesCall(
         if (!response.ok) return { ok: false, error: String(result.error ?? "Le service d'import a refusé la demande.").slice(0, 500) };
         return result;
       } catch {
-        return { ok: false, error: "Le service d'import est inaccessible pour le moment." };
+        return { ok: false, error: "Le service d'import GitHub est inaccessible pour le moment." };
       }
     },
   }) : undefined;
+
   const tools = {
     ...(webSearch ? { web_search: webSearch } : {}),
+    create_chat_file: createChatFile,
+    download_chat_file: downloadChatFile,
     ...(importGameAssets ? { import_game_assets: importGameAssets } : {}),
   };
   const result = streamText({
     model: provider.responses(config.model),
     ...(instructions ? { instructions } : {}),
     messages,
-    ...(Object.keys(tools).length ? { tools, toolChoice: "auto" as const } : {}),
+    tools,
+    toolChoice: "auto" as const,
     abortSignal: request.signal,
     maxRetries: 0,
     providerOptions: {
