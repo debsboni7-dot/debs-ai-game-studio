@@ -24,7 +24,7 @@ services:
       OLLAMA_HOST: http://ollama:11434
       DEBS_MODEL: ${DEBS_MODEL:-qwen2.5:3b}
     entrypoint: ["/bin/sh", "-c"]
-    command: ["ollama pull \"$\u007bDEBS_MODEL\u007d\""]
+    command: ["ollama pull \"${DEBS_MODEL}\""]
     depends_on:
       ollama:
         condition: service_healthy
