@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 
-type ImportResult = { ok?: boolean; imported?: number; bytes?: number; branch?: string; pull_request?: string; manifest?: string; error?: string };
+type ImportResult = { ok?: boolean; imported?: number; bytes?: number; branch?: string; pull_request?: string; manifest?: string; download_url?: string; error?: string };
 
 export function AssetImportDialog() {
   const [open, setOpen] = useState(false);
@@ -54,7 +54,7 @@ export function AssetImportDialog() {
           <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
             <p className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-5" /> Import préparé : {result.imported} fichier(s)</p>
             <p>{((result.bytes ?? 0) / 1024 / 1024).toFixed(2)} Mo · branche {result.branch}</p>
-            {result.pull_request && <a className="inline-flex items-center gap-1 font-medium underline" href={result.pull_request} target="_blank" rel="noreferrer">Ouvrir la Pull Request <ExternalLink className="size-3" /></a>}
+            {result.download_url && <a className="inline-flex items-center gap-1 font-medium underline" href={result.download_url} target="_blank" rel="noreferrer">Voir le fichier téléchargé <ExternalLink className="size-3" /></a>}\n            {result.pull_request && <a className="inline-flex items-center gap-1 font-medium underline" href={result.pull_request} target="_blank" rel="noreferrer">Ouvrir la Pull Request <ExternalLink className="size-3" /></a>}
             <p className="text-xs">Les fichiers sont dans la branche de proposition. Vérifie leur intégration au moteur et la licence avant toute fusion.</p>
             <Button type="button" onClick={reset} variant="outline" className="w-full">Importer un autre pack</Button>
           </div>
