@@ -177,11 +177,14 @@ Deno.serve(async(request)=>{
      }else if(originalResponse.status!==404)throw new Error("Lecture du fichier de référence impossible : "+file.path+" (HTTP "+originalResponse.status+").");
      if(original===file.content)continue;
      changedFiles.push(file);
-     diffParts.push(createUnifiedDiff(file.path,original,file.content));
+     const fileDiff=createUnifiedDiff(file.path,original,file.content,300);
+     if(fileDiff.includes("aperçu"))throw new Error("Le diff de "+file.path+" dépasse la limite d’aperçu complet. Réduis la taille de la mission pour que chaque changement puisse être examiné intégralement.");
+     diffParts.push(fileDiff);
     }
     if(changedFiles.length===0)throw new Error("La proposition ne contient aucun changement réel par rapport à la branche de base.");
     const fullDiff=diffParts.join("\n\n");
-    const reviewProposal={plan:existingPlan,summary,files:changedFiles,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(changedFiles),base_branch:baseBranch,base_sha:baseSha,created_at:now};
+    if(fullDiff.length>30000)throw new Error("Le diff complet dépasse la limite de sécurité de 30 Ko. Réduis la mission en plusieurs changements plus petits.");
+    const reviewProposal={plan:existingPlan,summary,files:changedFiles,diff:fullDiff,files_summary:summarizeReviewFiles(changedFiles),base_branch:baseBranch,base_sha:baseSha,created_at:now};
     const reviewCheckpoint={...checkpointState,phase:"awaiting_review",review_proposal:reviewProposal};
     const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,files:reviewProposal.files_summary},lease_until:null,updated_at:now}).eq("id",task.id);
     if(taskDoneError)throw taskDoneError;
