@@ -26,7 +26,7 @@ create table if not exists public.debs_memories (
 create or replace function public.debs_validate_memory_source_owner()
 returns trigger
 language plpgsql
-as $
+as $$
 begin
   if new.source_conversation_id is not null and not exists (
     select 1
@@ -38,7 +38,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists debs_memories_validate_source_owner on public.debs_memories;
 create trigger debs_memories_validate_source_owner
