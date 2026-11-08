@@ -47,6 +47,8 @@ describe("managed Gateway adapter", () => {
       baseURL: "https://ai.gateway.lovable.dev/v1",
       apiKey: "test-only-key",
       model: "openai/gpt-6-astra",
+      label: "Lovable AI Gateway",
+      apiMode: "responses",
     });
     expect(state.call.mock.calls[0]?.[2]).toEqual(input.messages);
     expect(state.call).toHaveBeenCalledTimes(1);
