@@ -7,6 +7,7 @@ import { DemoBadge, EmptyState } from "@/components/debs/ui";
 import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { GameArtifact } from "@/components/debs/game-artifact";
+import { AssetImportDialog } from "@/components/debs/asset-import-dialog";
 import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
 import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
 import { useIntegrations } from "@/lib/integrations/context";
@@ -122,11 +123,14 @@ function ThreadPage() {
     push(userMsg, thread.messages.length === 0 ? nextTitle : undefined);
 
     let cloudUserId: string | null = null;
+    let accessToken: string | null = null;
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(threadId)) {
       try {
         const { data: auth } = await supabase.auth.getUser();
         if (auth.user) {
           cloudUserId = auth.user.id;
+          const { data: sessionData } = await supabase.auth.getSession();
+          accessToken = sessionData.session?.access_token ?? null;
           const { error } = await supabase.from("chat_messages").insert({
             conversation_id: threadId, user_id: auth.user.id, role: "user", content: parsed.prompt,
           });
@@ -184,7 +188,7 @@ function ThreadPage() {
         updateAssistant({ activity: activityEvents });
       } else setWorkingActivity([]);
       const response = await fetch("/api/chat-stream", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(accessToken ? { Authorization: "Bearer " + accessToken } : {}) },
         body: JSON.stringify({ messages: history, task: parsed.task, attachments: encodedAttachments }),
       });
       if (!response.ok || !response.body) {
@@ -300,6 +304,7 @@ function ThreadPage() {
         )}
         <div className="flex items-end gap-2">
           <Textarea autoFocus value={input} onChange={(event) => setInput(event.target.value)} placeholder="Écris un message à DEBS AI…" rows={2} className="min-h-[52px] max-h-48 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }} />
+          <AssetImportDialog />
           <VoiceAndFiles initialFiles={attachments} onInsertText={(text) => setInput((current) => current ? current + "\n" + text : text)} onAttachmentsChange={handleAttachmentsChange} resetKey={attachmentResetKey} />
           <Button type="submit" size="icon" className="shrink-0 rounded-xl" disabled={loading || (!input.trim() && attachments.length === 0)} aria-label="Envoyer"><Send /></Button>
         </div>
