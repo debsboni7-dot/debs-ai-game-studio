@@ -90,7 +90,7 @@ Deno.serve(async(request)=>{
       const repairPaths=Array.isArray(task.input?.annotations)?task.input.annotations.map((a:{path?:string})=>String(a.path??"")).filter(Boolean):[];
       const ranked=selectRelevantRepositoryFiles(paths.map((x:{path:string;size?:number})=>({path:x.path,size:x.size??0})),String(session.goal??""),repairPaths,8);
       const selected=ranked.slice(0,5);
-      const contents=[];let total=0;
+      const contents:Array<{path:string;content:string}>=[];let total=0;
       const loaded=new Set<string>();
       const readRepositoryFile=async(path:string)=>{
         if(loaded.has(path)||total>=14000)return "";
