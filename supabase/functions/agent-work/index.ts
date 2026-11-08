@@ -173,7 +173,7 @@ Deno.serve(async(request)=>{
      }else if(originalResponse.status!==404)throw new Error("Lecture du fichier de référence impossible : "+file.path+" (HTTP "+originalResponse.status+").");
      diffParts.push(createUnifiedDiff(file.path,original,file.content));
     }
-    const fullDiff=diffParts.join("\\n\\n");
+    const fullDiff=diffParts.join("\n\n");
     const reviewProposal={plan:existingPlan,summary,files:proposed,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(proposed),base_branch:baseBranch,created_at:now};
     const reviewCheckpoint={...checkpointState,phase:"awaiting_review",review_proposal:reviewProposal};
     const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,files:reviewProposal.files_summary},lease_until:null,updated_at:now}).eq("id",task.id);
