@@ -22,7 +22,7 @@ export function createResponsesCall(
   const provider = createOpenAI({
     baseURL: config.apiMode === "chat" ? config.baseURL : `${gatewayBaseURL}/v1`,
     apiKey: config.apiKey,
-    headers: { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
+    headers: config.apiMode === "chat" ? {} : { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
     fetch: runIdFetch.fetch,
   });
   const reasoning = config.model !== "openai/chat-latest";
