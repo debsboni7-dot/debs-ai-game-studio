@@ -111,4 +111,60 @@ describe("DEBS self-hosted adapter", () => {
     expect(safe.status).toBe(403);
     expect(safe.message).toBe("Denied [secret masqué]");
   });
+
+  it("returns a clear 503 instead of falling back when the DEBS server is unavailable", async () => {
+    const response = streamChatResponse(input as never, new Request("https://debs.internal/chat"));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      message: "Le serveur DEBS n'est pas configuré. Configure DEBS_INFERENCE_BASE_URL et DEBS_INFERENCE_API_KEY côté serveur.",
+    });
+    expect(state.call).not.toHaveBeenCalled();
+  });
+
+  it("streams real-model text, activity and completion metadata as NDJSON", async () => {
+    configuredProvider();
+    state.call.mockReturnValue({
+      result: {
+        fullStream: (async function* () {
+          yield { type: "text-delta", text: "Salut" };
+          yield { type: "text-delta", text: " !" };
+        })(),
+        text: Promise.resolve("Salut !"),
+        response: Promise.resolve({ modelId: "qwen2.5:3b" }),
+      },
+    });
+
+    const response = streamChatResponse(input as never, new Request("https://debs.internal/chat"));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/x-ndjson");
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+
+    expect(events).toContainEqual(expect.objectContaining({ type: "text", delta: "Salut" }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "text", delta: " !" }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: "activity",
+      event: expect.objectContaining({ id: "model", status: "running" }),
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: "activity",
+      event: expect.objectContaining({ id: "model", status: "completed" }),
+    }));
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      model: "qwen2.5:3b",
+      provider: "DEBS Server",
+    });
+  });
+
+  it("streams a sanitized error event when inference fails", async () => {
+    configuredProvider();
+    state.call.mockReturnValue(result("", new Error("private runtime diagnostics")));
+    const response = streamChatResponse(input as never, new Request("https://debs.internal/chat"));
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    expect(events.at(-1)).toEqual({
+      type: "error",
+      message: "Impossible d'obtenir une réponse du serveur DEBS. Aucun nouvel essai automatique n'a été effectué.",
+    });
+    expect(JSON.stringify(events)).not.toContain("private runtime diagnostics");
+  });
 });
