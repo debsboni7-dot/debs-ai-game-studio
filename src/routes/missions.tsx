@@ -59,7 +59,7 @@ function MissionsPage() {
   setBusy(null);
  };
  const formatDate=(value:string)=>new Date(value).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
- const activeCount=missions.filter(m=>m.status==="queued"||m.status==="running"||m.status==="paused").length;
+ const activeCount=missions.filter(m=>m.status==="queued"||m.status==="running"||m.status==="paused"||m.status==="awaiting_review").length;
 
  return <div className="mx-auto w-full max-w-4xl space-y-6">
   <header className="space-y-2">
