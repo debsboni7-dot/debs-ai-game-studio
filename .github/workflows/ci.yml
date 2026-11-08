@@ -42,6 +42,15 @@ jobs:
           DEBS_INFERENCE_API_KEY: test-secret-that-is-at-least-32-characters
         run: python -m pytest -q
 
+      - name: Validate inference Compose configuration
+        working-directory: inference
+        env:
+          DEBS_INFERENCE_API_KEY: ci-only-secret-that-is-long-enough-32
+        run: docker compose config --quiet
+
+      - name: Build DEBS inference gateway image
+        run: docker build --tag debs-inference:ci inference/gateway
+
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
