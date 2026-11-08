@@ -18,7 +18,9 @@ function isPublicIpv6(address: string): boolean {
     !value.startsWith("2001:db8:");
 }
 
-type DnsResolver = (hostname: string, recordType: "A" | "AAAA") => Promise<string[]>;\n\nasync function assertPublicHost(hostname: string, resolveDns: DnsResolver): Promise<void> {
+type DnsResolver = (hostname: string, recordType: "A" | "AAAA") => Promise<string[]>;
+
+async function assertPublicHost(hostname: string, resolveDns: DnsResolver): Promise<void> {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
       host.endsWith(".internal") || host === "metadata.google.internal" ||
