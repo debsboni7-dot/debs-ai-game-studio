@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch } from "./github-executor.ts";
 import type { ProposedFile } from "../_shared/github-validation.ts";
+import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -174,16 +175,17 @@ Deno.serve(async(request)=>{
  if(userError||!userData.user)return json({error:"Session utilisateur invalide."},401);
  const userId=userData.user.id;
  if(action==="create"){
-  const goal=typeof body.goal==="string"?body.goal.trim():"",hours=Number(body.hours??1),maxSteps=Number(body.max_steps??100);
-  if(goal.length<8||goal.length>12000)return json({error:"Objectif : 8 à 12 000 caractères."},400);
-  if(!Number.isInteger(hours)||hours<1||hours>168)return json({error:"Durée : 1 à 168 heures."},400);
-  if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>2000)return json({error:"Nombre d'étapes invalide."},400);
-  const title=(typeof body.title==="string"&&body.title.trim()?body.title.trim():goal.slice(0,80)).slice(0,120);
-  const {data:session,error}=await userClient.from("agent_work_sessions").insert({user_id:userId,title,goal,requested_hours:hours,deadline_at:new Date(Date.now()+hours*3600000).toISOString(),max_steps:maxSteps,status:"queued"}).select("id,title,status,requested_hours,deadline_at,step_count,max_steps,created_at").single();
+  const validated=validateMissionCreateInput(body);
+  if(!validated.ok)return json({error:validated.error},400);
+  const {goal,hours,maxSteps,title}=validated.value;
+  // The browser JWT is validated above; privileged writes are performed only by the
+  // service-role client, with the authenticated user's ID fixed server-side.
+  const {data:session,error}=await admin.from("agent_work_sessions").insert({user_id:userId,title,goal,requested_hours:hours,deadline_at:new Date(Date.now()+hours*3600000).toISOString(),max_steps:maxSteps,status:"queued"}).select("id,title,status,requested_hours,deadline_at,step_count,max_steps,created_at").single();
   if(error||!session)return json({error:"Création impossible.",detail:error?.message},500);
   const {error:taskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{initial:true}});
-  if(taskError){await admin.from("agent_work_sessions").delete().eq("id",session.id);return json({error:"Insertion dans la file impossible."},500);}
-  await admin.from("agent_work_events").insert({session_id:session.id,event_type:"mission_created",message:"Mission créée et placée dans la file.",metadata:{hours,max_steps:maxSteps}});
+  if(taskError){await admin.from("agent_work_sessions").delete().eq("id",session.id).eq("user_id",userId);return json({error:"Insertion dans la file impossible."},500);}
+  const {error:eventError}=await admin.from("agent_work_events").insert({session_id:session.id,event_type:"mission_created",message:"Mission créée et placée dans la file.",metadata:{hours,max_steps:maxSteps}});
+  if(eventError){await admin.from("agent_work_tasks").delete().eq("session_id",session.id);await admin.from("agent_work_sessions").delete().eq("id",session.id).eq("user_id",userId);return json({error:"Journalisation de la mission impossible."},500);}
   return json({ok:true,session});
  }
  const id=typeof body.session_id==="string"?body.session_id:"";if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:"Identifiant invalide."},400);
@@ -197,7 +199,7 @@ Deno.serve(async(request)=>{
  }
  if(["pause","resume","cancel"].includes(action)){
   const status=action==="pause"?"paused":action==="resume"?"queued":"cancelled";
-  if(action==="resume"&&new Date(session.deadline_at).getTime()<=Date.now())return json({error:"Durée de mission dépassée."},409);
+  if(action==="resume"&&!canResumeMission(session.status,session.deadline_at))return json({error:"La mission ne peut pas être reprise ou sa durée est dépassée."},409);
   if(["completed","failed","cancelled","expired"].includes(session.status))return json({error:"Mission déjà terminée."},409);
   if(action==="pause"&&!["queued","running"].includes(session.status))return json({error:"Seule une mission en attente ou en cours peut être mise en pause."},409);
   if(action==="resume"&&session.status!=="paused")return json({error:"La mission n'est pas en pause."},409);
