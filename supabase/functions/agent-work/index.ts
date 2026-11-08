@@ -154,6 +154,35 @@ Deno.serve(async(request)=>{
    const hasFiles=Array.isArray(parsed.files)&&parsed.files.length>0;
    if(task.task_type==="github_ci_repair"&&!hasFiles)throw new Error("Aucun correctif de code exploitable proposé après analyse des erreurs CI.");
    let completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps);let ciFailure=false;const summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
+   if(hasFiles&&task.task_type!=="github_ci_repair"){
+    const proposed=validateProposedFiles(parsed.files);
+    const token=env("GITHUB_TOKEN"),repository=env("GITHUB_REPOSITORY"),baseBranch=env("GITHUB_BASE_BRANCH")||"main";
+    if(!token||!repository)throw new Error("GitHub non configuré pour préparer l'aperçu du diff.");
+    const headers={Authorization:"Bearer "+token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+    const diffParts:string[]=[];
+    for(const file of proposed){
+     const fileUrl="https://api.github.com/repos/"+repository+"/contents/"+file.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(baseBranch);
+     const originalResponse=await fetch(fileUrl,{headers});
+     let original="";
+     if(originalResponse.ok){
+      const originalData=await originalResponse.json();
+      if(originalData.type==="file"&&typeof originalData.content==="string"&&originalData.encoding==="base64"){
+       const binary=atob(originalData.content.replace(/\\s/g,""));
+       original=new TextDecoder().decode(Uint8Array.from(binary,c=>c.charCodeAt(0)));
+      }
+     }else if(originalResponse.status!==404)throw new Error("Lecture du fichier de référence impossible : "+file.path+" (HTTP "+originalResponse.status+").");
+     diffParts.push(createUnifiedDiff(file.path,original,file.content));
+    }
+    const fullDiff=diffParts.join("\\n\\n");
+    const reviewProposal={plan:existingPlan,summary,files:proposed,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(proposed),base_branch:baseBranch,created_at:now};
+    const reviewCheckpoint={...checkpointState,phase:"awaiting_review",review_proposal:reviewProposal};
+    const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,files:reviewProposal.files_summary},lease_until:null,updated_at:now}).eq("id",task.id);
+    if(taskDoneError)throw taskDoneError;
+    const {error:reviewSessionError}=await admin.from("agent_work_sessions").update({status:"awaiting_review",checkpoint:reviewCheckpoint,last_summary:"Modifications préparées. Le diff attend ta validation avant toute création de PR.",step_count:steps,heartbeat_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
+    if(reviewSessionError)throw reviewSessionError;
+    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"changes_ready_for_review",message:"Proposition prête : examine le plan et le diff. Aucun commit ni PR n'a encore été créé.",metadata:{plan:existingPlan,summary,files:reviewProposal.files_summary,diff:reviewProposal.diff}});
+    return json({ok:true,claimed:true,completed:false,review_required:true,session_id:session.id,step_count:steps,summary,files:reviewProposal.files_summary});
+   }
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
    let githubProposal:Record<string,unknown>|null=null;
    let ciTaskScheduled=false;
