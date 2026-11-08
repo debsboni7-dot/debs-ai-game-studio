@@ -7,10 +7,11 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
-app = FastAPI(title="DEBS Inference Gateway", version="0.1.0")
+app = FastAPI(title="DEBS Inference Gateway", version="0.2.0")
 OLLAMA_BASE = os.getenv("OLLAMA_OPENAI_BASE_URL", "http://ollama:11434/v1").rstrip("/")
 DEBS_MODEL = os.getenv("DEBS_MODEL", "qwen2.5:3b")
 API_KEY = os.getenv("DEBS_INFERENCE_API_KEY", "")
+MAX_REQUEST_BYTES = 1_048_576
 
 
 @app.on_event("startup")
@@ -42,13 +43,28 @@ async def chat_completions(
     authorization: str | None = Header(default=None),
 ) -> StreamingResponse | JSONResponse:
     authorize(authorization)
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_BYTES:
+                raise HTTPException(status_code=413, detail="Request body exceeds 1 MiB limit")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length") from exc
+    raw_body = await request.body()
+    if len(raw_body) > MAX_REQUEST_BYTES:
+        raise HTTPException(status_code=413, detail="Request body exceeds 1 MiB limit")
     try:
-        payload: dict[str, Any] = await request.json()
+        payload: Any = await request.json()
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Invalid JSON body") from exc
 
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Expected a JSON object")
+    messages = payload.get("messages")
+    if not isinstance(messages, list) or not messages:
+        raise HTTPException(status_code=422, detail="A non-empty messages array is required")
+    if any(not isinstance(item, dict) or item.get("role") not in {"system", "user", "assistant", "tool"} for item in messages):
+        raise HTTPException(status_code=422, detail="Each message must have a supported role")
     payload["model"] = DEBS_MODEL
     client = httpx.AsyncClient(timeout=None)
     try:
