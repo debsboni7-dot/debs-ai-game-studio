@@ -95,7 +95,7 @@ async function downloadZip(start: URL): Promise<DownloadedAssetArchive> {
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length > MAX_ARCHIVE) throw new Error("Fichier trop volumineux (maximum 12 Mo).");
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) return { bytes, downloadUrl: finalUrl };
-    if (depth >= 2 || (!contentType.includes("text/html") && !contentType.includes("application/xhtml"))) {
+    const looksLikeHtml = contentType.includes("text/html") || contentType.includes("application/xhtml") || /^\\s*(?:<!doctype\\s+html|<html\\b|<head\\b|<body\\b)/i.test(new TextDecoder().decode(bytes.subarray(0, 512)));\n    if (depth >= 2 || !looksLikeHtml) {
       throw new Error("La page ne fournit pas directement une archive ZIP.");
     }
     if (bytes.length > 2 * 1024 * 1024) throw new Error("Page de catalogue trop volumineuse (maximum 2 Mo).");
