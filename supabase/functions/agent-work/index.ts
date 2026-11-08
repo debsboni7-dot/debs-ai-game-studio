@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { createMissionPullRequest, inspectPullRequestChecks, readCheckAnnotations, updateMissionPullRequestBranch } from "./github-executor.ts";
-import type { ProposedFile } from "../_shared/github-validation.ts";
+import { validateProposedFiles, type ProposedFile } from "../_shared/github-validation.ts";
 import { canResumeMission, validateMissionCreateInput } from "../_shared/mission-security.ts";
 import { buildAgentCompletionPayload, extractAgentCompletionText } from "./debs-inference.ts";
 import { resolveRelativeRepositoryImports, selectRelevantRepositoryFiles } from "./repository-context.ts";
+import { createUnifiedDiff, summarizeReviewFiles } from "./review-diff.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type, x-agent-worker-secret","Access-Control-Allow-Methods":"POST, OPTIONS"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const env=(key:string)=>Deno.env.get(key)?.trim()??"";
@@ -65,16 +66,18 @@ Deno.serve(async(request)=>{
     await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:checks.state==="success"?"github_ci_passed":"github_ci_failed",message:finalSummary,metadata:eventMetadata});
     return json({ok:true,claimed:true,ci_state:checks.state,session_id:session.id});
    }
+   const checkpointState=session.checkpoint&&typeof session.checkpoint==="object"&&!Array.isArray(session.checkpoint)?session.checkpoint as Record<string,unknown>:{};
+   const existingPlan=checkpointState.plan&&typeof checkpointState.plan==="object"?checkpointState.plan as Record<string,unknown>:null;
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),95000);
    const prompt=[
     "Tu es le worker autonome de DEBS AI. Avance une mission en une seule étape courte, vérifiable et récupérable.",
     "Ne prétends jamais avoir modifié un dépôt, exécuté un test ou appelé un outil externe sans l'avoir réellement fait.",
     "Réponds uniquement avec un JSON valide : { \"done\": boolean, \"summary\": string, \"checkpoint\": object, \"next_action\": string, \"files\": [{ \"path\": string, \"content\": string }] }.",
     "Étudie d'abord les extraits de fichiers fournis. Respecte les conventions et l'architecture existantes ; ne remplace pas un fichier entier sans nécessité. Si le contexte est insuffisant, explique-le et ne propose pas de code spéculatif.",
-    "Pour une mission de programmation, prépare une seule proposition cohérente et finale dans files (maximum 12 fichiers), puis mets done=true. Une proposition de fichiers clôt cette mission et crée un unique PR brouillon. N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Si aucun changement concret n'est prêt, files doit être [].",
+    task.task_type==="github_ci_repair"?"Pour une réparation CI, retourne uniquement le correctif minimal dans files, sans planification et sans modifier les workflows.":"Une mission normale se déroule en deux phases. Sans plan dans le contexte, réalise uniquement la planification : retourne plan={summary:string,steps:[{title:string,description:string,files:string[]}]}, avec 1 à 12 étapes, files=[], done=false. Ne génère pas encore de code. Si un plan existe, respecte-le et produis une proposition cohérente dans files (maximum 12 fichiers), puis done=true. Les fichiers seront présentés dans un diff ; aucun PR ne sera créé avant validation explicite de l’utilisateur. N’inclus aucun secret, aucun fichier .env et n’affirme jamais avoir exécuté des tests. Si aucun changement concret n’est prêt, files doit être [].",
     "Pour une tâche github_ci_repair, propose uniquement le correctif minimal des erreurs CI. Les fichiers seront commités sur la branche du PR existant ; ne crée pas une nouvelle branche et ne modifie jamais .github/workflows.",
     "Objectif : "+String(session.goal??"").slice(0,4000),"Checkpoint : "+JSON.stringify(session.checkpoint??{}).slice(0,1500),
-    "Résultat précédent / diagnostics CI : "+JSON.stringify(task.input??{}).slice(0,1500),"TÂCHE DE RÉPARATION : "+(task.task_type==="github_ci_repair"?"Tu dois corriger uniquement les causes des contrôles CI échoués. Lis les fichiers de la branche du PR, corrige les erreurs indiquées par les annotations, ne touche pas aux workflows ni aux secrets, et ne fais pas de refonte sans rapport. Retourne uniquement les fichiers modifiés nécessaires.":"Mission normale."),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
+    "Résultat précédent / diagnostics CI : "+JSON.stringify(task.input??{}).slice(0,1500),"TÂCHE DE RÉPARATION : "+(task.task_type==="github_ci_repair"?"Tu dois corriger uniquement les causes des contrôles CI échoués. Lis les fichiers de la branche du PR, corrige les erreurs indiquées par les annotations, ne touche pas aux workflows ni aux secrets, et ne fais pas de refonte sans rapport. Retourne uniquement les fichiers modifiés nécessaires.":"Mission normale."),"Plan déjà établi : "+JSON.stringify(existingPlan??{}).slice(0,5000),"Étape : "+(Number(session.step_count??0)+1)+" / "+session.max_steps,
     "Dépôt GitHub autorisé : "+(env("GITHUB_REPOSITORY")||"non configuré")+" ; branche cible : "+(env("GITHUB_BASE_BRANCH")||"main"),
     "Contexte du dépôt GitHub (arborescence et extraits réels) : "+JSON.stringify(await (async()=>{try{
       const token=env("GITHUB_TOKEN"),repo=env("GITHUB_REPOSITORY"),branch=(task.task_type==="github_ci_repair"&&typeof task.input?.branch==="string"?task.input.branch:env("GITHUB_BASE_BRANCH")||"main");
@@ -99,7 +102,7 @@ Deno.serve(async(request)=>{
           if(!fileResponse.ok)return "";
           const fileData=await fileResponse.json();
           if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")return "";
-          const binary=atob(fileData.content.replace(/\\s/g,""));
+          const binary=atob(fileData.content.replace(/\s/g,""));
           const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
           const text=new TextDecoder().decode(bytes).slice(0,Math.min(3000,14000-total));
           if(!text)return "";
@@ -126,12 +129,70 @@ Deno.serve(async(request)=>{
     body:JSON.stringify(buildAgentCompletionPayload(env("DEBS_MODEL")||"qwen2.5:3b",boundedPrompt))});
    clearTimeout(timeout);if(!response.ok)throw new Error("Serveur d’inférence DEBS HTTP "+response.status+".");
    const payload=await response.json();const outputText=extractAgentCompletionText(payload);
-   let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string;files?:ProposedFile[]};
+   let parsed:{done?:boolean;summary?:string;checkpoint?:Record<string,unknown>;next_action?:string;plan?:unknown;files?:ProposedFile[]};
    try{parsed=JSON.parse(outputText);}catch{parsed={done:false,summary:outputText.slice(0,4000),checkpoint:{raw:outputText.slice(0,12000)},next_action:"Reprendre depuis ce résultat."};}
    const now=new Date().toISOString(),steps=Number(session.step_count??0)+1,expired=Date.now()>=new Date(session.deadline_at).getTime();
+   if(task.task_type==="agent_step"&&!existingPlan){
+    const candidate=parsed.plan&&typeof parsed.plan==="object"&&!Array.isArray(parsed.plan)?parsed.plan as Record<string,unknown>:null;
+    const planSummary=typeof candidate?.summary==="string"?candidate.summary.trim():"";
+    const planSteps=Array.isArray(candidate?.steps)?candidate.steps:[];
+    if(planSummary.length<8||planSteps.length<1||planSteps.length>12)throw new Error("Le plan de mission est absent ou invalide ; aucune modification n'a été préparée.");
+    const safePlan={summary:planSummary.slice(0,3000),steps:planSteps.slice(0,12).map((item,index)=>{
+     const step=item&&typeof item==="object"?item as Record<string,unknown>:{};
+     return {title:String(step.title??("Étape "+(index+1))).slice(0,160),description:String(step.description??"").slice(0,1000),files:Array.isArray(step.files)?step.files.filter((x):x is string=>typeof x==="string").slice(0,12).map(x=>x.slice(0,220)):[]};
+    })};
+    const nextCheckpoint={...checkpointState,plan:safePlan,phase:"implementation"};
+    const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary:"Plan de mission préparé.",plan:safePlan},lease_until:null,updated_at:now}).eq("id",task.id);
+    if(taskDoneError)throw taskDoneError;
+    const {error:sessionPlanError}=await admin.from("agent_work_sessions").update({status:"queued",checkpoint:nextCheckpoint,last_summary:"Plan prêt. DEBS prépare maintenant les modifications prévues.",step_count:steps,heartbeat_at:now,next_run_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
+    if(sessionPlanError)throw sessionPlanError;
+    const {error:nextTaskError}=await admin.from("agent_work_tasks").insert({session_id:session.id,status:"queued",task_type:"agent_step",input:{phase:"implementation",plan_ready:true}});
+    if(nextTaskError)throw nextTaskError;
+    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"mission_plan_ready",message:"Plan de mission préparé ; DEBS passe à la réalisation des changements.",metadata:{plan:safePlan}});
+    return json({ok:true,claimed:true,completed:false,plan_ready:true,session_id:session.id,step_count:steps,summary:"Plan préparé."});
+   }
    const hasFiles=Array.isArray(parsed.files)&&parsed.files.length>0;
    if(task.task_type==="github_ci_repair"&&!hasFiles)throw new Error("Aucun correctif de code exploitable proposé après analyse des erreurs CI.");
    let completed=parsed.done===true||hasFiles||expired||steps>=Number(session.max_steps);let ciFailure=false;const summary=String(parsed.summary??"Étape terminée.").slice(0,4000);
+   if(hasFiles&&task.task_type!=="github_ci_repair"){
+    const proposed=validateProposedFiles(parsed.files);
+    const token=env("GITHUB_TOKEN"),repository=env("GITHUB_REPOSITORY"),baseBranch=env("GITHUB_BASE_BRANCH")||"main";
+    if(!token||!repository)throw new Error("GitHub non configuré pour préparer l'aperçu du diff.");
+    const headers={Authorization:"Bearer "+token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+    const baseRefResponse=await fetch("https://api.github.com/repos/"+repository+"/git/ref/heads/"+encodeURIComponent(baseBranch),{headers});
+    if(!baseRefResponse.ok)throw new Error("Lecture de la branche de base impossible (HTTP "+baseRefResponse.status+").");
+    const baseSha=String((await baseRefResponse.json()).object?.sha??"");
+    if(!/^[a-f0-9]{40}$/i.test(baseSha))throw new Error("SHA de base GitHub invalide.");
+    const diffParts:string[]=[];const changedFiles:ProposedFile[]=[];
+    for(const file of proposed){
+     const fileUrl="https://api.github.com/repos/"+repository+"/contents/"+file.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(baseSha);
+     const originalResponse=await fetch(fileUrl,{headers});
+     let original="";
+     if(originalResponse.ok){
+      const originalData=await originalResponse.json();
+      if(originalData.type==="file"&&typeof originalData.content==="string"&&originalData.encoding==="base64"){
+       const binary=atob(originalData.content.replace(/\s/g,""));
+       original=new TextDecoder().decode(Uint8Array.from(binary,c=>c.charCodeAt(0)));
+      }
+     }else if(originalResponse.status!==404)throw new Error("Lecture du fichier de référence impossible : "+file.path+" (HTTP "+originalResponse.status+").");
+     if(original===file.content)continue;
+     changedFiles.push(file);
+     const fileDiff=createUnifiedDiff(file.path,original,file.content,300);
+     if(fileDiff.includes("aperçu"))throw new Error("Le diff de "+file.path+" dépasse la limite d’aperçu complet. Réduis la taille de la mission pour que chaque changement puisse être examiné intégralement.");
+     diffParts.push(fileDiff);
+    }
+    if(changedFiles.length===0)throw new Error("La proposition ne contient aucun changement réel par rapport à la branche de base.");
+    const fullDiff=diffParts.join("\n\n");
+    if(fullDiff.length>30000)throw new Error("Le diff complet dépasse la limite de sécurité de 30 Ko. Réduis la mission en plusieurs changements plus petits.");
+    const reviewProposal={plan:existingPlan,summary,files:changedFiles,diff:fullDiff,files_summary:summarizeReviewFiles(changedFiles),base_branch:baseBranch,base_sha:baseSha,created_at:now};
+    const reviewCheckpoint={...checkpointState,phase:"awaiting_review",review_proposal:reviewProposal};
+    const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,files:reviewProposal.files_summary},lease_until:null,updated_at:now}).eq("id",task.id);
+    if(taskDoneError)throw taskDoneError;
+    const {error:reviewSessionError}=await admin.from("agent_work_sessions").update({status:"awaiting_review",checkpoint:reviewCheckpoint,last_summary:"Modifications préparées. Le diff attend ta validation avant toute création de PR.",step_count:steps,heartbeat_at:now,updated_at:now}).eq("id",session.id).eq("status","running");
+    if(reviewSessionError)throw reviewSessionError;
+    await admin.from("agent_work_events").insert({session_id:session.id,task_id:task.id,event_type:"changes_ready_for_review",message:"Proposition prête : examine le plan et le diff. Aucun commit ni PR n'a encore été créé.",metadata:{plan:existingPlan,summary,files:reviewProposal.files_summary,diff:reviewProposal.diff}});
+    return json({ok:true,claimed:true,completed:false,review_required:true,session_id:session.id,step_count:steps,summary,files:reviewProposal.files_summary});
+   }
    const checkpoint=parsed.checkpoint&&typeof parsed.checkpoint==="object"?parsed.checkpoint:{previous:session.checkpoint,latest:summary};
    let githubProposal:Record<string,unknown>|null=null;
    let ciTaskScheduled=false;
@@ -203,6 +264,40 @@ Deno.serve(async(request)=>{
  const id=typeof body.session_id==="string"?body.session_id:"";if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:"Identifiant invalide."},400);
  const {data:session,error:readError}=await userClient.from("agent_work_sessions").select("*").eq("id",id).eq("user_id",userId).single();
  if(readError||!session)return json({error:"Mission introuvable."},404);
+ if(action==="approve_changes"){
+  if(session.status!=="awaiting_review")return json({error:"Cette mission n’attend pas de validation du diff."},409);
+  if(Date.now()>=new Date(session.deadline_at).getTime())return json({error:"La mission a dépassé son échéance ; le diff ne peut plus être validé."},409);
+  const saved=session.checkpoint&&typeof session.checkpoint==="object"&&!Array.isArray(session.checkpoint)?session.checkpoint as Record<string,unknown>:{};
+  const review=saved.review_proposal&&typeof saved.review_proposal==="object"?saved.review_proposal as Record<string,unknown>:null;
+  if(!review||!Array.isArray(review.files))return json({error:"Aucune proposition de code valide n’est disponible."},409);
+  const files=validateProposedFiles(review.files);
+  const {data:claimed,error:claimError}=await admin.from("agent_work_sessions").update({status:"running",last_summary:"Validation reçue ; création du Pull Request.",updated_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId).eq("status","awaiting_review").select("id").maybeSingle();
+  if(claimError||!claimed)return json({error:"La mission a changé d’état. Actualise-la avant de réessayer."},409);
+  let proposal:Record<string,unknown>;
+  try{
+   proposal=await createMissionPullRequest(files,String(session.title??"Mission DEBS AI"),String(review.summary??session.goal??""),String(review.base_sha??""));
+  }catch(error){
+   await admin.from("agent_work_sessions").update({status:"awaiting_review",last_summary:"La création du PR a échoué ; le diff reste disponible pour réessayer.",updated_at:new Date().toISOString()}).eq("id",id).eq("status","running");
+   return json({error:error instanceof Error?error.message:"Création du PR impossible."},502);
+  }
+  const checks=(proposal.checks??{}) as {state?:string};
+  const proposalWithReview={...proposal,approved_at:new Date().toISOString()};
+  const {error:queueError}=await admin.from("agent_work_tasks").insert({session_id:id,status:"queued",task_type:"github_ci_check",max_attempts:4,input:{url:proposal.url,number:proposal.number,branch:proposal.branch,head_sha:proposal.head_sha,poll_count:0,repair_count:0}});
+  if(queueError){
+   await admin.from("agent_work_sessions").update({status:"failed",last_summary:"PR créé mais impossible de programmer le suivi CI : "+String(proposal.url??"") ,checkpoint:{...saved,github_proposal:proposalWithReview},updated_at:new Date().toISOString()}).eq("id",id);
+   return json({error:"Le PR a été créé, mais le suivi CI n’a pas pu être programmé.",url:proposal.url},500);
+  }
+  await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...saved,phase:"pull_request",github_proposal:proposalWithReview},last_summary:"Diff validé. Pull Request créé ; suivi des vérifications CI programmé.",heartbeat_at:new Date().toISOString(),next_run_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id).eq("status","running");
+  await admin.from("agent_work_events").insert({session_id:id,event_type:"changes_approved_pr_created",message:"Diff validé par l’utilisateur ; Pull Request brouillon créé et suivi CI programmé.",metadata:{github_proposal:proposalWithReview,checks_state:checks.state}});
+  return json({ok:true,status:"queued",github_proposal:proposalWithReview});
+ }
+ if(action==="reject_changes"){
+  if(session.status!=="awaiting_review")return json({error:"Cette mission n’attend pas de validation du diff."},409);
+  const {data:rejected,error:rejectError}=await admin.from("agent_work_sessions").update({status:"review_rejected",last_summary:"Proposition refusée. Aucun commit ni Pull Request n’a été créé.",updated_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId).eq("status","awaiting_review").select("id").maybeSingle();
+  if(rejectError||!rejected)return json({error:"La mission a changé d’état. Actualise-la avant de réessayer."},409);
+  await admin.from("agent_work_events").insert({session_id:id,event_type:"changes_rejected",message:"Proposition refusée par l’utilisateur ; aucun changement n’a été envoyé à GitHub."});
+  return json({ok:true,status:"review_rejected"});
+ }
  if(action==="status"){
   const [{data:events},{data:tasks}]=await Promise.all([
    userClient.from("agent_work_events").select("id,event_type,message,metadata,created_at").eq("session_id",id).order("created_at",{ascending:true}).limit(100),
@@ -212,7 +307,7 @@ Deno.serve(async(request)=>{
  if(["pause","resume","cancel"].includes(action)){
   const status=action==="pause"?"paused":action==="resume"?"queued":"cancelled";
   if(action==="resume"&&!canResumeMission(session.status,session.deadline_at))return json({error:"La mission ne peut pas être reprise ou sa durée est dépassée."},409);
-  if(["completed","failed","cancelled","expired"].includes(session.status))return json({error:"Mission déjà terminée."},409);
+  if(["completed","review_rejected","failed","cancelled","expired"].includes(session.status))return json({error:"Mission déjà terminée."},409);
   if(action==="pause"&&!["queued","running"].includes(session.status))return json({error:"Seule une mission en attente ou en cours peut être mise en pause."},409);
   if(action==="resume"&&session.status!=="paused")return json({error:"La mission n'est pas en pause."},409);
   const {data:transition,error}=await admin.from("agent_work_sessions").update({status,next_run_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId).eq("status",session.status).select("id").maybeSingle();

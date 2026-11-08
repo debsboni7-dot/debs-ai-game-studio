@@ -109,6 +109,7 @@ export async function createMissionPullRequest(
   files: ProposedFile[],
   title: string,
   summary: string,
+  expectedBaseSha?: string,
 ) {
   const token = Deno.env.get("GITHUB_TOKEN")?.trim();
   const repository = Deno.env.get("GITHUB_REPOSITORY")?.trim();
@@ -136,6 +137,7 @@ export async function createMissionPullRequest(
   };
   const ref = await call("/git/ref/heads/" + encodeURIComponent(baseBranch));
   const baseSha = ref.object.sha as string;
+  if (expectedBaseSha && baseSha !== expectedBaseSha) throw new Error("La branche de base a changé depuis l’aperçu du diff. Reprends la mission pour générer un diff à jour.");
   const base = await call("/git/commits/" + baseSha);
   const entries = [];
   for (const file of files) {

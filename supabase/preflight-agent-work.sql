@@ -19,6 +19,10 @@ with checks as (
          to_regprocedure('public.claim_agent_work_task(integer)') is not null,
          coalesce(to_regprocedure('public.claim_agent_work_task(integer)')::text, 'missing')
   union all
+  select 'mission review status constraint',
+         exists(select 1 from pg_constraint where conrelid = to_regclass('public.agent_work_sessions') and conname = 'agent_work_sessions_status_check' and pg_get_constraintdef(oid) like '%awaiting_review%'),
+         coalesce((select pg_get_constraintdef(oid) from pg_constraint where conrelid = to_regclass('public.agent_work_sessions') and conname = 'agent_work_sessions_status_check'), 'missing')
+  union all
   select 'pgcrypto extension',
          exists(select 1 from pg_extension where extname = 'pgcrypto'),
          coalesce((select extversion from pg_extension where extname = 'pgcrypto'), 'missing')

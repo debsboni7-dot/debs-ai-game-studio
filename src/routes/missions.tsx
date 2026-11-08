@@ -3,14 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Activity, Clock3, Pause, Play, Plus, RefreshCw, Square, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+type ReviewPlan = { summary?: string; steps?: Array<{ title: string; description: string; files?: string[] }> };
+type ReviewProposal = { plan?: ReviewPlan | null; summary?: string; diff?: string; files_summary?: Array<{ path: string; lines: number; bytes: number }> };
 type Mission = {
- id: string; title: string; goal: string; status: string; requested_hours: number;
+ id: string; title: string; goal: string; status: string; requested_hours: number; checkpoint?: { review_proposal?: ReviewProposal };
  deadline_at: string; heartbeat_at: string | null; last_summary: string | null;
  step_count: number; max_steps: number; created_at: string;
 };
 type MissionEvent = { id: number; event_type: string; message: string; metadata?: { annotations?: Array<{ check: string; path: string; line: number | null; level: string; message: string }>; github_proposal?: { url?: string; number?: number; branch?: string; checks?: { state?: string; failed_checks?: string[]; checks?: Array<{ name: string; status: string; conclusion: string | null; details_url: string | null; output_title?: string | null; output_summary?: string | null }> } } }; created_at: string };
-const statusLabels: Record<string,string> = { queued:"En attente", running:"En cours", paused:"En pause", completed:"Terminée", failed:"Échec", cancelled:"Annulée", expired:"Durée écoulée" };
-const statusStyles: Record<string,string> = { queued:"bg-slate-100 text-slate-700", running:"bg-blue-100 text-blue-700", paused:"bg-amber-100 text-amber-700", completed:"bg-emerald-100 text-emerald-700", failed:"bg-red-100 text-red-700", cancelled:"bg-slate-100 text-slate-500", expired:"bg-orange-100 text-orange-700" };
+const statusLabels: Record<string,string> = { queued:"En attente", running:"En cours", paused:"En pause", awaiting_review:"Diff à valider", review_rejected:"Proposition refusée", completed:"Terminée", failed:"Échec", cancelled:"Annulée", expired:"Durée écoulée" };
+const statusStyles: Record<string,string> = { queued:"bg-slate-100 text-slate-700", running:"bg-blue-100 text-blue-700", paused:"bg-amber-100 text-amber-700", awaiting_review:"bg-violet-100 text-violet-700", review_rejected:"bg-slate-100 text-slate-500", completed:"bg-emerald-100 text-emerald-700", failed:"bg-red-100 text-red-700", cancelled:"bg-slate-100 text-slate-500", expired:"bg-orange-100 text-orange-700" };
 
 function MissionsPage() {
  const [missions,setMissions]=useState<Mission[]>([]);
@@ -49,15 +51,15 @@ function MissionsPage() {
   else{setGoal("");setTitle("");setNotice("Mission créée. Elle commencera lorsque le worker planifié sera activé.");await load();}
   setCreating(false);
  };
- const command=async(id:string,action:"pause"|"resume"|"cancel")=>{
+ const command=async(id:string,action:"pause"|"resume"|"cancel"|"approve_changes"|"reject_changes")=>{
   setBusy(id);setNotice("");
   const {data,error}=await supabase.functions.invoke("agent-work",{body:{action,session_id:id}});
   if(error||!data?.ok)setNotice(data?.error??error?.message??"Action impossible.");
-  else await load();
+  else {setNotice(action==="approve_changes"?"Diff validé : le Pull Request brouillon a été créé.":action==="reject_changes"?"Proposition refusée. Aucun changement n’a été envoyé à GitHub.":"");await load();}
   setBusy(null);
  };
  const formatDate=(value:string)=>new Date(value).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
- const activeCount=missions.filter(m=>m.status==="queued"||m.status==="running"||m.status==="paused").length;
+ const activeCount=missions.filter(m=>m.status==="queued"||m.status==="running"||m.status==="paused"||m.status==="awaiting_review").length;
 
  return <div className="mx-auto w-full max-w-4xl space-y-6">
   <header className="space-y-2">
@@ -99,6 +101,13 @@ function MissionsPage() {
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="font-semibold text-slate-900">{mission.title}</h3><p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-slate-600">{mission.goal}</p></div><span className={"rounded-full px-3 py-1 text-xs font-semibold "+(statusStyles[mission.status]??statusStyles.queued)}>{statusLabels[mission.status]??mission.status}</span></div>
     <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-500 sm:grid-cols-3"><span><Activity className="mr-1 inline size-3.5"/>Étapes : {mission.step_count}/{mission.max_steps}</span><span><Clock3 className="mr-1 inline size-3.5"/>Échéance : {formatDate(mission.deadline_at)}</span><span>Durée : {mission.requested_hours} h</span></div>
     {mission.last_summary&&<p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{mission.last_summary}</p>}
+    {mission.status==="awaiting_review"&&mission.checkpoint?.review_proposal&&<section className="mt-4 space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-3 sm:p-4">
+     <div><p className="text-sm font-semibold text-violet-900">Validation requise avant création du PR</p><p className="mt-1 text-xs text-violet-800">Aucun commit ni Pull Request n’a encore été créé. Vérifie le plan et le diff avant de continuer.</p></div>
+     {mission.checkpoint.review_proposal.plan&&<div className="rounded-xl border border-violet-100 bg-white p-3"><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Plan proposé</p><p className="mt-1 text-sm text-slate-800">{mission.checkpoint.review_proposal.plan.summary}</p><ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-slate-600">{mission.checkpoint.review_proposal.plan.steps?.map((step,index)=><li key={index}><span className="font-semibold text-slate-800">{step.title}</span><p>{step.description}</p>{step.files?.length>0&&<p className="mt-1 font-mono text-[11px]">{step.files.join(" · ")}</p>}</li>)}</ol></div>}
+     <div className="rounded-xl border border-violet-100 bg-white p-3"><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Fichiers modifiés</p><ul className="mt-2 space-y-1 text-xs text-slate-700">{mission.checkpoint.review_proposal.files_summary?.map(file=><li key={file.path} className="flex flex-wrap justify-between gap-2"><span className="font-mono">{file.path}</span><span className="text-slate-500">{file.lines} lignes · {file.bytes} octets</span></li>)}</ul></div>
+     <details className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950"><summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-100">Afficher le diff complet</summary><pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-5 text-slate-100">{mission.checkpoint.review_proposal.diff??"Aucun diff disponible."}</pre></details>
+     <div className="flex flex-wrap gap-2"><button disabled={busy===mission.id} onClick={()=>void command(mission.id,"approve_changes")} className="rounded-xl bg-violet-700 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{busy===mission.id?"Traitement…":"Valider et créer le PR"}</button><button disabled={busy===mission.id} onClick={()=>void command(mission.id,"reject_changes")} className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-700 disabled:opacity-50">Refuser la proposition</button></div>
+    </section>}
     <div className="mt-3 flex flex-wrap gap-2">
      {(mission.status==="queued"||mission.status==="running")&&<button disabled={busy===mission.id} onClick={()=>void command(mission.id,"pause")} className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700"><Pause className="size-3.5"/>Pause</button>}
      {mission.status==="paused"&&<button disabled={busy===mission.id} onClick={()=>void command(mission.id,"resume")} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700"><Play className="size-3.5"/>Reprendre</button>}
