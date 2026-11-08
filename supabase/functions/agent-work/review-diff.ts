@@ -1,6 +1,6 @@
 export type ReviewFile = { path: string; content: string };
 
-export function createUnifiedDiff(path: string, original: string, proposed: string, maxLines = 180): string {
+export function createUnifiedDiff(path: string, original: string, proposed: string, maxLines = 300): string {
   const oldLines = original.replace(/\r\n/g, "\n").split("\n");
   const newLines = proposed.replace(/\r\n/g, "\n").split("\n");
   const oldCount = Math.min(oldLines.length, maxLines);
@@ -36,7 +36,7 @@ export function createUnifiedDiff(path: string, original: string, proposed: stri
     "+++ b/" + path,
     "@@ -1," + oldCount + " +1," + newCount + " @@",
   ];
-  const body = changes.slice(0, 240);
+  const body = changes.slice(0, 800);
   if (changes.length > 240) body.push("... aperçu tronqué ...");
   if (truncated) body.push("... aperçu limité à " + maxLines + " lignes par version ...");
   return [...header, ...body].join("\n");
