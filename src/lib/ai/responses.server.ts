@@ -21,7 +21,7 @@ export function createResponsesCall(
 
   const callWebSearch = async (input: { query: string; limit?: number; language?: string }) => {
     try {
-      const response = await fetch(config.baseURL.replace(/\\/+$/, "") + "/search", {
+      const response = await fetch(config.baseURL.replace(/\/+$/, "") + "/search", {
         method: "POST",
         headers: { Authorization: "Bearer " + config.apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({ query: input.query, limit: input.limit ?? 6, language: input.language ?? "all" }),
