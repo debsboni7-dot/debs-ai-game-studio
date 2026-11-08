@@ -2,6 +2,11 @@ name: DEBS real Ollama inference smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "inference/smoke_test.py"
+      - ".github/workflows/debs-real-inference.yml"
 
 permissions:
   contents: read
