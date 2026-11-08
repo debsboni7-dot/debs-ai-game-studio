@@ -102,7 +102,7 @@ Deno.serve(async(request)=>{
           if(!fileResponse.ok)return "";
           const fileData=await fileResponse.json();
           if(fileData.type!=="file"||typeof fileData.content!=="string"||fileData.encoding!=="base64")return "";
-          const binary=atob(fileData.content.replace(/\\s/g,""));
+          const binary=atob(fileData.content.replace(/\s/g,""));
           const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
           const text=new TextDecoder().decode(bytes).slice(0,Math.min(3000,14000-total));
           if(!text)return "";
@@ -171,7 +171,7 @@ Deno.serve(async(request)=>{
      if(originalResponse.ok){
       const originalData=await originalResponse.json();
       if(originalData.type==="file"&&typeof originalData.content==="string"&&originalData.encoding==="base64"){
-       const binary=atob(originalData.content.replace(/\\s/g,""));
+       const binary=atob(originalData.content.replace(/\s/g,""));
        original=new TextDecoder().decode(Uint8Array.from(binary,c=>c.charCodeAt(0)));
       }
      }else if(originalResponse.status!==404)throw new Error("Lecture du fichier de référence impossible : "+file.path+" (HTTP "+originalResponse.status+").");
