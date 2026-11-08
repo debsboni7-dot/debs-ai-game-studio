@@ -18,9 +18,32 @@ export function createResponsesCall(
     headers: {},
   });
   const reasoning = config.apiMode !== "chat" && config.model !== "openai/chat-latest";
-  const webSearch = enableWebSearch && config.apiMode !== "chat"
-    ? provider.tools.webSearch({ externalWebAccess: true, searchContextSize: "medium" })
-    : undefined;
+
+  const callWebSearch = async (input: { query: string; limit?: number; language?: string }) => {
+    try {
+      const response = await fetch(config.baseURL.replace(/\\/+$/, "") + "/search", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + config.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: input.query, limit: input.limit ?? 6, language: input.language ?? "all" }),
+        signal: request.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) return { ok: false, error: String(result.detail ?? result.error ?? "La recherche DEBS est indisponible.").slice(0, 400) };
+      return result;
+    } catch {
+      return { ok: false, error: "Le moteur de recherche DEBS est inaccessible pour le moment." };
+    }
+  };
+
+  const webSearch = enableWebSearch ? tool({
+    description: "Rechercher des informations actuelles sur Internet via le moteur de recherche autonome SearXNG hébergé avec DEBS. Utilise cet outil pour les demandes explicites de recherche, les informations récentes, les documentations et pour trouver des pages officielles de ressources. Retourne des titres, extraits et URL de sources HTTPS. Ne prétends jamais avoir ouvert une page complète : les extraits sont des résumés du moteur.",
+    inputSchema: z.object({
+      query: z.string().min(2).max(400),
+      limit: z.number().int().min(1).max(10).optional(),
+      language: z.string().max(12).optional(),
+    }),
+    execute: callWebSearch,
+  }) : undefined;
 
   const callChatFiles = async (input: {
     action: "generate" | "download";
