@@ -163,7 +163,7 @@ Deno.serve(async(request)=>{
     if(!baseRefResponse.ok)throw new Error("Lecture de la branche de base impossible (HTTP "+baseRefResponse.status+").");
     const baseSha=String((await baseRefResponse.json()).object?.sha??"");
     if(!/^[a-f0-9]{40}$/i.test(baseSha))throw new Error("SHA de base GitHub invalide.");
-    const diffParts:string[]=[];
+    const diffParts:string[]=[];const changedFiles:ProposedFile[]=[];
     for(const file of proposed){
      const fileUrl="https://api.github.com/repos/"+repository+"/contents/"+file.path.split("/").map(encodeURIComponent).join("/")+"?ref="+encodeURIComponent(baseSha);
      const originalResponse=await fetch(fileUrl,{headers});
@@ -175,10 +175,13 @@ Deno.serve(async(request)=>{
        original=new TextDecoder().decode(Uint8Array.from(binary,c=>c.charCodeAt(0)));
       }
      }else if(originalResponse.status!==404)throw new Error("Lecture du fichier de référence impossible : "+file.path+" (HTTP "+originalResponse.status+").");
+     if(original===file.content)continue;
+     changedFiles.push(file);
      diffParts.push(createUnifiedDiff(file.path,original,file.content));
     }
+    if(changedFiles.length===0)throw new Error("La proposition ne contient aucun changement réel par rapport à la branche de base.");
     const fullDiff=diffParts.join("\n\n");
-    const reviewProposal={plan:existingPlan,summary,files:proposed,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(proposed),base_branch:baseBranch,base_sha:baseSha,created_at:now};
+    const reviewProposal={plan:existingPlan,summary,files:changedFiles,diff:fullDiff.slice(0,30000),files_summary:summarizeReviewFiles(changedFiles),base_branch:baseBranch,base_sha:baseSha,created_at:now};
     const reviewCheckpoint={...checkpointState,phase:"awaiting_review",review_proposal:reviewProposal};
     const {error:taskDoneError}=await admin.from("agent_work_tasks").update({status:"completed",result:{summary,files:reviewProposal.files_summary},lease_until:null,updated_at:now}).eq("id",task.id);
     if(taskDoneError)throw taskDoneError;
