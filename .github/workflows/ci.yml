@@ -34,7 +34,7 @@ jobs:
           deno-version: v2.x
 
       - name: Type-check Supabase Edge Functions
-        run: deno check supabase/functions/agent-work/index.ts supabase/functions/github-agent/index.ts supabase/functions/asset-import/index.ts
+        run: deno check supabase/functions/agent-work/index.ts supabase/functions/github-agent/index.ts supabase/functions/asset-import/index.ts supabase/functions/chat-files/index.ts
 
       - name: Run tests
         run: bun run test
