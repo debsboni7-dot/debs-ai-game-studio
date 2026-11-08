@@ -1,7 +1,7 @@
 export type ConnectorCategory = "3d" | "engines" | "code" | "ai" | "assets" | "design" | "audio" | "cloud" | "automation" | "productivity";
 export type Connector = {
   id: string; name: string; category: ConnectorCategory; description: string;
-  website: string; integration: "api" | "api-connected" | "oauth" | "local-agent" | "import";
+  website: string; integration: "api" | "api-connected" | "oauth" | "local-agent" | "import" | "self-hosted";
   priority?: boolean; note?: string;
 };
 
@@ -34,6 +34,7 @@ export const connectors: Connector[] = [
   { id:"github",name:"GitHub",category:"code",description:"Dépôts, branches, issues, commits et pull requests.",website:"https://github.com",integration:"oauth",priority:true },
   { id:"gitlab",name:"GitLab",category:"code",description:"Dépôts Git, merge requests et pipelines CI/CD.",website:"https://gitlab.com",integration:"oauth" },
   { id:"bitbucket",name:"Bitbucket",category:"code",description:"Dépôts et workflows de développement.",website:"https://bitbucket.org",integration:"oauth" },
+  { id:"debs-core",name:"DEBS Core",category:"ai",description:"Moteur de conversation auto-hébergé, exécuté sur le serveur DEBS.",website:"https://github.com/debsboni7-dot/debs-ai-game-studio",integration:"self-hosted",priority:true,note:"Moteur IA natif — aucun fournisseur tiers de conversation" },
   { id:"huggingface",name:"Hugging Face",category:"ai",description:"Modèles, datasets, Spaces et endpoints d'inférence.",website:"https://huggingface.co",integration:"api" },
   { id:"replicate",name:"Replicate",category:"ai",description:"Exécution de modèles d'image, vidéo, audio et 3D.",website:"https://replicate.com",integration:"api" },
   { id:"fal",name:"fal.ai",category:"ai",description:"API de génération d'image, vidéo et médias.",website:"https://fal.ai",integration:"api" },
@@ -59,5 +60,5 @@ export const connectors: Connector[] = [
 ];
 
 export function connectorIntegrationLabel(type: Connector["integration"]) {
-  return ({ api: "API à connecter", "api-connected": "API intégrée · clé requise", oauth: "OAuth à configurer", "local-agent": "Agent local requis", import: "Import / téléchargement" })[type];
+  return ({ api: "API à connecter", "api-connected": "API intégrée · clé requise", oauth: "OAuth à configurer", "local-agent": "Agent local requis", import: "Import / téléchargement", "self-hosted": "Moteur DEBS auto-hébergé" })[type];
 }
