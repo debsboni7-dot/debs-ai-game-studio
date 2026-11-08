@@ -191,8 +191,8 @@ Deno.serve(async (request) => {
 
   try {
     const archive = await downloadZip(sourceUrl);
-    inspectZipLimits(archive);
-    const entries = unzipSync(archive);
+    inspectZipLimits(archive.bytes);
+    const entries = unzipSync(archive.bytes);
     const slug = assetSlug(packName);
     const files: Array<{ path: string; bytes: Uint8Array }> = [];
     let total = 0;
@@ -209,7 +209,8 @@ Deno.serve(async (request) => {
     if (!files.length) throw new Error("Aucun fichier de ressource autorisé dans cette archive.");
 
     const manifest = [
-      "# " + packName, "", "- Source: " + sourceUrl.toString(),
+      "# " + packName, "", "- Page source: " + sourceUrl.toString(),
+      "- Download URL: " + archive.downloadUrl.toString(),
       "- Importé le: " + new Date().toISOString(),
       "- Demandeur authentifié: " + user.id,
       "- Licence déclarée: " + licenseName,
