@@ -227,3 +227,101 @@ def test_chat_returns_generic_upstream_error(monkeypatch):
 
     assert response.status_code == 500
     assert "private upstream details" not in response.text
+
+
+class FakeSearchResponse:
+    status_code = 200
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {
+            "results": [
+                {
+                    "title": "Kenney Game Assets",
+                    "url": "https://kenney.nl/assets",
+                    "content": "Free game assets and packs.",
+                    "engine": "duckduckgo",
+                    "publishedDate": "2026-11-01",
+                },
+                {
+                    "title": "Unsafe local result",
+                    "url": "http://127.0.0.1/admin",
+                    "content": "must be filtered",
+                },
+                {
+                    "title": "Invalid result",
+                    "url": "javascript:alert(1)",
+                    "content": "must be filtered",
+                },
+            ]
+        }
+
+
+class FakeSearchClient:
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        self.kwargs = kwargs
+        self.url = None
+        self.params = None
+        type(self).instances.append(self)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return None
+
+    async def get(self, url, params=None):
+        self.url = url
+        self.params = params
+        return FakeSearchResponse()
+
+
+def test_web_search_requires_authentication():
+    with TestClient(main.app) as client:
+        response = client.post("/v1/search", json={"query": "Kenney game assets"})
+    assert response.status_code == 401
+
+
+def test_web_search_requires_configured_searxng(monkeypatch):
+    monkeypatch.setattr(main, "SEARXNG_BASE_URL", "")
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/v1/search",
+            headers={"Authorization": f"Bearer {main.API_KEY}"},
+            json={"query": "Kenney game assets"},
+        )
+    assert response.status_code == 503
+
+
+def test_web_search_returns_only_safe_https_sources(monkeypatch):
+    FakeSearchClient.instances = []
+    monkeypatch.setattr(main, "SEARXNG_BASE_URL", "http://searxng:8080")
+    monkeypatch.setattr(main.httpx, "AsyncClient", FakeSearchClient)
+
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/v1/search",
+            headers={"Authorization": f"Bearer {main.API_KEY}"},
+            json={"query": "Kenney game assets", "limit": 5, "language": "en"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert body["results"][0]["title"] == "Kenney Game Assets"
+    assert body["results"][0]["url"] == "https://kenney.nl/assets"
+    assert FakeSearchClient.instances[0].url == "http://searxng:8080/search"
+    assert FakeSearchClient.instances[0].params["format"] == "json"
+
+
+def test_web_search_validates_query_and_limit():
+    with TestClient(main.app) as client:
+        headers = {"Authorization": f"Bearer {main.API_KEY}"}
+        short_query = client.post("/v1/search", headers=headers, json={"query": "x"})
+        invalid_limit = client.post("/v1/search", headers=headers, json={"query": "assets", "limit": 99})
+    assert short_query.status_code == 422
+    assert invalid_limit.status_code == 422
