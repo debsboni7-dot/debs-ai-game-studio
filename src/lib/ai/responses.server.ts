@@ -25,7 +25,7 @@ export function createResponsesCall(
     headers: config.apiMode === "chat" ? {} : { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
     fetch: runIdFetch.fetch,
   });
-  const reasoning = config.model !== "openai/chat-latest";
+  const reasoning = config.apiMode !== "chat" && config.model !== "openai/chat-latest";
   const webSearch = enableWebSearch && config.apiMode !== "chat"
     ? provider.tools.webSearch({ externalWebAccess: true, searchContextSize: "medium" })
     : undefined;
