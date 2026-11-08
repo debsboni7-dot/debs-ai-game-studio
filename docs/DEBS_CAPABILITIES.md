@@ -51,6 +51,7 @@ Le runtime initial est Qwen 2.5 3B via Ollama. C'est un modèle open-weight de d
 - Les agents doivent lire le dépôt avant de modifier, produire des diffs, tester, réparer dans des limites définies et proposer une PR.
 - Aucun code fourni par un utilisateur ou un modèle ne doit être exécuté directement dans le processus web DEBS.
 - Le worker de missions classe maintenant les fichiers du dépôt selon les mots-clés de l'objectif, les manifestes de projet et les annotations CI. Il transmet jusqu'à huit extraits pertinents dans une limite de contexte bornée ; cela améliore la sélection du contexte mais ne remplace pas une lecture exhaustive du dépôt.
+- Pour les fichiers TypeScript/JavaScript sélectionnés, le worker résout aussi quelques imports relatifs vers des fichiers réellement présents dans le dépôt et les ajoute au contexte, dans les mêmes limites de taille. Les dépendances externes et les chemins inconnus sont ignorés.
 - L'exécution de code dans une sandbox isolée n'est pas encore considérée comme activée.
 
 ## Principes non négociables

@@ -1,4 +1,4 @@
-import { selectRelevantRepositoryFiles } from "./repository-context.ts";
+import { resolveRelativeRepositoryImports, selectRelevantRepositoryFiles } from "./repository-context.ts";
 
 Deno.test("repository context ranks files matching the mission goal", () => {
   const ranked = selectRelevantRepositoryFiles([
@@ -40,4 +40,33 @@ Deno.test("ranking is deterministic and respects maximum file count", () => {
   if (first.length !== 6 || first.map((x) => x.path).join("|") !== second.map((x) => x.path).join("|")) {
     throw new Error("ranking must be deterministic and bounded");
   }
+});
+
+Deno.test("relative imports resolve to real repository files", () => {
+  const paths = ["src/features/editor.ts", "src/lib/store.ts", "src/lib/types/index.ts", "src/app.ts"];
+  const resolved = resolveRelativeRepositoryImports(
+    "src/features/editor.ts",
+    'import { store } from "../lib/store";\\nexport type { State } from "../lib/types";\\nimport React from "react";',
+    paths,
+  );
+  if (resolved.join("|") !== "src/lib/store.ts|src/lib/types/index.ts") {
+    throw new Error("relative dependencies were not resolved correctly: " + resolved.join(", "));
+  }
+});
+
+Deno.test("relative import resolution rejects unknown and external modules", () => {
+  const resolved = resolveRelativeRepositoryImports(
+    "src/app.ts",
+    'import React from "react"; import "./missing"; import "../outside";',
+    ["src/app.ts", "src/known.ts"],
+  );
+  if (resolved.length !== 0) throw new Error("unknown or external modules were included");
+});
+
+Deno.test("dependency resolution stays bounded and deterministic", () => {
+  const paths = Array.from({ length: 10 }, (_, i) => "src/lib/file" + i + ".ts");
+  const source = paths.map((path) => 'import "./lib/' + path.split("/").pop()?.replace(".ts", "") + '";').join("\n");
+  const first = resolveRelativeRepositoryImports("src/app.ts", source, paths, 2);
+  const second = resolveRelativeRepositoryImports("src/app.ts", source, paths, 2);
+  if (first.length !== 2 || first.join("|") !== second.join("|")) throw new Error("dependency expansion is not bounded and deterministic");
 });
