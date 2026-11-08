@@ -40,7 +40,7 @@ async function fetchPublicFile(rawUrl: string): Promise<{ bytes: Uint8Array; fil
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (!bytes.length || bytes.length > MAX_BYTES) throw new Error("Fichier vide ou supérieur à 15 Mo.");
     const disposition = response.headers.get("content-disposition") ?? "";
-    const match = disposition.match(/filename\\*\\s*=\\s*UTF-8''([^;]+)/i) ?? disposition.match(/filename\\s*=\\s*(?:"([^"]+)"|([^;]+))/i);
+    const match = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i) ?? disposition.match(/filename\s*=\s*(?:"([^"]+)"|([^;]+))/i);
     const fromHeader = match ? decodeURIComponent(match[1] ?? match[2] ?? "") : "";
     const fallback = url.pathname.split("/").pop() || "download.bin";
     const filename = cleanFilename(fromHeader || fallback);
@@ -54,7 +54,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json({ error: "Méthode non autorisée." }, 405);
   const authHeader = request.headers.get("authorization") ?? "";
-  const jwt = authHeader.replace(/^Bearer\\s+/i, "");
+  const jwt = authHeader.replace(/^Bearer\s+/i, "");
   if (!jwt || jwt === authHeader) return json({ error: "Connexion requise." }, 401);
 
   const supabaseUrl = env("SUPABASE_URL");
