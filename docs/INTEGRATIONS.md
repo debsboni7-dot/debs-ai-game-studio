@@ -1,5 +1,13 @@
 # DEBS AI — état des intégrations
 
+## Moteur d'intelligence DEBS
+
+- Le chat n'accepte que `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY`, configurées côté serveur.
+- Gemini, ChatGPT, Claude et Lovable ne sont pas des fournisseurs de secours et ne reçoivent pas les conversations.
+- Supabase reste un service de données et d'authentification, pas un moteur IA.
+- Si le serveur DEBS est absent ou indisponible, l'interface affiche une erreur explicite et ne bascule pas vers un tiers.
+
+
 ## Fonctionnel dans cette version
 
 - **GitHub (lecture)** : connexion par jeton personnel finement limité ; validation du compte côté serveur ; liste des dépôts accessibles ; lecture de l'arborescence ; import de six fichiers texte maximum dans le contexte courant du chat.

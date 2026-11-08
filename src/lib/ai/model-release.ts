@@ -7,7 +7,8 @@
 export const ACTIVE_MODEL_RELEASE = {
   version: "DEBS 1.1",
   status: "development",
-  gatewayModel: "openai/gpt-6-astra",
+  runtimeModel: "qwen2.5:3b (configurable via DEBS_MODEL)",
+  inferenceArchitecture: "DEBS self-hosted Ollama + FastAPI only",
   trainedInHouse: false,
   releaseNotes: [
     "Specialized coding and game-development task modes.",
@@ -25,7 +26,7 @@ export const ACTIVE_MODEL_RELEASE = {
     fileAttachments: "images-pdf-text-code-with-size-and-count-limits",
     creatorIdentity: true,
     cloudConversationHistory: "implemented-but-cloud-runtime-not-verified",
-    webSearch: "gateway-tool-configured-but-live-search-not-verified",
+    webSearch: "not-yet-implemented-in-DEBS-runtime",
     repositoryContextRead: true,
     durableAgentJobs: "implemented-but-not-deployed",
     autonomousRepositoryWrites: "draft-pr-workflow-not-runtime-verified",

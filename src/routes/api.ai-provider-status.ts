@@ -7,30 +7,13 @@ export const Route = createFileRoute("/api/ai-provider-status")({
         const debsConfigured = Boolean(
           process.env.DEBS_INFERENCE_BASE_URL?.trim() && process.env.DEBS_INFERENCE_API_KEY?.trim(),
         );
-        const geminiConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
-        const lovableConfigured = Boolean(process.env.LOVABLE_API_KEY?.trim());
-        const debsModel = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
-        const geminiModel = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
-        const activeProvider = debsConfigured
-          ? "DEBS Self-hosted"
-          : geminiConfigured
-            ? "Google Gemini"
-            : lovableConfigured
-              ? "Lovable AI Gateway"
-              : "none";
+        const model = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
         return Response.json(
           {
-            activeProvider,
+            activeProvider: debsConfigured ? "DEBS Server" : "none",
             debsConfigured,
-            geminiConfigured,
-            lovableConfigured,
-            model: debsConfigured
-              ? debsModel
-              : geminiConfigured
-                ? geminiModel
-                : lovableConfigured
-                  ? "openai/gpt-6-astra"
-                  : null,
+            model: debsConfigured ? model : null,
+            fallbackProviders: [],
           },
           { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } },
         );

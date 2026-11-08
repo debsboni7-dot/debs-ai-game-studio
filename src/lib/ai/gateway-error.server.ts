@@ -1,6 +1,6 @@
 import { APICallError } from "ai";
 
-/** Only deliberately sanitized Gateway errors may cross the server boundary. */
+/** Only deliberately sanitized DEBS inference errors may cross the server boundary. */
 export class GatewayError extends Error {
   constructor(
     message: string,
@@ -25,16 +25,16 @@ export function safeGatewayError(error: unknown): GatewayError {
       // Never expose SDK diagnostics, request headers, or raw response bodies.
     }
     if (typeof message === "string" && message.trim()) {
-      const key = process.env.LOVABLE_API_KEY;
+      const key = process.env.DEBS_INFERENCE_API_KEY;
       const sanitized = key ? message.split(key).join("[secret masqué]") : message;
       return new GatewayError(sanitized.slice(0, 1000), error.statusCode);
     }
     return new GatewayError(
-      `Lovable AI a refusé la requête (HTTP ${error.statusCode}).`,
+      `Le serveur DEBS a refusé la requête (HTTP ${error.statusCode}).`,
       error.statusCode,
     );
   }
   return new GatewayError(
-    "Impossible d'obtenir une réponse de Lovable AI. Aucun nouvel essai automatique n'a été effectué.",
+    "Impossible d'obtenir une réponse du serveur DEBS. Aucun nouvel essai automatique n'a été effectué.",
   );
 }

@@ -2,12 +2,6 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 
-import {
-  createLovableAiGatewayRunIdFetch,
-  getLovableAiGatewayRunId,
-  withLovableAiGatewayRunIdHeader,
-} from "./run-id.server.ts";
-
 export function createResponsesCall(
   request: Request,
   config: { baseURL: string; apiKey: string; model: string; apiMode?: "responses" | "chat" },
@@ -17,13 +11,11 @@ export function createResponsesCall(
   reasoningEffort: "low" | "medium" | "high" = "medium",
   enableAssetImport = false,
 ) {
-  const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const gatewayBaseURL = config.baseURL.endsWith("/v1") ? config.baseURL.slice(0, -3) : config.baseURL.endsWith("/") ? config.baseURL.slice(0, -1) : config.baseURL;
   const provider = createOpenAI({
     baseURL: config.apiMode === "chat" ? config.baseURL : `${gatewayBaseURL}/v1`,
     apiKey: config.apiKey,
-    headers: config.apiMode === "chat" ? {} : { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-    fetch: runIdFetch.fetch,
+    headers: {},
   });
   const reasoning = config.apiMode !== "chat" && config.model !== "openai/chat-latest";
   const webSearch = enableWebSearch && config.apiMode !== "chat"
@@ -142,10 +134,6 @@ export function createResponsesCall(
   });
   return {
     result,
-    response: () =>
-      withLovableAiGatewayRunIdHeader(
-        result.toUIMessageStreamResponse({ sendReasoning: true }),
-        runIdFetch,
-      ),
+    response: () => result.toUIMessageStreamResponse({ sendReasoning: true }),
   };
 }

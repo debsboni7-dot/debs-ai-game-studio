@@ -43,7 +43,7 @@ export const sendChatMessage = createServerFn({ method: "POST" })
       const provider = resolveProvider();
       if (!provider) return {
         ok: false, code: "provider_not_configured",
-        message: "Aucun fournisseur IA n'est configuré sur le serveur. Votre message est enregistré, mais aucune réponse ne peut être générée pour l'instant.",
+        message: "Le serveur DEBS n'est pas configuré. Votre message est enregistré, mais aucune réponse ne peut être générée sans le moteur DEBS.",
       };
       const messages = data.attachments.length
         ? data.messages.map((message, index) => index === data.messages.length - 1 ? { ...message, attachments: data.attachments } : message)

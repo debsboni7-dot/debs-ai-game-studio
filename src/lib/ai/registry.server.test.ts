@@ -12,7 +12,8 @@ afterEach(() => {
 });
 const input = { messages: [{ role: "user" as const, content: "Hi" }] };
 function configuredProvider() {
-  vi.stubEnv("LOVABLE_API_KEY", "test-only-key");
+  vi.stubEnv("DEBS_INFERENCE_BASE_URL", "http://debs-server:8080/v1");
+  vi.stubEnv("DEBS_INFERENCE_API_KEY", "test-only-key");
   const provider = resolveProvider();
   if (!provider) throw new Error("Expected configured provider");
   return provider;
@@ -29,13 +30,14 @@ function result(text: string, error?: unknown) {
   };
 }
 
-describe("managed Gateway adapter", () => {
-  it.each(["", "   "])("is unconfigured without a usable managed key", (key) => {
-    vi.stubEnv("LOVABLE_API_KEY", key);
+describe("DEBS self-hosted adapter", () => {
+  it.each(["", "   "])("is unconfigured without a DEBS server key", (key) => {
+    vi.stubEnv("DEBS_INFERENCE_BASE_URL", "http://debs-server:8080/v1");
+    vi.stubEnv("DEBS_INFERENCE_API_KEY", key);
     expect(resolveProvider()).toBeNull();
     expect(state.call).not.toHaveBeenCalled();
   });
-  it("uses the managed Gateway and reports upstream metadata", async () => {
+  it("uses only the DEBS server and reports upstream metadata", async () => {
     const provider = configuredProvider();
     state.call.mockReturnValue(result("Hello"));
     expect(await provider.complete(input)).toEqual({
@@ -44,16 +46,22 @@ describe("managed Gateway adapter", () => {
       activity: [],
     });
     expect(state.call.mock.calls[0]?.[1]).toEqual({
-      baseURL: "https://ai.gateway.lovable.dev/v1",
+      baseURL: "http://debs-server:8080/v1",
       apiKey: "test-only-key",
-      model: "openai/gpt-6-astra",
-      label: "Lovable AI Gateway",
-      apiMode: "responses",
+      model: "qwen2.5:3b",
+      label: "DEBS Server",
+      apiMode: "chat",
     });
     expect(state.call.mock.calls[0]?.[2]).toEqual(input.messages);
     expect(state.call).toHaveBeenCalledTimes(1);
   });
 
+  it("ignores Gemini and Lovable credentials instead of falling back", () => {
+    vi.stubEnv("GEMINI_API_KEY", "third-party-test-key");
+    vi.stubEnv("LOVABLE_API_KEY", "third-party-test-key");
+    expect(resolveProvider()).toBeNull();
+    expect(state.call).not.toHaveBeenCalled();
+  });
   it("keeps creator identity consistent in normal and streamed prompts", () => {
     configuredProvider();
     state.call.mockReturnValue(result("Hello"));
@@ -89,11 +97,11 @@ describe("managed Gateway adapter", () => {
     await expect(provider.complete(input)).rejects.toThrow("Aucun nouvel essai automatique");
     expect(state.call).toHaveBeenCalledTimes(1);
   });
-  it("redacts the managed credential from a safe upstream error", () => {
+  it("redacts the DEBS server credential from an upstream error", () => {
     configuredProvider();
     const error = new APICallError({
       message: "SDK diagnostics",
-      url: "https://ai.gateway.lovable.dev/v1/responses",
+      url: "http://debs-server:8080/v1/chat/completions",
       requestBodyValues: {},
       statusCode: 403,
       responseBody: JSON.stringify({ message: "Denied test-only-key" }),
