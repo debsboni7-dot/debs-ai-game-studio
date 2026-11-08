@@ -1,0 +1,111 @@
+name: DEBS full app inference smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "inference/app_smoke_test.py"
+      - ".github/workflows/debs-app-inference.yml"
+      - "src/routes/api.chat-stream.ts"
+      - "src/lib/ai/registry.server.ts"
+      - "src/lib/ai/responses.server.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: debs-full-app-inference-smoke
+  cancel-in-progress: false
+
+jobs:
+  app-inference:
+    name: Verify the DEBS web chat with real Qwen inference
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gateway dependencies
+        run: python -m pip install -r inference/gateway/requirements.txt
+
+      - name: Start temporary Ollama runtime
+        run: |
+          docker run --detach --name debs-ollama \
+            --publish 127.0.0.1:11434:11434 \
+            --env OLLAMA_NUM_PARALLEL=1 \
+            ollama/ollama:latest
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:11434/api/tags >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs debs-ollama
+          exit 1
+
+      - name: Download the real Qwen 2.5 3B model
+        run: docker exec debs-ollama ollama pull qwen2.5:3b
+
+      - name: Configure isolated test credentials
+        shell: bash
+        run: |
+          echo "DEBS_INFERENCE_API_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" >> "$GITHUB_ENV"
+          echo "OLLAMA_OPENAI_BASE_URL=http://127.0.0.1:11434/v1" >> "$GITHUB_ENV"
+          echo "DEBS_INFERENCE_BASE_URL=http://127.0.0.1:8080/v1" >> "$GITHUB_ENV"
+          echo "DEBS_MODEL=qwen2.5:3b" >> "$GITHUB_ENV"
+          echo "DEBS_MAX_CONCURRENT_REQUESTS=1" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_URL=https://example.supabase.co" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test_only_key" >> "$GITHUB_ENV"
+          echo "SUPABASE_URL=https://example.supabase.co" >> "$GITHUB_ENV"
+          echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_test_only_key" >> "$GITHUB_ENV"
+
+      - name: Start DEBS inference gateway
+        working-directory: inference/gateway
+        run: |
+          nohup python -m uvicorn main:app --host 127.0.0.1 --port 8080 > /tmp/debs-gateway.log 2>&1 &
+          echo $! > /tmp/debs-gateway.pid
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/debs-gateway.log
+          exit 1
+
+      - name: Start the DEBS web application
+        run: |
+          nohup bun run dev -- --host 127.0.0.1 --port 4173 > /tmp/debs-app.log 2>&1 &
+          echo $! > /tmp/debs-app.pid
+
+      - name: Verify a real chat response through the web application
+        run: python inference/app_smoke_test.py
+
+      - name: Show application and inference logs if the smoke test fails
+        if: failure()
+        run: |
+          if [ -f /tmp/debs-app.log ]; then cat /tmp/debs-app.log; fi
+          if [ -f /tmp/debs-gateway.log ]; then cat /tmp/debs-gateway.log; fi
+          docker logs debs-ollama || true
+
+      - name: Stop temporary services
+        if: always()
+        run: |
+          if [ -f /tmp/debs-app.pid ]; then kill "$(cat /tmp/debs-app.pid)" || true; fi
+          if [ -f /tmp/debs-gateway.pid ]; then kill "$(cat /tmp/debs-gateway.pid)" || true; fi
+          docker rm --force debs-ollama || true
