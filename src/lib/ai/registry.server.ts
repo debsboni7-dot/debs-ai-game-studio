@@ -9,7 +9,7 @@ function getDebsInferenceConfig() {
   const baseURL = process.env.DEBS_INFERENCE_BASE_URL?.trim();
   const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
   if (!baseURL || !apiKey) return null;
-  return { label: "DEBS Self-hosted", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const };
+  return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const };
 }
 function getActiveProvider() {
   // DEBS is the only permitted intelligence provider. Never silently fall back to a third party.
