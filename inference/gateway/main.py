@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.background import BackgroundTask
 
 app = FastAPI(title="DEBS Inference Gateway", version="0.2.0")
@@ -41,7 +41,7 @@ async def health() -> JSONResponse:
 async def chat_completions(
     request: Request,
     authorization: str | None = Header(default=None),
-) -> StreamingResponse | JSONResponse:
+) -> Response:
     authorize(authorization)
     content_length = request.headers.get("content-length")
     if content_length:
