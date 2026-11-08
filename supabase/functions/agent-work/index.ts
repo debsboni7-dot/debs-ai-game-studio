@@ -254,6 +254,40 @@ Deno.serve(async(request)=>{
  const id=typeof body.session_id==="string"?body.session_id:"";if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:"Identifiant invalide."},400);
  const {data:session,error:readError}=await userClient.from("agent_work_sessions").select("*").eq("id",id).eq("user_id",userId).single();
  if(readError||!session)return json({error:"Mission introuvable."},404);
+ if(action==="approve_changes"){
+  if(session.status!=="awaiting_review")return json({error:"Cette mission n’attend pas de validation du diff."},409);
+  if(Date.now()>=new Date(session.deadline_at).getTime())return json({error:"La mission a dépassé son échéance ; le diff ne peut plus être validé."},409);
+  const saved=session.checkpoint&&typeof session.checkpoint==="object"&&!Array.isArray(session.checkpoint)?session.checkpoint as Record<string,unknown>:{};
+  const review=saved.review_proposal&&typeof saved.review_proposal==="object"?saved.review_proposal as Record<string,unknown>:null;
+  if(!review||!Array.isArray(review.files))return json({error:"Aucune proposition de code valide n’est disponible."},409);
+  const files=validateProposedFiles(review.files);
+  const {data:claimed,error:claimError}=await admin.from("agent_work_sessions").update({status:"running",last_summary:"Validation reçue ; création du Pull Request.",updated_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId).eq("status","awaiting_review").select("id").maybeSingle();
+  if(claimError||!claimed)return json({error:"La mission a changé d’état. Actualise-la avant de réessayer."},409);
+  let proposal:Record<string,unknown>;
+  try{
+   proposal=await createMissionPullRequest(files,String(session.title??"Mission DEBS AI"),String(review.summary??session.goal??""));
+  }catch(error){
+   await admin.from("agent_work_sessions").update({status:"awaiting_review",last_summary:"La création du PR a échoué ; le diff reste disponible pour réessayer.",updated_at:new Date().toISOString()}).eq("id",id).eq("status","running");
+   throw error;
+  }
+  const checks=(proposal.checks??{}) as {state?:string};
+  const proposalWithReview={...proposal,approved_at:new Date().toISOString()};
+  const {error:queueError}=await admin.from("agent_work_tasks").insert({session_id:id,status:"queued",task_type:"github_ci_check",max_attempts:4,input:{url:proposal.url,number:proposal.number,branch:proposal.branch,head_sha:proposal.head_sha,poll_count:0,repair_count:0}});
+  if(queueError){
+   await admin.from("agent_work_sessions").update({status:"failed",last_summary:"PR créé mais impossible de programmer le suivi CI : "+String(proposal.url??"") ,checkpoint:{...saved,github_proposal:proposalWithReview},updated_at:new Date().toISOString()}).eq("id",id);
+   return json({error:"Le PR a été créé, mais le suivi CI n’a pas pu être programmé.",url:proposal.url},500);
+  }
+  await admin.from("agent_work_sessions").update({status:"queued",checkpoint:{...saved,phase:"pull_request",github_proposal:proposalWithReview},last_summary:"Diff validé. Pull Request créé ; suivi des vérifications CI programmé.",heartbeat_at:new Date().toISOString(),next_run_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id).eq("status","running");
+  await admin.from("agent_work_events").insert({session_id:id,event_type:"changes_approved_pr_created",message:"Diff validé par l’utilisateur ; Pull Request brouillon créé et suivi CI programmé.",metadata:{github_proposal:proposalWithReview,checks_state:checks.state}});
+  return json({ok:true,status:"queued",github_proposal:proposalWithReview});
+ }
+ if(action==="reject_changes"){
+  if(session.status!=="awaiting_review")return json({error:"Cette mission n’attend pas de validation du diff."},409);
+  const {data:rejected,error:rejectError}=await admin.from("agent_work_sessions").update({status:"review_rejected",last_summary:"Proposition refusée. Aucun commit ni Pull Request n’a été créé.",updated_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId).eq("status","awaiting_review").select("id").maybeSingle();
+  if(rejectError||!rejected)return json({error:"La mission a changé d’état. Actualise-la avant de réessayer."},409);
+  await admin.from("agent_work_events").insert({session_id:id,event_type:"changes_rejected",message:"Proposition refusée par l’utilisateur ; aucun changement n’a été envoyé à GitHub."});
+  return json({ok:true,status:"review_rejected"});
+ }
  if(action==="status"){
   const [{data:events},{data:tasks}]=await Promise.all([
    userClient.from("agent_work_events").select("id,event_type,message,metadata,created_at").eq("session_id",id).order("created_at",{ascending:true}).limit(100),
