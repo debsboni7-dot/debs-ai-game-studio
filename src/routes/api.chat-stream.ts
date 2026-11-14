@@ -22,11 +22,11 @@ export const Route = createFileRoute("/api/chat-stream")({
             auth: { persistSession: false, autoRefreshToken: false },
             global: { headers: { Authorization: `Bearer ${token}` } },
           });
-          const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-          if (claimsError || !claimsData?.claims?.sub) {
+          const { data: userData, error: userError } = await authClient.auth.getUser(token);
+          if (userError || !userData.user) {
             return Response.json({ message: "Session invalide. Reconnecte-toi." }, { status: 401 });
           }
-          if ((claimsData.claims as Record<string, unknown>).email_verified !== true) {
+          if (!userData.user.email_confirmed_at) {
             return Response.json({ message: "Adresse e-mail non vérifiée." }, { status: 403 });
           }
           const input = await request.json();
