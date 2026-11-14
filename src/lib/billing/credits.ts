@@ -9,15 +9,15 @@
 export interface CreditBalances {
   /** Subscription credits, including every unspent monthly rollover. */
   subscription: number;
-  /** Separately purchased credits. These never expire. */
-  purchased: number;
+  /** Non-subscription compensation/store credits. Standalone top-ups are disabled. */
+  compensation: number;
 }
 
 export interface CreditSpendResult {
   balances: CreditBalances;
   spent: {
     subscription: number;
-    purchased: number;
+    compensation: number;
   };
 }
 
@@ -41,7 +41,7 @@ function assertCreditAmount(value: number, field: string): void {
 
 function assertBalances(balances: CreditBalances): void {
   assertCreditAmount(balances.subscription, "subscription");
-  assertCreditAmount(balances.purchased, "purchased");
+  assertCreditAmount(balances.compensation, "compensation");
 }
 
 /**
@@ -60,12 +60,12 @@ export function addSubscriptionGrant(
     throw new RangeError("Subscription credit balance exceeds the safe integer range.");
   }
 
-  return { subscription, purchased: balances.purchased };
+  return { subscription, compensation: balances.compensation };
 }
 
 /**
- * Spend subscription credits first, then purchased credits.
- * Purchased credits are untouched until the subscription balance is exhausted.
+ * Spend subscription credits first, then compensation/store credits.
+ * Compensation credits are not sold as standalone top-ups.
  */
 export function spendCredits(
   balances: CreditBalances,
@@ -78,18 +78,18 @@ export function spendCredits(
 
   const fromSubscription = Math.min(balances.subscription, amount);
   const remaining = amount - fromSubscription;
-  if (remaining > balances.purchased) {
+  if (remaining > balances.compensation) {
     throw new InsufficientCreditsError(amount, balances);
   }
 
   return {
     balances: {
       subscription: balances.subscription - fromSubscription,
-      purchased: balances.purchased - remaining,
+      compensation: balances.compensation - remaining,
     },
     spent: {
       subscription: fromSubscription,
-      purchased: remaining,
+      compensation: remaining,
     },
   };
 }
