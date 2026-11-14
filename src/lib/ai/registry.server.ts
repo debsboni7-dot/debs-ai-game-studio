@@ -35,7 +35,7 @@ function getGeminiConfig() {
 }
 function getDebsInferenceConfig() {
   const baseURL = getServerEnv("DEBS_INFERENCE_BASE_URL");
-  const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
+  const apiKey = getServerEnv("DEBS_INFERENCE_API_KEY");
   if (!baseURL || !apiKey) return null;
   return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const, searchBaseURL: baseURL.replace(/\/+$/, ""), searchApiKey: apiKey };
 }
