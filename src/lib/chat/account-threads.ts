@@ -61,5 +61,5 @@ export function useAccountThreads() {
     });
   }, [key]);
 
-  return [threads, setThreads, authReady && stored.key === key] as const;
+  return [threads, setThreads, authReady && stored.key === key, userId] as const;
 }
