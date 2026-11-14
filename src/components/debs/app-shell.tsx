@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { IntegrationProvider } from "@/lib/integrations/context";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [threads, setThreads] = useAccountThreads();
+  const [threads, setThreads, , userId] = useAccountThreads();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,49 +33,35 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      const user = data.session?.user;
-      setUserEmail(user?.email ?? null);
-      if (user) {
-        const { data: cloudRows, error } = await supabase
-          .from("conversations")
-          .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
-          .order("updated_at", { ascending: false });
-        if (active && !error && cloudRows?.length) {
-          const cloudThreads = cloudRows.map((row) => ({
-            id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
-            messages: (row.chat_messages ?? []).map((message) => ({
-              id: message.id, kind: message.role, content: message.content,
-              createdAt: new Date(message.created_at).getTime(),
-            })),
-          }));
-          const cloudIds = new Set(cloudThreads.map((thread) => thread.id));
-          setThreads((current) => [...cloudThreads, ...current.filter((thread) => !cloudIds.has(thread.id))]);
-        }
-      }
+    void supabase.auth.getUser().then(({ data }) => {
+      if (active) setUserEmail(data.user?.email ?? null);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
-      if (!session) return;
-      void supabase.from("conversations")
-        .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
-        .order("updated_at", { ascending: false })
-        .then(({ data, error }) => {
-          if (!active || error || !data?.length) return;
-          const cloudThreads = data.map((row) => ({
-            id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
-            messages: (row.chat_messages ?? []).map((message) => ({
-              id: message.id, kind: message.role, content: message.content,
-              createdAt: new Date(message.created_at).getTime(),
-            })),
-          }));
-          const cloudIds = new Set(cloudThreads.map((thread) => thread.id));
-          setThreads((current) => [...cloudThreads, ...current.filter((thread) => !cloudIds.has(thread.id))]);
-        });
+      if (active) setUserEmail(session?.user.email ?? null);
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void supabase.from("conversations")
+      .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
+      .order("updated_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!active || error || !data?.length) return;
+        const cloudThreads = data.map((row) => ({
+          id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
+          messages: (row.chat_messages ?? []).map((message) => ({
+            id: message.id, kind: message.role, content: message.content,
+            createdAt: new Date(message.created_at).getTime(),
+          })),
+        }));
+        const cloudIds = new Set(cloudThreads.map((thread) => thread.id));
+        setThreads((current) => [...cloudThreads, ...current.filter((thread) => !cloudIds.has(thread.id))]);
+      });
+    return () => { active = false; };
+  }, [userId, setThreads]);
 
   useEffect(() => {
     if (pathname === "/connexion" || pathname === "/verifier-email" || pathname.startsWith("/api/")) return;
