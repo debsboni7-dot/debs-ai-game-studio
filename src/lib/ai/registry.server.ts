@@ -50,11 +50,11 @@ function getDebsInferenceConfig() {
   if (!baseURL || !apiKey) return null;
   return {
     label: "DEBS Server",
-    baseURL: baseURL.replace(/\\/+$/, ""),
+    baseURL: baseURL.replace(/\/+$/, ""),
     apiKey,
     model: getServerEnv("DEBS_MODEL") || "qwen2.5:3b",
     apiMode: "chat" as const,
-    searchBaseURL: baseURL.replace(/\\/+$/, ""),
+    searchBaseURL: baseURL.replace(/\/+$/, ""),
     searchApiKey: apiKey,
   };
 }
