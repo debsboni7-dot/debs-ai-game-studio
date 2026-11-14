@@ -26,6 +26,8 @@ The second credit compartment is reserved for compensation/store-credit grants o
 - Credit-pack catalog and order tables were dropped.
 - Legacy enum values for pack purchases and purchase grants were renamed as disabled.
 - The legacy database column `purchased_balance` now represents the non-subscription compensation/store-credit balance only. It must not be presented as an option to buy credits.
+- The `/credits` page no longer displays pack offers, and the subscription page no longer advertises separate credit purchases.
+- The pure TypeScript credit and reservation domains now call the second compartment `compensation`.
 
 Subscription credits retain full rollover and accumulated credits remain after downgrade. Compensation/store credits do not expire, subject to applicable law. No price rows or model-rate rows have been seeded: proposed commercial prices and real provider rates must not be treated as approved values.
 
@@ -56,7 +58,7 @@ Database tests ran against the isolated development project:
 - duplicate grant retries;
 - subscription-first reservation allocation;
 - settlement of actual usage and release of unused credits;
-- release of a pending reservation without changing balances;
+- release of a pending reservation without changing wallet balances;
 - idempotent settlement and release;
 - rejection of insufficient balances and changed idempotency parameters;
 - rejection of ledger and credit-lot provenance mutation;
