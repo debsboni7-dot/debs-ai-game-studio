@@ -1,6 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
+import { createLovableAiGatewayRunIdFetch, getLovableAiGatewayRunId, withLovableAiGatewayRunIdHeader } from "./run-id.server.ts";
 
 export function createResponsesCall(
   request: Request,
@@ -12,10 +13,13 @@ export function createResponsesCall(
   enableAssetImport = false,
 ) {
   const gatewayBaseURL = config.baseURL.endsWith("/v1") ? config.baseURL.slice(0, -3) : config.baseURL.endsWith("/") ? config.baseURL.slice(0, -1) : config.baseURL;
+  const isLovable = new URL(config.baseURL).origin === "https://ai.gateway.lovable.dev";
+  const runIdFetch = createLovableAiGatewayRunIdFetch(getLovableAiGatewayRunId(request));
   const provider = createOpenAI({
     baseURL: config.apiMode === "chat" ? config.baseURL : `${gatewayBaseURL}/v1`,
     apiKey: config.apiKey,
-    headers: {},
+    headers: isLovable ? { "Lovable-API-Key": config.apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" } : {},
+    ...(isLovable ? { fetch: runIdFetch.fetch } : {}),
   });
   const reasoning = config.apiMode !== "chat" && config.model !== "openai/chat-latest";
 
@@ -37,7 +41,7 @@ export function createResponsesCall(
     }
   };
 
-  const webSearch = enableWebSearch && searchBaseURL ? tool({
+  const webSearch = enableWebSearch && isLovable ? provider.tools.webSearch({}) : enableWebSearch && searchBaseURL ? tool({
     description: "Rechercher des informations actuelles sur Internet via le moteur de recherche autonome SearXNG hébergé avec DEBS. Utilise cet outil pour les demandes explicites de recherche, les informations récentes, les documentations et pour trouver des pages officielles de ressources. Retourne des titres, extraits et URL de sources HTTPS. Ne prétends jamais avoir ouvert une page complète : les extraits sont des résumés du moteur.",
     inputSchema: z.object({
       query: z.string().min(2).max(400),
@@ -77,6 +81,7 @@ export function createResponsesCall(
   };
 
   const createChatFile = tool({
+    strict: false,
     description: "Créer un vrai fichier téléchargeable directement dans la conversation, sans GitHub. À utiliser lorsque l'utilisateur demande de produire, générer ou fournir un fichier. Fournis le contenu texte dans content ou les octets encodés en base64 dans base64. Formats pris en charge : code et documents texte, images, sons, vidéos, modèles 3D et autres formats de ressources autorisés. Limite 15 Mo. Après réussite, donne le lien download_url dans la réponse finale Markdown.",
     inputSchema: z.object({
       filename: z.string().min(1).max(120),
@@ -90,6 +95,7 @@ export function createResponsesCall(
   });
 
   const downloadChatFile = tool({
+    strict: false,
     description: "Télécharger un fichier public depuis une URL HTTPS et le joindre directement à la conversation, sans GitHub ni Pull Request. À utiliser pour les demandes explicites de téléchargement de fichiers individuels (photo, texture, son, vidéo, document, modèle 3D, etc.). Il faut une URL directe vers un fichier public, pas une page de catalogue. Ne contourne jamais les connexions, paywalls, DRM ou protections anti-bot. Respecte les licences et cite la source dans la réponse finale. Limite 15 Mo. Après réussite, donne le lien download_url dans la réponse finale Markdown.",
     inputSchema: z.object({
       source_url: z.string().url().startsWith("https://"),
@@ -100,6 +106,7 @@ export function createResponsesCall(
   });
 
   const importGameAssets = enableAssetImport ? tool({
+    strict: false,
     description: "Intégrer un pack de ressources de jeu dans le dépôt GitHub de l'utilisateur. À utiliser uniquement si l'utilisateur a explicitement demandé d'intégrer les assets dans son projet ou son dépôt. Pour un simple téléchargement dans le chat, utilise download_chat_file à la place. Recherche sur tout site public pertinent, sans liste blanche de domaines. Vérifie la licence exacte sur une source officielle. N'essaie pas de contourner les connexions, paywalls, DRM ou protections anti-bot. Crée une Pull Request brouillon, sans fusion automatique.",
     inputSchema: z.object({
       pack_name: z.string().min(2).max(100),
@@ -159,6 +166,6 @@ export function createResponsesCall(
   });
   return {
     result,
-    response: () => result.toUIMessageStreamResponse({ sendReasoning: true }),
+    response: () => isLovable ? withLovableAiGatewayRunIdHeader(result.toUIMessageStreamResponse({ sendReasoning: true }), runIdFetch) : result.toUIMessageStreamResponse({ sendReasoning: true }),
   };
 }
