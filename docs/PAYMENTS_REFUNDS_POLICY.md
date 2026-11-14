@@ -1,6 +1,6 @@
 # DEBS AI Studio — Politique de paiement, annulation et remboursement
 
-Statut : proposition produit à valider juridiquement avant publication. Ce document ne constitue pas des conditions générales définitives et ne remplace pas les règles impératives applicables dans les pays servis.
+Statut : politique produit approuvée par le propriétaire du projet pour intégration. Les dispositions restent soumises à validation juridique avant publication et activation des paiements. Ce document ne remplace pas les règles impératives applicables dans les pays servis.
 
 ## 1. Principes
 
@@ -49,28 +49,31 @@ Un abonnement annuel est payé selon le prix annuel annoncé, mais ses crédits 
 - Les crédits achetés séparément restent dans le portefeuille acheté et n'expirent jamais.
 - L'annulation n'est pas un remboursement automatique de la période déjà payée.
 
-## 5. Remboursements : règles proposées
+## 5. Remboursements : politique approuvée
 
-La politique finale doit respecter les droits impératifs du pays du consommateur, les règles du moyen de paiement et les obligations fiscales. Les cas suivants sont les règles produit proposées, sous réserve de validation juridique :
+La politique commerciale ci-dessous a été approuvée par le propriétaire du projet. Elle reste subordonnée aux droits impératifs du pays du consommateur, aux règles du moyen de paiement et aux obligations fiscales. Si la loi impose un traitement plus favorable au client, la règle légale prévaut.
 
-| Situation | Traitement proposé |
+| Situation | Traitement retenu |
 |---|---|
-| Paiement en double confirmé | Rembourser intégralement le doublon. |
+| Paiement en double confirmé | Remboursement intégral du doublon. |
 | Paiement capturé mais abonnement ou pack non livré à cause d'une erreur DEBS | Corriger la livraison ou rembourser intégralement si elle ne peut pas être corrigée rapidement. |
 | Paiement non autorisé ou fraude confirmée | Bloquer les opérations à risque, coopérer avec le prestataire et traiter le remboursement selon son enquête et le droit applicable. |
-| Pack de crédits acheté, aucun crédit du lot consommé | Remboursement intégral possible après vérification, dans le délai de réclamation qui sera publié. |
-| Pack partiellement consommé | Calculer la part non consommée à partir du lot d'origine ; remboursement au prorata uniquement si les conditions publiées et le droit applicable le permettent. |
+| Pack acheté, aucun crédit du lot consommé | Par défaut, pas de remboursement en argent : conversion en avoir ou crédits DEBS. Les droits légaux de remboursement restent applicables. |
+| Pack partiellement consommé | Calculer la part non consommée à partir du lot d'origine ; avoir ou crédits pour le reliquat selon les conditions publiées. Un remboursement en argent n'est possible que si la loi l'impose ou si DEBS l'autorise explicitement. |
 | Pack entièrement consommé | Pas de remboursement commercial automatique, sans préjudice des droits légaux ou d'une erreur imputable à DEBS. |
 | Abonnement annulé | Arrêt des renouvellements futurs ; pas de remboursement automatique de la période déjà utilisée. |
-| Interruption majeure imputable à DEBS | Examiner un avoir ou remboursement proportionnel à la durée et à l'impact, selon les conditions publiées et la loi. |
+| Interruption majeure imputable à DEBS | Le client choisit entre des crédits/avoirs compensatoires et un remboursement proportionnel, sous réserve des modalités publiées et du droit applicable. |
 | Remboursement exigé par la loi ou le prestataire | Appliquer la règle impérative, même si elle est plus favorable au client que la politique commerciale. |
 
-Important :
-- Le délai exact de réclamation, les exceptions et la méthode de calcul au prorata doivent être fixés après examen juridique dans les pays ciblés. Ne pas inventer un délai uniforme.
-- Les frais du prestataire ne doivent pas être déduits automatiquement du remboursement d'un consommateur sans base légale et information préalable.
+Règles complémentaires :
+- Pour un pack inutilisé, la conversion en avoir ou crédits DEBS est le traitement commercial par défaut. Le client ne doit pas recevoir un remboursement en argent par défaut.
+- L'avoir ou les crédits de remplacement doivent être clairement identifiés, liés à l'achat initial et non expirants lorsqu'ils remplacent des crédits achetés, sauf obligation légale contraire.
+- En cas de panne majeure, le client choisit entre le crédit/avoir et le remboursement proportionnel. La méthode de calcul doit tenir compte de la durée et de l'impact de l'interruption, selon une formule publiée.
+- Le délai exact de réclamation, les exceptions et la méthode de calcul doivent être fixés après examen juridique dans les pays ciblés. Ne pas inventer un délai uniforme.
+- Les frais du prestataire ne doivent pas être déduits automatiquement d'un remboursement consommateur sans base légale et information préalable.
 - Un crédit déjà consommé ne doit pas être effacé silencieusement pour simuler un remboursement.
-- Un remboursement doit référencer le paiement initial et créer les écritures compensatoires nécessaires au ledger.
-- Si un remboursement de crédits achetés est accordé, invalider uniquement le reliquat du lot remboursé, via une écriture compensatoire auditée. Ne jamais modifier les anciennes écritures.
+- Tout remboursement ou avoir doit référencer le paiement initial et créer les écritures compensatoires nécessaires au ledger.
+- Si un remboursement ou avoir concerne des crédits achetés, invalider ou remplacer uniquement le reliquat du lot concerné, via une écriture compensatoire auditée. Ne jamais modifier les anciennes écritures.
 - Si un remboursement concerne un abonnement, recalculer les droits de période et les crédits attribués selon la décision validée, sans toucher aux crédits achetés indépendants.
 
 ## 6. Chargebacks et litiges
@@ -117,11 +120,11 @@ Prévoir un canal de support accessible pour contester un débit, signaler un ac
 9. Écriture compensatoire append-only au ledger.
 10. Notification utilisateur et reçu/avoir mis à jour.
 
-## 10. Décisions à valider avant ouverture au public
+## 10. Conditions avant ouverture au public
 
 - pays de commercialisation et statut juridique de l'entreprise ;
 - règles locales de rétractation et exceptions pour services numériques ;
-- délai de réclamation commercial pour packs non consommés ;
+- délai de réclamation commercial et règles d'émission des avoirs ;
 - méthode de prorata pour packs partiellement consommés et interruptions ;
 - délai de grâce après échec de renouvellement ;
 - règles d'upgrade/downgrade et de prorata ;
@@ -129,4 +132,4 @@ Prévoir un canal de support accessible pour contester un débit, signaler un ac
 - fournisseur de paiement effectivement accessible depuis la Côte d'Ivoire et les autres pays ciblés ;
 - procédure de support, fraude, chargeback et rapprochement comptable.
 
-Aucun checkout ne doit être activé tant que ces décisions, l'intégration fournisseur, les webhooks, les tests sandbox et la validation juridique ne sont pas terminés.
+Aucun checkout ne doit être activé tant que ces décisions opérationnelles, l'intégration fournisseur, les webhooks, les tests sandbox et la validation juridique ne sont pas terminés.
