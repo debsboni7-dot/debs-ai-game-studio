@@ -53,7 +53,9 @@ Ces prix doivent être validés par un calcul de coût réel (modèles, outils, 
 - Convertir la consommation réelle en crédits via une grille serveur de tarifs versionnée par modèle et fournisseur.
 - Distinguer crédits d'abonnement et crédits achetés.
 - Consommer d'abord les crédits d'abonnement, puis les crédits achetés.
-- Report intégral des crédits d'abonnement tant que l'abonnement est actif et payé. À l'annulation, conserver les crédits gagnés jusqu'à la fin de la période payée, puis geler le solde restant sans le supprimer silencieusement.
+- Report intégral des crédits d'abonnement. Lors d'une rétrogradation, conserver intégralement tous les crédits déjà gagnés, sans plafond lié au nouveau forfait et sans confiscation. La rétrogradation modifie uniquement les futurs crédits mensuels et les droits associés.
+- Les crédits achetés séparément n'expirent jamais, même sans abonnement actif. Ils restent dans le portefeuille acheté.
+- En cas d'annulation ou d'impayé, toute restriction d'accès ou de nouveaux crédits doit être annoncée clairement ; aucun crédit acheté ne doit être supprimé et aucun solde acquis ne doit être réduit silencieusement.
 - Les crédits achetés restent dans un portefeuille séparé. Toute règle d'expiration doit être affichée avant achat.
 - Réserver les crédits atomiquement avant exécution, régler la consommation réelle à la fin, libérer la réservation inutilisée en cas d'échec/annulation. Idempotence obligatoire.
 - Si le fournisseur ne renvoie pas les tokens, noter usage inconnu ou estimation clairement identifiée. Ne jamais inventer un nombre réel.
