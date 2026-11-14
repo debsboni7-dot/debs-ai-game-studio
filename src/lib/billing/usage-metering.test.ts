@@ -10,6 +10,7 @@ const card: ModelRateCard = {
   model: "test-model",
   version: "2026-01",
   effectiveFrom: 1_000,
+  effectiveUntil: 2_000,
   inputCreditsPerMillion: 2_000,
   outputCreditsPerMillion: 8_000,
   cachedInputCreditsPerMillion: 500,
