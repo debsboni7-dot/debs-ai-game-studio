@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Loader2, LockKeyhole, Mail, Sparkles } from "lucide-react";
+import { Loader2, Mail, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -27,28 +26,14 @@ function AuthPage() {
     setMessage("");
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: { emailRedirectTo: undefined },
-        });
-        if (error) throw error;
-        if (data.session) {
-          toast.success("Adresse e-mail vérifiée.");
-          await navigate({ to: "/chat" });
-          return;
-        }
-      } else {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: normalizedEmail,
-          options: { shouldCreateUser: false },
-        });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: { shouldCreateUser: mode === "signup" },
+      });
+      if (error) throw error;
 
       sessionStorage.setItem("debs-auth-email", normalizedEmail);
-      sessionStorage.setItem("debs-auth-otp-type", mode === "signup" ? "signup" : "email");
+      sessionStorage.setItem("debs-auth-mode", mode);
       await navigate({ to: "/verifier-email" });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Impossible d'envoyer le code.");
@@ -69,9 +54,6 @@ function AuthPage() {
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">Adresse e-mail
             <span className="relative block"><Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="toi@exemple.com" className="h-11 rounded-xl border-red-100 pl-10" /></span>
           </label>
-          {mode === "signup" && <label className="block space-y-1.5 text-sm font-medium text-slate-700">Mot de passe
-            <span className="relative block"><LockKeyhole className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} placeholder="8 caractères minimum" className="h-11 rounded-xl border-red-100 pl-10" /></span>
-          </label>}
           {message && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">{message}</p>}
           <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl bg-gradient-brand font-semibold shadow-glow">
             {loading ? <Loader2 className="size-4 animate-spin" /> : mode === "login" ? "Recevoir mon code" : "Créer mon compte"}
