@@ -2,10 +2,10 @@
 
 ## Moteur d'intelligence DEBS
 
-- Le chat n'accepte que `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY`, configurées côté serveur.
-- Gemini, ChatGPT, Claude et Lovable ne sont pas des fournisseurs de secours et ne reçoivent pas les conversations.
+- Le chat utilise Lovable AI via la clé gérée `LOVABLE_API_KEY`, uniquement côté serveur, avec `openai/gpt-6-astra` sur Responses.
+- L'ancienne configuration auto-hébergée DEBS reste un secours de configuration uniquement lorsque Lovable AI n'est pas configuré ; aucune erreur de requête ne déclenche un changement de fournisseur.
 - Supabase reste un service de données et d'authentification, pas un moteur IA.
-- Si le serveur DEBS est absent ou indisponible, l'interface affiche une erreur explicite et ne bascule pas vers un tiers.
+- Les erreurs et les réponses vides sont signalées explicitement ; aucune réponse n'est simulée.
 
 
 ## Recherche Internet auto-hébergée
@@ -13,6 +13,7 @@
 - **SearXNG** : moteur de métarecherche auto-hébergé dans la pile Docker DEBS, sans API conversationnelle tierce.
 - Le gateway expose `POST /v1/search` avec authentification DEBS ; le tool `web_search` est disponible au modèle local en mode chat-compatible.
 - La pile doit être démarrée avec `SEARXNG_SECRET`. Les résultats sont des extraits et liens HTTPS ; ils ne prouvent pas qu'une page complète a été consultée.
+- Avec Lovable AI, la recherche utilise l'outil natif de recherche Web du modèle, pas un endpoint `/search` supposé sur la gateway.
 
 ## Fonctionnel dans cette version
 

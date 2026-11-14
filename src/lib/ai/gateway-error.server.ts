@@ -11,7 +11,7 @@ export class GatewayError extends Error {
   }
 }
 
-export function safeGatewayError(error: unknown): GatewayError {
+export function safeGatewayError(error: unknown, activeApiKey?: string): GatewayError {
   if (error instanceof GatewayError) return error;
   if (APICallError.isInstance(error)) {
     let message: unknown;
@@ -25,8 +25,15 @@ export function safeGatewayError(error: unknown): GatewayError {
       // Never expose SDK diagnostics, request headers, or raw response bodies.
     }
     if (typeof message === "string" && message.trim()) {
-      const key = process.env.DEBS_INFERENCE_API_KEY;
-      const sanitized = key ? message.split(key).join("[secret masqué]") : message;
+      const keys = [
+        activeApiKey,
+        process.env["LOVABLE_API_KEY"],
+        process.env["DEBS_INFERENCE_API_KEY"],
+      ].filter((key): key is string => Boolean(key));
+      const sanitized = keys.reduce(
+        (text, key) => text.split(key).join("[secret masqué]"),
+        message,
+      );
       return new GatewayError(sanitized.slice(0, 1000), error.statusCode);
     }
     return new GatewayError(

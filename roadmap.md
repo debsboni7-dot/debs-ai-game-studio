@@ -1,4 +1,5 @@
 # Tasks
+- [ ] Replace direct Gemini calls with managed Lovable AI, verify, and remove the unused Gemini secret.
 - [ ] Repair authenticated chat asset tool routing, license verification and truthful activity.
 - [ ] Repair external acquisition pipeline: bounded downloads, catalog discovery, ZIP inspection and individual 3D file handling; verify linked backend before writes.
 - [ ] Test asset orchestration without billed calls or GitHub writes; document configuration blockers.

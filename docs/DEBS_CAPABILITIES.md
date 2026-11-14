@@ -56,7 +56,7 @@ Le runtime initial est Qwen 2.5 3B via Ollama. C'est un modèle open-weight de d
 
 ## Principes non négociables
 
-1. Le modèle conversationnel principal est servi par DEBS ; pas de fallback Gemini, ChatGPT, Claude ou Lovable.
+1. Le modèle conversationnel principal utilise Lovable AI côté serveur ; les erreurs ne provoquent aucun basculement silencieux vers un autre fournisseur.
 2. Les outils Internet, fichiers, assets, GitHub, génération média et exécution sont des capacités séparées, contrôlées côté serveur.
 3. Aucun secret n'est envoyé au modèle ou au navigateur.
 4. Les ressources téléchargées sont accompagnées de leur provenance et de leur licence.
