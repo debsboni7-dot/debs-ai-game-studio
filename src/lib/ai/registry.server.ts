@@ -6,16 +6,13 @@ import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
 // Cloudflare Workers exposes project secrets through the request-scoped env binding.
 // Keep process.env as a fallback for local development and Node-based tests.
-// @ts-ignore cloudflare:workers is provided by the deployed Workers runtime.
-const cloudflareEnv = await import("cloudflare:workers")
-  .then((runtime) => runtime.env as Record<string, string | undefined>)
-  .catch(() => ({} as Record<string, string | undefined>));
+import { env as cloudflareEnv } from "cloudflare:workers";
 
 export function getServerEnv(name: string): string | undefined {
+  const runtimeValue = (cloudflareEnv as Record<string, string | undefined>)[name]?.trim();
+  if (runtimeValue) return runtimeValue;
   const processValue = process.env[name]?.trim();
-  if (processValue) return processValue;
-  const runtimeValue = cloudflareEnv[name]?.trim();
-  return runtimeValue || undefined;
+  return processValue || undefined;
 }
 
 const DEBS_MODEL = getServerEnv("DEBS_MODEL") || "qwen2.5:3b";
