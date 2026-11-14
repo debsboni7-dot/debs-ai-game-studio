@@ -29,11 +29,10 @@ function VerifyEmailPage() {
     setLoading(true);
     setMessage("");
     try {
-      const type = sessionStorage.getItem("debs-auth-otp-type") === "signup" ? "signup" : "email";
-      const { error } = await supabase.auth.verifyOtp({ email, token: code.replace(/\s/g, ""), type });
+      const { error } = await supabase.auth.verifyOtp({ email, token: code.replace(/\s/g, ""), type: "email" });
       if (error) throw error;
       sessionStorage.removeItem("debs-auth-email");
-      sessionStorage.removeItem("debs-auth-otp-type");
+      sessionStorage.removeItem("debs-auth-mode");
       toast.success("Adresse vérifiée. Bienvenue sur DEBS AI.");
       await navigate({ to: "/chat" });
     } catch (error) {
@@ -48,10 +47,8 @@ function VerifyEmailPage() {
     setResending(true);
     setMessage("");
     try {
-      const type = sessionStorage.getItem("debs-auth-otp-type");
-      const { error } = type === "signup"
-        ? await supabase.auth.resend({ type: "signup", email })
-        : await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+      const shouldCreateUser = sessionStorage.getItem("debs-auth-mode") === "signup";
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser } });
       if (error) throw error;
       toast.success("Un nouveau code vient d'être envoyé.");
     } catch (error) {
