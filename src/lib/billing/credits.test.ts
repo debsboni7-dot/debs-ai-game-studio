@@ -9,54 +9,54 @@ describe("DEBS credit domain", () => {
   it("adds monthly grants without expiring or capping rolled-over subscription credits", () => {
     expect(
       addSubscriptionGrant(
-        { subscription: 725_000, purchased: 80_000 },
+        { subscription: 725_000, compensation: 80_000 },
         1_000_000,
       ),
-    ).toEqual({ subscription: 1_725_000, purchased: 80_000 });
+    ).toEqual({ subscription: 1_725_000, compensation: 80_000 });
   });
 
   it("retains all existing balances when a lower plan grant is added", () => {
     expect(
       addSubscriptionGrant(
-        { subscription: 3_400_000, purchased: 250_000 },
+        { subscription: 3_400_000, compensation: 250_000 },
         100_000,
       ),
-    ).toEqual({ subscription: 3_500_000, purchased: 250_000 });
+    ).toEqual({ subscription: 3_500_000, compensation: 250_000 });
   });
 
-  it("spends subscription credits before purchased credits", () => {
+  it("spends subscription credits before compensation credits", () => {
     expect(
       spendCredits(
-        { subscription: 700, purchased: 900 },
+        { subscription: 700, compensation: 900 },
         1_000,
       ),
     ).toEqual({
-      balances: { subscription: 0, purchased: 600 },
-      spent: { subscription: 700, purchased: 300 },
+      balances: { subscription: 0, compensation: 600 },
+      spent: { subscription: 700, compensation: 300 },
     });
   });
 
-  it("does not touch purchased credits while subscription credits cover the spend", () => {
+  it("does not touch compensation credits while subscription credits cover the spend", () => {
     expect(
       spendCredits(
-        { subscription: 1_200, purchased: 900 },
+        { subscription: 1_200, compensation: 900 },
         500,
       ),
     ).toEqual({
-      balances: { subscription: 700, purchased: 900 },
-      spent: { subscription: 500, purchased: 0 },
+      balances: { subscription: 700, compensation: 900 },
+      spent: { subscription: 500, compensation: 0 },
     });
   });
 
   it("rejects a spend that exceeds both balances without mutating either balance", () => {
-    const balances = { subscription: 100, purchased: 200 };
+    const balances = { subscription: 100, compensation: 200 };
     expect(() => spendCredits(balances, 301)).toThrow(InsufficientCreditsError);
-    expect(balances).toEqual({ subscription: 100, purchased: 200 });
+    expect(balances).toEqual({ subscription: 100, compensation: 200 });
   });
 
   it("rejects invalid amounts and unsafe integer balances", () => {
-    expect(() => spendCredits({ subscription: 10, purchased: 10 }, 0)).toThrow(RangeError);
-    expect(() => spendCredits({ subscription: -1, purchased: 10 }, 1)).toThrow(RangeError);
-    expect(() => addSubscriptionGrant({ subscription: Number.MAX_SAFE_INTEGER, purchased: 0 }, 1)).toThrow(RangeError);
+    expect(() => spendCredits({ subscription: 10, compensation: 10 }, 0)).toThrow(RangeError);
+    expect(() => spendCredits({ subscription: -1, compensation: 10 }, 1)).toThrow(RangeError);
+    expect(() => addSubscriptionGrant({ subscription: Number.MAX_SAFE_INTEGER, compensation: 0 }, 1)).toThrow(RangeError);
   });
 });
