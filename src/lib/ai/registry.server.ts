@@ -29,7 +29,7 @@ function getGeminiConfig() {
     label: "Gemini",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     apiKey,
-    model: getServerEnv("GEMINI_MODEL") || "gemini-2.5-flash",
+    model: getServerEnv("GEMINI_MODEL") || "gemini-3.6-flash",
     apiMode: "chat" as const,
   };
 }
