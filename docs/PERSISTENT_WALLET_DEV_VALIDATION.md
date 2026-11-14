@@ -80,7 +80,7 @@ No wallet-specific security findings remain. Two search-path warnings concern pr
 
 ## Important limitations
 
-Authenticated-JWT row-isolation tests were not completed. The app now requires a verified-email session and the `/api/chat-stream` handler independently validates the Supabase user token. Runtime verification of signup, email OTP, and chat on the deployed host is still pending. The wallet must not be connected to chat charging until an explicit account/guest policy and server-side authentication gate are implemented.
+Authenticated-JWT row-isolation tests were not completed. The app now requires a verified-email session, and the `/api/chat-stream` handler independently validates the Supabase user token. Runtime verification of signup, email OTP, and chat on the actual deployment is still pending. The wallet must not be connected to chat charging until authenticated owner-isolation tests, active rate-card configuration, and end-to-end usage settlement are implemented.
 
 The concurrency test is a focused serialization check, not a full load/stress test. Webhook signature verification, payment reconciliation, and end-to-end app integration remain outstanding.
 
@@ -91,3 +91,12 @@ No production schema or payment configuration was changed. Checkout remains disa
 The development project's live `pg_policies` definitions were inspected for all seven owner-scoped billing tables. Each wallet child table (lots, ledger, reservations, AI usage) joins through `debs_wallets.user_id = auth.uid()`; wallet rows, subscriptions, and invoices compare their `user_id` directly to `auth.uid()`. Every returned policy is SELECT-only and scoped to the `authenticated` role. The database currently contains no test users or billing rows.
 
 A live two-user JWT impersonation transaction was attempted but blocked by the execution safety layer before it ran. Therefore this is policy-definition verification, **not** a completed two-user runtime RLS test. A controlled authenticated-session integration test is still required before connecting wallet debits or enabling checkout.
+
+
+## Chat-history owner policies
+
+The live development policies for `conversations` and `chat_messages` were inspected:
+- Conversation SELECT, UPDATE, and DELETE require `user_id = auth.uid()`; INSERT requires the same owner check.
+- Message SELECT and DELETE require `user_id = auth.uid()`.
+- Message INSERT additionally requires the referenced conversation to belong to the same authenticated user.
+- These checks establish policy-level ownership rules, but do not replace a two-user authenticated integration test. No real test accounts or chat rows were created in the development database.
