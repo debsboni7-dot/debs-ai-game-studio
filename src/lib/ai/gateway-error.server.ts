@@ -18,9 +18,9 @@ export function safeGatewayError(error: unknown, activeApiKey?: string): Gateway
     try {
       const body = JSON.parse(error.responseBody ?? "{}") as {
         message?: unknown;
-        error?: { message?: unknown };
+        error?: { message?: unknown } | string;
       };
-      message = body.message ?? body.error?.message;
+      message = body.message ?? (typeof body.error === "string" ? body.error : body.error?.message);
     } catch {
       // Never expose SDK diagnostics, request headers, or raw response bodies.
     }
