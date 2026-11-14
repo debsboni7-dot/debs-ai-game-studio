@@ -22,7 +22,7 @@ export type AuthClientFactory = (url: string, key: string) => AuthVerifierClient
 
 export type VerifiedEmailResult =
   | { ok: true; identity: VerifiedEmailIdentity }
-  | { ok: false; status: 401 | 403; message: string };
+  | { ok: false; status: 401 | 403 | 503; message: string };
 
 export async function verifyVerifiedEmailBearer(
   request: Request,
@@ -36,7 +36,7 @@ export async function verifyVerifiedEmailBearer(
     return { ok: false, status: 401, message: "Connexion requise." };
   }
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Supabase authentication is not configured on the server.");
+    return { ok: false, status: 503, message: "Service d'authentification indisponible." };
   }
 
   const client = createAuthClient(supabaseUrl, supabaseKey);
