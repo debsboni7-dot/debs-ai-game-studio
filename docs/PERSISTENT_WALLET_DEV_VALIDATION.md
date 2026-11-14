@@ -18,6 +18,7 @@ Wallet migrations applied:
 - `20261114195900_debs_persistent_credit_wallet.sql`
 - `20261114201000_debs_wallet_privilege_hardening.sql`
 - `20261114201500_debs_wallet_policy_and_indexes.sql`
+- `20261114202000_debs_wallet_provenance_guards.sql`
 
 ## Schema verification
 
@@ -39,13 +40,14 @@ Verified:
 - Service role cannot DELETE or TRUNCATE wallets, lots, reservations, or payment events.
 - Usage records cannot be updated, deleted, or truncated by service role.
 - Wallet foreign keys for ledger lots and reservation usage records have supporting indexes.
+- Triggers prevent wallet owner/identity changes and credit-lot provenance changes; a lot's remaining amount cannot increase.
 
 ## Advisor results
 
-The Supabase security advisor no longer reports the wallet payment-event RLS finding. Two remaining search-path warnings are on pre-existing baseline functions `touch_agent_work_session` and `debs_validate_memory_source_owner`. Performance findings remaining after wallet indexing concern pre-existing tables/policies and unused indexes in this newly provisioned database.
+The Supabase security advisor no longer reports wallet-specific findings. Two remaining search-path warnings are on pre-existing baseline functions `touch_agent_work_session` and `debs_validate_memory_source_owner`. Remaining performance findings concern pre-existing tables/policies and unused indexes in this newly provisioned database.
 
 ## Important limitation
 
-This validates schema installation, migration metadata, RLS configuration, table privileges, and selected indexes. It does **not** yet validate concurrent wallet transactions, RPC authorization, actual owner-to-owner isolation with authenticated JWTs, webhook verification, or credit accounting. Those tests require the transactional RPC phase and a dedicated integration test harness.
+This validates schema installation, migration metadata, RLS configuration, table privileges, selected indexes, and trigger presence. It does **not** yet validate concurrent wallet transactions, RPC authorization, actual owner-to-owner isolation with authenticated JWTs, webhook verification, or credit accounting. Those tests require the transactional RPC phase and a dedicated integration test harness.
 
 No production schema or payment configuration was changed. Checkout remains disabled.
