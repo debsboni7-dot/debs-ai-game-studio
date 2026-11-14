@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { validateChatInput } from "@/lib/ai/chat.functions";
-import { streamChatResponse } from "@/lib/ai/registry.server";
+import { getServerEnv, streamChatResponse } from "@/lib/ai/registry.server";
 
 export const Route = createFileRoute("/api/chat-stream")({
   server: {
@@ -13,8 +13,8 @@ export const Route = createFileRoute("/api/chat-stream")({
           if (!token || token.split(".").length !== 3) {
             return Response.json({ message: "Connexion requise." }, { status: 401 });
           }
-          const supabaseUrl = process.env["SUPABASE_URL"];
-          const supabaseKey = process.env["SUPABASE_PUBLISHABLE_KEY"];
+          const supabaseUrl = getServerEnv("SUPABASE_URL");
+          const supabaseKey = getServerEnv("SUPABASE_PUBLISHABLE_KEY");
           if (!supabaseUrl || !supabaseKey) {
             return Response.json({ message: "Service d'authentification indisponible." }, { status: 503 });
           }
