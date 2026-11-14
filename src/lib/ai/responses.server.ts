@@ -232,8 +232,10 @@ export function createResponsesCall(
       config.apiMode === "chat" ? provider.chat(config.model) : provider.responses(config.model),
     ...(instructions ? { instructions } : {}),
     messages,
-    tools,
-    toolChoice: "auto" as const,
+    // First-party Gemini OpenAI compatibility accepts a narrower function schema dialect.
+    // Keep basic text chat independent of optional OpenAI tool schemas; tool integrations
+    // remain enabled for the managed Lovable Responses provider.
+    ...(config.apiMode === "chat" ? {} : { tools, toolChoice: "auto" as const }),
     abortSignal: request.signal,
     maxRetries: 0,
     // Google’s OpenAI-compatible endpoint does not implement OpenAI Responses-only
