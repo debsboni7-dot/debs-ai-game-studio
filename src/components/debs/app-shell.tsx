@@ -78,7 +78,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     let active = true;
     const enforceAuthentication = async () => {
       const { data } = await supabase.auth.getSession();
-      if (active && !data.session) await navigate({ to: "/connexion", replace: true });
+      if (!active) return;
+      if (!data.session) {
+        await navigate({ to: "/connexion", replace: true });
+        return;
+      }
+      if (!data.session.user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        await navigate({ to: "/connexion", replace: true });
+      }
     };
     void enforceAuthentication();
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
