@@ -85,3 +85,9 @@ Authenticated-JWT row-isolation tests were not completed. The app now requires a
 The concurrency test is a focused serialization check, not a full load/stress test. Webhook signature verification, payment reconciliation, and end-to-end app integration remain outstanding.
 
 No production schema or payment configuration was changed. Checkout remains disabled.
+
+## Owner-isolation policy inspection (2026-11-14)
+
+The development project's live `pg_policies` definitions were inspected for all seven owner-scoped billing tables. Each wallet child table (lots, ledger, reservations, AI usage) joins through `debs_wallets.user_id = auth.uid()`; wallet rows, subscriptions, and invoices compare their `user_id` directly to `auth.uid()`. Every returned policy is SELECT-only and scoped to the `authenticated` role. The database currently contains no test users or billing rows.
+
+A live two-user JWT impersonation transaction was attempted but blocked by the execution safety layer before it ran. Therefore this is policy-definition verification, **not** a completed two-user runtime RLS test. A controlled authenticated-session integration test is still required before connecting wallet debits or enabling checkout.
