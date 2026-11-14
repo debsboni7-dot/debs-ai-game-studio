@@ -2,23 +2,26 @@
 
 ## Current implementation status
 
-The isolated Supabase development project `debs-ai-billing-dev` (project ID `qkxecdydyeknvgspvsff`, region `eu-west-3`) is active. It is separate from production.
+The isolated Supabase development project `debs-ai-billing-dev` (project ID `qkxecdydyeknvgspvsff`, region `eu-west-3`) is active and separate from production.
 
-The six existing repository migrations were applied to this clean development project in order. The Supabase migration-history versions were reconciled to the six repository filename timestamps, then the wallet migrations below were applied and verified:
+The six existing repository migrations were applied to this clean development project in order. The Supabase migration-history versions were reconciled to the six repository filename timestamps. Three wallet migrations were then applied and verified:
 
 - `20261114195900_debs_persistent_credit_wallet.sql`
 - `20261114201000_debs_wallet_privilege_hardening.sql`
+- `20261114201500_debs_wallet_policy_and_indexes.sql`
 
-All six wallet tables have RLS enabled. Authenticated users have read-only table privileges; row ownership is enforced by RLS. Payment events have no authenticated access. The ledger is append-only and the service role cannot update, delete, or truncate it. Usage records are immutable after insertion for the service role. Financial rows cannot be deleted by the service role.
+All six wallet tables have RLS enabled. Authenticated users have read-only table privileges with owner-scoped policies. Payment events have an explicit deny policy for browser roles. The ledger is append-only and the service role cannot update, delete, or truncate it. Usage records are immutable after insertion for the service role. Financial records cannot be deleted or truncated by the service role.
 
-This is a **schema foundation, not yet an operational wallet**. There are no transactional credit RPCs, payment provider adapter, verified webhook, subscription synchronizer, or checkout. Do not activate checkout or treat database balances as usable product credits yet.
+Supabase security advisor no longer reports the wallet payment-event policy finding. Remaining security warnings concern two pre-existing functions from the baseline migrations. Remaining performance findings concern legacy foreign keys/RLS policies and unused indexes in this newly provisioned database.
+
+This is a **schema foundation, not yet an operational wallet**. Transactional credit RPCs, provider integration, verified webhooks, subscription synchronization, and checkout are not implemented. Do not activate checkout or treat database balances as usable product credits yet.
 
 ## Deployment and safety gates
 
 1. Keep all development schema work in the isolated development project.
-2. Never apply wallet changes directly to production as a shortcut.
+2. Never apply wallet changes directly to production as a development shortcut.
 3. Reconcile repository and remote migration histories before further migration work.
-4. Every balance-changing operation must be a single PostgreSQL transaction, lock the wallet row with `SELECT ... FOR UPDATE`, and write lots, balances, and ledger entries atomically.
+4. Every balance-changing operation must be one PostgreSQL transaction, lock the wallet row with `SELECT ... FOR UPDATE`, and write lots, balances, and ledger entries atomically.
 5. All write functions must be server-authorized and idempotent. Reusing a key with different parameters must fail.
 6. Browser clients must never write balances, lots, reservations, usage facts, payment events, or ledger entries directly.
 7. Test RLS isolation, concurrent reservations, idempotency, rollback, append-only ledger behavior, and payment-event replay before production.
