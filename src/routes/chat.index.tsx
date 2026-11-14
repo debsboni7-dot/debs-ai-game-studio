@@ -6,7 +6,6 @@ import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { setPendingAttachments } from "@/lib/chat/pending-attachments";
 import { CREATOR_CREDIT } from "@/lib/brand";
 import { uid } from "@/lib/storage";
-import { type Thread } from "@/lib/chat/threads";
 import { useAccountThreads } from "@/lib/chat/account-threads";
 import { supabase } from "@/integrations/supabase/client";
 
