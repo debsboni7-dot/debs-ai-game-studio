@@ -36,7 +36,7 @@ Created:
 
 Verified:
 - RLS is enabled on all wallet tables.
-- Authenticated role has SELECT only on owner-scoped wallet views.
+- Authenticated role has SELECT only on owner-scoped wallet tables.
 - Browser roles have no direct write privileges on financial tables.
 - Payment events and reservation allocations have explicit deny policies for anon/authenticated and no client table privileges.
 - RPC execution is available to `service_role`, not authenticated users.
@@ -48,9 +48,9 @@ Verified:
 
 ## Transactional test run
 
-A test script ran within a transaction and ended with ROLLBACK. Assertions passed for:
-- subscription and purchased credit grants;
-- idempotent subscription grant retry;
+Tests ran in the development database. Single-transaction test data was rolled back. Assertions passed for:
+- subscription, purchased, and compensation credit grants;
+- idempotent grant retries;
 - subscription-first reservation allocation;
 - settlement of actual usage and release of unused credits;
 - release of a pending reservation without changing balances;
@@ -58,16 +58,19 @@ A test script ran within a transaction and ended with ROLLBACK. Assertions passe
 - rejection of insufficient balances;
 - rejection of idempotency-key reuse with changed parameters;
 - rejection of ledger and credit-lot provenance mutation;
-- rejection of service-only grant RPC invocation by the authenticated role.
+- rejection of service-only grant RPC invocation by the authenticated role;
+- reconciliation of ledger deltas to final wallet balances.
 
-A follow-up count query confirmed zero test rows remain in wallets, lots, ledger, reservations, reservation allocations, and usage records.
+A separate multi-request test held a wallet row lock while two independent requests attempted to reserve 80 credits each from a 100-credit balance. One succeeded and the competing request received the expected insufficient-credit error. Temporary user and wallet records were then deleted. A final count confirmed zero test users, wallets, lots, ledger entries, reservations, allocations, or usage records remain.
 
 ## Advisor results
 
 No wallet-specific security findings remain. Two search-path warnings concern pre-existing baseline functions `touch_agent_work_session` and `debs_validate_memory_source_owner`. Remaining performance findings concern pre-existing tables/policies and unused indexes in this newly provisioned database.
 
-## Important limitation
+## Important limitations
 
-The test run used a single database session. It does **not** prove concurrent-session race safety or complete authenticated-JWT owner isolation. Those tests remain required, along with webhook signature verification, payment reconciliation, and end-to-end app integration.
+Authenticated-JWT row-isolation tests were not completed. The app's current `/api/chat-stream` route does not validate the bearer token, and guest chat is currently allowed. The wallet must not be connected to chat charging until an explicit account/guest policy and server-side authentication gate are implemented.
+
+The concurrency test is a focused serialization check, not a full load/stress test. Webhook signature verification, payment reconciliation, and end-to-end app integration remain outstanding.
 
 No production schema or payment configuration was changed. Checkout remains disabled.
