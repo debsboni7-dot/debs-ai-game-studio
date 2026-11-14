@@ -39,8 +39,16 @@ export async function verifyVerifiedEmailBearer(
     return { ok: false, status: 503, message: "Service d'authentification indisponible." };
   }
 
-  const client = createAuthClient(supabaseUrl, supabaseKey);
-  const { data, error } = await client.auth.getUser(token);
+  let data: { user: AuthUser | null };
+  let error: unknown;
+  try {
+    const client = createAuthClient(supabaseUrl, supabaseKey);
+    const result = await client.auth.getUser(token);
+    data = result.data;
+    error = result.error;
+  } catch {
+    return { ok: false, status: 503, message: "Vérification de session temporairement indisponible." };
+  }
   if (error || !data.user) {
     return { ok: false, status: 401, message: "Session invalide. Reconnecte-toi." };
   }
