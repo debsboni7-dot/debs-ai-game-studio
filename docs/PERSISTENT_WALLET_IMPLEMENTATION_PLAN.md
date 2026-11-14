@@ -4,15 +4,16 @@
 
 The isolated Supabase development project `debs-ai-billing-dev` (project ID `qkxecdydyeknvgspvsff`, region `eu-west-3`) is active and separate from production.
 
-The six existing repository migrations were applied to this clean development project in order. The Supabase migration-history versions were reconciled to the six repository filename timestamps. Three wallet migrations were then applied and verified:
+The six existing repository migrations were applied to this clean development project in order. The Supabase migration-history versions were reconciled to the six repository filename timestamps. Four wallet migrations were then applied and verified:
 
 - `20261114195900_debs_persistent_credit_wallet.sql`
 - `20261114201000_debs_wallet_privilege_hardening.sql`
 - `20261114201500_debs_wallet_policy_and_indexes.sql`
+- `20261114202000_debs_wallet_provenance_guards.sql`
 
-All six wallet tables have RLS enabled. Authenticated users have read-only table privileges with owner-scoped policies. Payment events have an explicit deny policy for browser roles. The ledger is append-only and the service role cannot update, delete, or truncate it. Usage records are immutable after insertion for the service role. Financial records cannot be deleted or truncated by the service role.
+All six wallet tables have RLS enabled. Authenticated users have read-only table privileges with owner-scoped policies. Payment events have an explicit deny policy for browser roles. The ledger is append-only and the service role cannot update, delete, or truncate it. Usage records are immutable after insertion for the service role. Financial records cannot be deleted or truncated by the service role. Additional triggers prevent changing wallet ownership or credit-lot provenance and prevent a lot's remaining amount from increasing.
 
-Supabase security advisor no longer reports the wallet payment-event policy finding. Remaining security warnings concern two pre-existing functions from the baseline migrations. Remaining performance findings concern legacy foreign keys/RLS policies and unused indexes in this newly provisioned database.
+Supabase security advisor no longer reports a wallet-specific finding. Two remaining search-path warnings concern pre-existing functions from the baseline migrations. Remaining performance findings concern legacy foreign keys/RLS policies and unused indexes in this newly provisioned database.
 
 This is a **schema foundation, not yet an operational wallet**. Transactional credit RPCs, provider integration, verified webhooks, subscription synchronization, and checkout are not implemented. Do not activate checkout or treat database balances as usable product credits yet.
 
