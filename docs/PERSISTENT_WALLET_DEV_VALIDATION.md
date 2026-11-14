@@ -36,7 +36,7 @@ Created and verified:
 
 RLS and grants:
 - RLS is enabled on all wallet/billing tables.
-- Authenticated users have read-only access to owner-scoped wallet, subscription, invoice, and order records.
+- Authenticated users have read-only access to owner-scoped wallet, subscription, and invoice records.
 - Browser roles have no direct write privileges on financial records.
 - Payment events, reservation allocations, and AI rate cards have explicit deny policies for anon/authenticated.
 - Transactional RPC execution is available to `service_role`, not authenticated users.
@@ -52,6 +52,8 @@ The product decision is no standalone credit top-ups. The disabling migration:
 - drops `debs_credit_pack_catalog` and `debs_credit_pack_orders`;
 - renames the legacy pack-purchase and purchase-grant enum values to disabled values;
 - documents the legacy `purchased_balance` column as a non-subscription compensation/store-credit balance only.
+
+The `/credits` and `/abonnement` pages no longer offer or advertise separate credit packs. The pure TypeScript credit and reservation domains now call the second compartment `compensation`.
 
 A post-migration test confirmed the compensation-credit path works, balances reconcile with the ledger, and the standalone purchase RPC and pack tables are absent. No plan-price rows or model-rate rows were seeded.
 
