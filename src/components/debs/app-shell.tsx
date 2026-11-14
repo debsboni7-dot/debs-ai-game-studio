@@ -5,13 +5,14 @@ import {
   PanelLeftOpen, Search, Settings2, Sparkles, X,
 } from "lucide-react";
 import { Logo } from "./ui";
-import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
-import { seedThreads, type Thread } from "@/lib/chat/threads";
+import { uid } from "@/lib/storage";
+import type { Thread } from "@/lib/chat/threads";
+import { useAccountThreads } from "@/lib/chat/account-threads";
 import { supabase } from "@/integrations/supabase/client";
 import { IntegrationProvider } from "@/lib/integrations/context";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const [threads, setThreads] = useAccountThreads();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
