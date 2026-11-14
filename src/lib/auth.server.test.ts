@@ -47,6 +47,18 @@ describe("verified-email bearer authentication", () => {
     expect(getUser).toHaveBeenCalledWith(TOKEN);
   });
 
+  it("fails closed when Supabase Auth cannot be reached", async () => {
+    const factory = vi.fn(() => ({
+      auth: { getUser: vi.fn().mockRejectedValue(new Error("network unavailable")) },
+    })) as unknown as AuthClientFactory;
+    const result = await verifyVerifiedEmailBearer(request("Bearer " + TOKEN), URL, KEY, factory);
+    expect(result).toEqual({
+      ok: false,
+      status: 503,
+      message: "Vérification de session temporairement indisponible.",
+    });
+  });
+
   it("rejects users whose email has not been confirmed", async () => {
     const { factory } = factoryFor({ ...USER, email_confirmed_at: null });
     const result = await verifyVerifiedEmailBearer(request("Bearer " + TOKEN), URL, KEY, factory);
