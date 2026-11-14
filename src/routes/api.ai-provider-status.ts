@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getServerEnv } from "@/lib/ai/registry.server";
+import { getRequest } from "@tanstack/react-start/server";
 
 export const Route = createFileRoute("/api/ai-provider-status")({
   server: {
@@ -7,6 +8,8 @@ export const Route = createFileRoute("/api/ai-provider-status")({
       GET: async () => {
         // Read secrets inside the request handler: Lovable injects them at Worker runtime.
         const geminiApiKey = getServerEnv("GEMINI_API_KEY");
+        const request = getRequest() as Request & { runtime?: { cloudflare?: { env?: Record<string, string | undefined> } } };
+        const runtimeEnv = request.runtime?.cloudflare?.env;
         const debsConfigured = Boolean(
           getServerEnv("DEBS_INFERENCE_BASE_URL") && getServerEnv("DEBS_INFERENCE_API_KEY"),
         );
@@ -22,6 +25,9 @@ export const Route = createFileRoute("/api/ai-provider-status")({
             activeProvider,
             geminiConfigured,
             debsConfigured,
+            runtimeBindingAvailable: Boolean(runtimeEnv),
+            runtimeGeminiConfigured: Boolean(runtimeEnv?.GEMINI_API_KEY?.trim()),
+            processGeminiConfigured: Boolean(process.env["GEMINI_API_KEY"]?.trim()),
             model,
             fallbackProviders: geminiConfigured && debsConfigured ? ["DEBS Server"] : [],
           },
