@@ -29,22 +29,29 @@ Each operation is a server-only security-definer function with a fixed search pa
 
 ### Development test results
 
-A transactional test script ran in a database transaction and was rolled back after completion. It verified:
-- subscription and purchased grants;
-- duplicate subscription grant returns the original result;
+Database tests ran against the isolated development project:
+- subscription, purchased, and compensation grants;
+- duplicate grants return the original result;
 - subscription credits are reserved before purchased credits;
 - settling 900 from a 1,200-credit reservation leaves the correct balances;
-- releasing a reservation does not change balances;
+- releasing a reservation does not change wallet balances;
 - duplicate settlement and release are idempotent;
 - insufficient balance and changed idempotency parameters are rejected;
 - ledger mutation and lot-provenance mutation are rejected;
-- authenticated role cannot invoke service-only grant RPCs.
+- authenticated role cannot invoke service-only grant RPCs;
+- ledger deltas reconcile with final wallet balances.
 
-The database was checked afterward: zero wallet, lot, ledger, reservation, allocation, or usage test rows remain.
+A multi-request serialization test held a wallet row lock while two independent requests each attempted to reserve 80 credits from a 100-credit balance. One reservation succeeded; the other was rejected for insufficient credits. This confirms the row-locking path serializes competing reservations in this test scenario. It is not a substitute for a broader stress test.
+
+All temporary test records were removed. Follow-up counts confirmed zero wallet, lot, ledger, reservation, allocation, usage, or test-user records remain.
 
 Supabase security advisor reports no wallet-specific security findings. Remaining search-path warnings concern two pre-existing baseline functions. Remaining performance findings concern pre-existing tables/policies and unused indexes on this fresh, nearly empty development database.
 
-This is now a **transactional wallet backend foundation**, but it is not yet connected to the app's chat usage path or payment provider. Concurrency tests across simultaneous database sessions, authenticated-JWT owner isolation tests, webhook verification, subscriptions, invoices, and checkout remain incomplete. Checkout remains disabled.
+This is a **transactional wallet backend foundation**, but it is not yet connected to the app's chat usage path or payment provider. Authenticated-JWT owner-isolation tests, broader concurrency stress tests, webhook verification, subscriptions, invoices, and checkout remain incomplete. Checkout remains disabled.
+
+## Application integration blocker
+
+The current `/api/chat-stream` route validates the chat payload but does not verify the incoming bearer token. The chat UI also permits continuing without an account. Therefore, the wallet must not yet be connected to chat charging. Before integration, the app needs an explicit account/guest policy and a server-side authentication gate. Billing must use a dedicated development Supabase URL and service-role secret, never the production project configuration.
 
 ## Deployment and safety gates
 
@@ -69,9 +76,10 @@ This is now a **transactional wallet backend foundation**, but it is not yet con
 
 ## Remaining implementation phases
 
-1. Add multi-session concurrency and authenticated-JWT RLS integration tests.
-2. Connect the server-only RPCs to the app's AI usage path and the versioned usage meter.
-3. Add subscription records, invoice records, and subscription lifecycle synchronization.
-4. Add payment provider adapter, webhook signature verification, event reconciliation, and refund/compensation workflow.
-5. Verify merchant eligibility in Côte d'Ivoire, provider fees, legal/tax disclosures, and sandbox payment flow.
-6. Only after explicit approval, plan production migration and checkout activation with rollback steps.
+1. Establish the account/guest policy and enforce server-side authentication for paid/credited chat.
+2. Add authenticated-JWT owner-isolation tests and broader multi-session concurrency stress tests.
+3. Connect the server-only RPCs to the app's AI usage path and the versioned usage meter.
+4. Add subscription records, invoice records, and subscription lifecycle synchronization.
+5. Add payment provider adapter, webhook signature verification, event reconciliation, and refund/compensation workflow.
+6. Verify merchant eligibility in Côte d'Ivoire, provider fees, legal/tax disclosures, and sandbox payment flow.
+7. Only after explicit approval, plan production migration and checkout activation with rollback steps.
