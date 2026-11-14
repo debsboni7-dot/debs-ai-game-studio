@@ -57,7 +57,7 @@ describe("verified-email bearer authentication", () => {
   it("fails closed when server Supabase configuration is missing", async () => {
     const { factory } = factoryFor(USER);
     await expect(verifyVerifiedEmailBearer(request("Bearer " + TOKEN), undefined, KEY, factory))
-      .rejects.toThrow("not configured");
+      .resolves.toEqual({ ok: false, status: 503, message: "Service d'authentification indisponible." });
     expect(factory).not.toHaveBeenCalled();
   });
 });
