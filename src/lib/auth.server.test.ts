@@ -13,7 +13,7 @@ function request(authorization?: string) {
   });
 }
 
-function factoryFor(user: typeof USER | null, error: unknown = null) {
+function factoryFor(user: { id: string; email?: string; email_confirmed_at?: string | null } | null, error: unknown = null) {
   const getUser = vi.fn().mockResolvedValue({ data: { user }, error });
   const factory = vi.fn(() => ({ auth: { getUser } }));
   return { factory: factory as unknown as AuthClientFactory, getUser };
