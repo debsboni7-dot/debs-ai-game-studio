@@ -80,7 +80,7 @@ No wallet-specific security findings remain. Two search-path warnings concern pr
 
 ## Important limitations
 
-Authenticated-JWT row-isolation tests were not completed. The app's current `/api/chat-stream` route does not validate the bearer token, and guest chat is currently allowed. The wallet must not be connected to chat charging until an explicit account/guest policy and server-side authentication gate are implemented.
+Authenticated-JWT row-isolation tests were not completed. The app now requires a verified-email session and the `/api/chat-stream` handler independently validates the Supabase user token. Runtime verification of signup, email OTP, and chat on the deployed host is still pending. The wallet must not be connected to chat charging until an explicit account/guest policy and server-side authentication gate are implemented.
 
 The concurrency test is a focused serialization check, not a full load/stress test. Webhook signature verification, payment reconciliation, and end-to-end app integration remain outstanding.
 
