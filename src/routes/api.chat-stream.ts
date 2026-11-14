@@ -22,7 +22,13 @@ export const Route = createFileRoute("/api/chat-stream")({
             return Response.json({ message: auth.message }, { status: auth.status });
           }
 
-          const data = validateChatInput(await request.json());
+          let data: ReturnType<typeof validateChatInput>;
+          try {
+            data = validateChatInput(await request.json());
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Requête invalide.";
+            return Response.json({ message }, { status: 400 });
+          }
           return streamChatResponse({
             messages: data.attachments.length
               ? data.messages.map((message, index) => index === data.messages.length - 1
