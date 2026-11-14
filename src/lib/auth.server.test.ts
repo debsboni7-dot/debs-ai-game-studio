@@ -27,6 +27,12 @@ describe("verified-email bearer authentication", () => {
     expect(factory).not.toHaveBeenCalled();
   });
 
+  it("accepts the case-insensitive HTTP bearer scheme", async () => {
+    const { factory } = factoryFor(USER);
+    const result = await verifyVerifiedEmailBearer(request("bearer " + TOKEN), URL, KEY, factory);
+    expect(result).toMatchObject({ ok: true, identity: { userId: "user-a" } });
+  });
+
   it("rejects malformed bearer tokens", async () => {
     const { factory } = factoryFor(USER);
     const result = await verifyVerifiedEmailBearer(request("Bearer not-a-jwt"), URL, KEY, factory);
