@@ -16,6 +16,7 @@ import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as MissionsRouteImport } from './routes/missions'
 import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as ApiAiProviderStatusRouteImport } from './routes/api.ai-provider-status'
 import { Route as ApiChatStreamRouteImport } from './routes/api.chat-stream'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatThreadIdRouteImport } from './routes/chat.$threadId'
@@ -55,6 +56,11 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiProviderStatusRoute = ApiAiProviderStatusRouteImport.update({
+  id: '/api/ai-provider-status',
+  path: '/api/ai-provider-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatStreamRoute = ApiChatStreamRouteImport.update({
   id: '/api/chat-stream',
   path: '/api/chat-stream',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/ai-provider-status': typeof ApiAiProviderStatusRoute
   '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
   '/chat/': typeof ChatIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/ai-provider-status': typeof ApiAiProviderStatusRoute
   '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
   '/chat': typeof ChatIndexRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/ai-provider-status': typeof ApiAiProviderStatusRoute
   '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
   '/chat/': typeof ChatIndexRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/ai-provider-status'
     | '/api/chat-stream'
     | '/chat/$threadId'
     | '/chat/'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/ai-provider-status'
     | '/api/chat-stream'
     | '/chat/$threadId'
     | '/chat'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/ai-provider-status'
     | '/api/chat-stream'
     | '/chat/$threadId'
     | '/chat/'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   MissionsRoute: typeof MissionsRoute
   ParametresRoute: typeof ParametresRoute
   StudioRoute: typeof StudioRoute
+  ApiAiProviderStatusRoute: typeof ApiAiProviderStatusRoute
   ApiChatStreamRoute: typeof ApiChatStreamRoute
   ChatThreadIdRoute: typeof ChatThreadIdRoute
   ChatIndexRoute: typeof ChatIndexRoute
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai-provider-status': {
+      id: '/api/ai-provider-status'
+      path: '/api/ai-provider-status'
+      fullPath: '/api/ai-provider-status'
+      preLoaderRoute: typeof ApiAiProviderStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat-stream': {
       id: '/api/chat-stream'
       path: '/api/chat-stream'
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   MissionsRoute: MissionsRoute,
   ParametresRoute: ParametresRoute,
   StudioRoute: StudioRoute,
+  ApiAiProviderStatusRoute: ApiAiProviderStatusRoute,
   ApiChatStreamRoute: ApiChatStreamRoute,
   ChatThreadIdRoute: ChatThreadIdRoute,
   ChatIndexRoute: ChatIndexRoute,
