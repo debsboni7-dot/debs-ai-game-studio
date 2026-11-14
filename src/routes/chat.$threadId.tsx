@@ -9,7 +9,7 @@ import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { GameArtifact } from "@/components/debs/game-artifact";
 import { AssetImportDialog } from "@/components/debs/asset-import-dialog";
 import { uid } from "@/lib/storage";
-import { titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
+import { titleFrom, type ChatActivityEvent, type ChatMessage } from "@/lib/chat/threads";
 import { useAccountThreads } from "@/lib/chat/account-threads";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
