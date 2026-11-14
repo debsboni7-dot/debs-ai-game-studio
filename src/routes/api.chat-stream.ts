@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 import { validateChatInput } from "@/lib/ai/chat.functions";
 import { streamChatResponse } from "@/lib/ai/registry.server";
 
@@ -7,6 +8,27 @@ export const Route = createFileRoute("/api/chat-stream")({
     handlers: {
       POST: async ({ request }) => {
         try {
+          const authorization = request.headers.get("authorization");
+          const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
+          if (!token || token.split(".").length !== 3) {
+            return Response.json({ message: "Connexion requise." }, { status: 401 });
+          }
+          const supabaseUrl = process.env["SUPABASE_URL"];
+          const supabaseKey = process.env["SUPABASE_PUBLISHABLE_KEY"];
+          if (!supabaseUrl || !supabaseKey) {
+            return Response.json({ message: "Service d'authentification indisponible." }, { status: 503 });
+          }
+          const authClient = createClient(supabaseUrl, supabaseKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { headers: { Authorization: `Bearer ${token}` } },
+          });
+          const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+          if (claimsError || !claimsData?.claims?.sub) {
+            return Response.json({ message: "Session invalide. Reconnecte-toi." }, { status: 401 });
+          }
+          if ((claimsData.claims as Record<string, unknown>).email_verified !== true) {
+            return Response.json({ message: "Adresse e-mail non vérifiée." }, { status: 403 });
+          }
           const input = await request.json();
           const data = validateChatInput(input);
           return streamChatResponse({ messages: data.attachments.length
