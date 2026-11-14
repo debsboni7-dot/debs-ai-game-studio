@@ -73,6 +73,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
+  useEffect(() => {
+    if (pathname === "/connexion" || pathname === "/verifier-email" || pathname.startsWith("/api/")) return;
+    let active = true;
+    const enforceAuthentication = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (active && !data.session) await navigate({ to: "/connexion", replace: true });
+    };
+    void enforceAuthentication();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active && !session && pathname !== "/connexion" && pathname !== "/verifier-email") {
+        void navigate({ to: "/connexion", replace: true });
+      }
+    });
+    return () => { active = false; listener.subscription.unsubscribe(); };
+  }, [pathname, navigate]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUserEmail(null);
