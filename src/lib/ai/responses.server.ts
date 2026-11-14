@@ -90,14 +90,14 @@ export function createResponsesCall(
   const callChatFiles = async (input: {
     action: "generate" | "download";
     filename: string;
-    content_type?: string;
-    content?: string;
-    base64?: string;
-    source_url?: string;
+    content_type?: string | undefined;
+    content?: string | undefined;
+    base64?: string | undefined;
+    source_url?: string | undefined;
   }) => {
     const authorization = request.headers.get("authorization");
-    const supabaseUrl = process.env.SUPABASE_URL?.trim();
-    const anonKey = process.env.SUPABASE_ANON_KEY?.trim();
+    const supabaseUrl = process.env['SUPABASE_URL']?.trim();
+    const anonKey = process.env['SUPABASE_ANON_KEY']?.trim();
     if (!authorization || !supabaseUrl || !anonKey) {
       return {
         ok: false,
@@ -162,7 +162,7 @@ export function createResponsesCall(
       content_type: z.string().max(120).optional(),
     }),
     execute: async (input) =>
-      callChatFiles({ action: "download", filename: input.filename ?? "", ...input }),
+      callChatFiles({ ...input, action: "download", filename: input.filename ?? "" }),
   });
 
   const importGameAssets = enableAssetImport
@@ -179,8 +179,8 @@ export function createResponsesCall(
         }),
         execute: async (input) => {
           const authorization = request.headers.get("authorization");
-          const supabaseUrl = process.env.SUPABASE_URL?.trim();
-          const anonKey = process.env.SUPABASE_ANON_KEY?.trim();
+          const supabaseUrl = process.env['SUPABASE_URL']?.trim();
+          const anonKey = process.env['SUPABASE_ANON_KEY']?.trim();
           if (!authorization || !supabaseUrl || !anonKey)
             return {
               ok: false,
