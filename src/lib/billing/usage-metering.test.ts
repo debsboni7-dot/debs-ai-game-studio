@@ -49,7 +49,7 @@ describe("DEBS versioned usage metering", () => {
   });
 
   it("resolves the rate card active at the usage timestamp", () => {
-    const newer = { ...card, version: "2026-02", effectiveFrom: 2_000 };
+    const newer = { ...card, version: "2026-02", effectiveFrom: 2_000, effectiveUntil: null };
     expect(resolveModelRateCard([card, newer], card.provider, card.model, 2_000))
       .toEqual(newer);
     expect(resolveModelRateCard([card, newer], card.provider, card.model, 1_999))
