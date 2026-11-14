@@ -6,11 +6,11 @@ L’application est conçue pour être utilisée depuis un navigateur Android : 
 
 ## DEBS Self-hosted Inference (prototype)
 
-Le dossier `inference/` contient le premier serveur d'inférence auto-hébergé :
+Le dossier `inference/` contient le prototype du serveur d'inférence auto-hébergé :
 - Ollama exécute les poids du modèle sur le serveur contrôlé par DEBS.
 - Une passerelle FastAPI protège l'API compatible OpenAI avec une clé serveur.
 - Le modèle bootstrap par défaut est `qwen2.5:3b`, téléchargé sur le volume du serveur.
-- Le routeur de chat de l'application utilise exclusivement ce serveur lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Sans ces variables, le chat renvoie une erreur explicite : aucun recours automatique à Gemini, ChatGPT, Claude ou Lovable.
+- Le routeur applicatif sait actuellement sélectionner le premier fournisseur configuré dans cet ordre : Gemini, passerelle IA gérée historique, puis DEBS Server. Il ne bascule pas vers un autre fournisseur après l'échec d'une requête déjà commencée. Le retrait complet de la passerelle historique reste à effectuer si DEBS doit fonctionner exclusivement sur son infrastructure.
 
 Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS. Il établit l'infrastructure d'exécution auto-hébergée nécessaire avant les étapes de données, entraînement/ajustement, évaluation et versions propres du modèle. Voir [inference/README.md](inference/README.md). Aucun serveur GPU n'est provisionné par le dépôt ; le déploiement réel exige une machine/VM avec RAM, stockage et idéalement GPU. La clé d'inférence reste exclusivement côté serveur.
 
@@ -60,7 +60,7 @@ Les connecteurs affichés dans l’écran Intégrations ne signifient pas automa
 - Les fichiers de dépôt importés sont un instantané en lecture seule ; leur présence dans le contexte n’autorise aucune écriture GitHub.
 - Les écritures GitHub du worker sont prévues sur une branche dédiée et en PR brouillon ; aucune fusion automatique vers main.
 - Les actions de build/test ne sont considérées comme réussies que lorsqu’un runner renvoie des journaux réels.
-- DEBS 1.1 utilise exclusivement le serveur d'inférence auto-hébergé configuré. Le modèle bootstrap Qwen est open weights et n'est pas un modèle de fondation entraîné par DEBS AI Studio.
+- Le modèle bootstrap Qwen est open weights et n'est pas un modèle de fondation entraîné par DEBS AI Studio. Le serveur d'inférence auto-hébergé reste à déployer et à valider.
 
 ## Développement
 - Dépôt : https://github.com/debsboni7-dot/debs-ai-game-studio
