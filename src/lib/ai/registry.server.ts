@@ -4,10 +4,26 @@ import { CREATOR_IDENTITY_REPLY } from "../brand";
 import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
-const DEBS_MODEL = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+// Cloudflare Workers exposes project secrets through the request-scoped env binding.
+// Keep process.env as a fallback for local development and Node-based tests.
+import { getRequest } from "@tanstack/react-start/server";
+
+export function getServerEnv(name: string): string | undefined {
+  try {
+    const request = getRequest() as Request & { runtime?: { cloudflare?: { env?: Record<string, string | undefined> } } };
+    const runtimeValue = request.runtime?.cloudflare?.env?.[name]?.trim();
+    if (runtimeValue) return runtimeValue;
+  } catch {
+    // No active request context in local tests or non-request code; use process.env below.
+  }
+  const processValue = process.env[name]?.trim();
+  return processValue || undefined;
+}
+
+const DEBS_MODEL = getServerEnv("DEBS_MODEL") || "qwen2.5:3b";
+const GEMINI_MODEL = getServerEnv("GEMINI_MODEL") || "gemini-2.5-flash";
 function getGeminiConfig() {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = getServerEnv("GEMINI_API_KEY");
   if (!apiKey) return null;
   return {
     label: "Gemini",
@@ -15,13 +31,13 @@ function getGeminiConfig() {
     apiKey,
     model: GEMINI_MODEL,
     apiMode: "chat" as const,
-    searchBaseURL: process.env.DEBS_INFERENCE_BASE_URL?.trim()?.replace(/\/+$/, ""),
-    searchApiKey: process.env.DEBS_INFERENCE_API_KEY?.trim(),
+    searchBaseURL: getServerEnv("DEBS_INFERENCE_BASE_URL")?.replace(/\/+$/, ""),
+    searchApiKey: getServerEnv("DEBS_INFERENCE_API_KEY"),
   };
 }
 function getDebsInferenceConfig() {
-  const baseURL = process.env.DEBS_INFERENCE_BASE_URL?.trim();
-  const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
+  const baseURL = getServerEnv("DEBS_INFERENCE_BASE_URL");
+  const apiKey = getServerEnv("DEBS_INFERENCE_API_KEY");
   if (!baseURL || !apiKey) return null;
   return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const, searchBaseURL: baseURL.replace(/\/+$/, ""), searchApiKey: apiKey };
 }
