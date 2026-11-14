@@ -1,10 +1,9 @@
 /**
  * Pure reservation lifecycle rules for DEBS credit spending.
  *
- * This module models the arithmetic only. It is not persistent, concurrent,
+ * This module models arithmetic only. It is not persistent, concurrent,
  * idempotent, or an authorization boundary. Production callers must execute
- * these transitions inside a trusted database transaction and persist each
- * transition with an idempotency key.
+ * transitions inside a trusted database transaction.
  */
 import type { CreditBalances } from "./credits";
 
@@ -31,7 +30,7 @@ function assertAmount(value: number, field: string): void {
 
 function assertBalances(value: CreditBalances, field: string): void {
   assertAmount(value.subscription, `${field}.subscription`);
-  assertAmount(value.purchased, `${field}.purchased`);
+  assertAmount(value.compensation, `${field}.compensation`);
 }
 
 function assertReserved(reservation: CreditReservation): void {
@@ -39,12 +38,12 @@ function assertReserved(reservation: CreditReservation): void {
     throw new Error("Only an active DEBS credit reservation can be changed.");
   }
   assertBalances(reservation.reserved, "reservation.reserved");
-  if (reservation.reserved.subscription + reservation.reserved.purchased <= 0) {
+  if (reservation.reserved.subscription + reservation.reserved.compensation <= 0) {
     throw new RangeError("A reservation must hold at least one credit.");
   }
 }
 
-/** Reserve subscription credits first, then purchased credits. */
+/** Reserve subscription credits first, then compensation/store credits. */
 export function reserveCredits(
   balances: CreditBalances,
   amount: number,
@@ -53,7 +52,7 @@ export function reserveCredits(
   if (!Number.isSafeInteger(amount) || amount <= 0) {
     throw new RangeError("amount must be a positive safe integer.");
   }
-  const available = balances.subscription + balances.purchased;
+  const available = balances.subscription + balances.compensation;
   if (!Number.isSafeInteger(available)) {
     throw new RangeError("Available credit balance exceeds the safe integer range.");
   }
@@ -62,15 +61,15 @@ export function reserveCredits(
   }
 
   const subscription = Math.min(balances.subscription, amount);
-  const purchased = amount - subscription;
+  const compensation = amount - subscription;
   return {
     balances: {
       subscription: balances.subscription - subscription,
-      purchased: balances.purchased - purchased,
+      compensation: balances.compensation - compensation,
     },
     reservation: {
       status: "reserved",
-      reserved: { subscription, purchased },
+      reserved: { subscription, compensation },
     },
   };
 }
@@ -89,7 +88,7 @@ export function settleCreditReservation(
   assertReserved(reservation);
   assertAmount(actualAmount, "actualAmount");
 
-  const reservedTotal = reservation.reserved.subscription + reservation.reserved.purchased;
+  const reservedTotal = reservation.reserved.subscription + reservation.reserved.compensation;
   if (!Number.isSafeInteger(reservedTotal)) {
     throw new RangeError("Reserved credit amount exceeds the safe integer range.");
   }
@@ -98,21 +97,21 @@ export function settleCreditReservation(
   }
 
   const spentSubscription = Math.min(reservation.reserved.subscription, actualAmount);
-  const spentPurchased = actualAmount - spentSubscription;
+  const spentCompensation = actualAmount - spentSubscription;
   const released = {
     subscription: reservation.reserved.subscription - spentSubscription,
-    purchased: reservation.reserved.purchased - spentPurchased,
+    compensation: reservation.reserved.compensation - spentCompensation,
   };
   const nextBalances = {
     subscription: balances.subscription + released.subscription,
-    purchased: balances.purchased + released.purchased,
+    compensation: balances.compensation + released.compensation,
   };
   assertBalances(nextBalances, "settledBalances");
 
   return {
     balances: nextBalances,
     reservation: { status: "settled", reserved: { ...reservation.reserved } },
-    spent: { subscription: spentSubscription, purchased: spentPurchased },
+    spent: { subscription: spentSubscription, compensation: spentCompensation },
     released,
   };
 }
@@ -126,7 +125,7 @@ export function releaseCreditReservation(
   assertReserved(reservation);
   const nextBalances = {
     subscription: balances.subscription + reservation.reserved.subscription,
-    purchased: balances.purchased + reservation.reserved.purchased,
+    compensation: balances.compensation + reservation.reserved.compensation,
   };
   assertBalances(nextBalances, "releasedBalances");
   return {
