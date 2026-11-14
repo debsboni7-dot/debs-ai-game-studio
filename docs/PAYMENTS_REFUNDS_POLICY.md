@@ -2,6 +2,8 @@
 
 Statut : politique produit approuvée par le propriétaire du projet pour intégration. Les dispositions restent soumises à validation juridique avant publication et activation des paiements. Ce document ne remplace pas les règles impératives applicables dans les pays servis.
 
+**Disponibilité commerciale actuelle :** aucun pack ni achat de crédits séparés n'est proposé. Les sections ci-dessous relatives aux packs décrivent uniquement le traitement de référence si un tel produit était explicitement réintroduit et approuvé ultérieurement. Elles ne constituent pas une offre disponible. Le second compartiment de crédits sert uniquement aux compensations/avoirs accordés par DEBS AI Studio.
+
 ## 1. Principes
 
 - Le prix, la devise, la périodicité, le renouvellement et les crédits accordés sont présentés avant toute confirmation.
@@ -13,14 +15,7 @@ Statut : politique produit approuvée par le propriétaire du projet pour intég
 
 ## 2. Achat d'un abonnement
 
-Avant le paiement, afficher :
-- le nom du forfait et les fonctionnalités incluses ;
-- le montant total, la devise et la périodicité ;
-- le montant annuel total lorsqu'il s'agit d'un engagement annuel ;
-- la date du prochain renouvellement et le montant attendu ;
-- la règle de crédits mensuels et de report intégral ;
-- les conditions d'annulation et de remboursement ;
-- les taxes et frais éventuels, lorsqu'ils sont applicables.
+Avant le paiement, afficher le forfait, les fonctionnalités, le montant total, la devise, la périodicité, la date du prochain renouvellement, la règle de crédits mensuels/report intégral, les conditions d'annulation et de remboursement ainsi que les taxes éventuelles.
 
 Après confirmation par webhook :
 1. enregistrer le paiement fournisseur ;
@@ -35,8 +30,8 @@ Un abonnement annuel est payé selon le prix annuel annoncé, mais ses crédits 
 - Le renouvellement automatique doit être annoncé clairement et accepté lors de la souscription.
 - Envoyer une notification avant le renouvellement lorsque le fournisseur et les règles applicables le permettent.
 - En cas d'échec : marquer l'abonnement `past_due`, notifier l'utilisateur et appliquer un délai de grâce configurable et annoncé.
-- Pendant le délai de grâce, ne pas créer de nouveau droit payant non financé. La politique d'accès doit être cohérente et annoncée.
-- Après le délai de grâce, suspendre les nouveaux travaux réservant des crédits d'abonnement, mais préserver l'historique et les crédits achetés non expirants.
+- Pendant le délai de grâce, ne pas créer de nouveau droit payant non financé.
+- Après le délai de grâce, suspendre les nouveaux travaux réservant des crédits d'abonnement, mais préserver l'historique et les crédits de compensation/avoirs déjà accordés.
 - Un nouvel essai de paiement ne doit pas créer plusieurs abonnements ni attribuer plusieurs fois le même lot.
 
 ## 4. Annulation
@@ -45,8 +40,8 @@ Un abonnement annuel est payé selon le prix annuel annoncé, mais ses crédits 
 - L'annulation prend effet à la fin de la période déjà payée, sauf droit légal ou remboursement anticipé applicable.
 - Aucun nouveau prélèvement ne doit être initié après la date effective d'annulation.
 - L'utilisateur conserve l'accès aux droits payés jusqu'à cette date, sous réserve des règles de sécurité et d'utilisation acceptable.
-- Les crédits d'abonnement déjà acquis et non utilisés restent reportés selon la règle de conservation validée ; une annulation ne les remet pas automatiquement à zéro.
-- Les crédits achetés séparément restent dans le portefeuille acheté et n'expirent jamais.
+- Les crédits d'abonnement déjà acquis et non utilisés restent reportés intégralement ; une annulation ne les remet pas automatiquement à zéro.
+- Les crédits de compensation/avoirs accordés restent dans leur compartiment et n'expirent pas, sous réserve du droit applicable.
 - L'annulation n'est pas un remboursement automatique de la période déjà payée.
 
 ## 5. Remboursements : politique approuvée
@@ -56,25 +51,25 @@ La politique commerciale ci-dessous a été approuvée par le propriétaire du p
 | Situation | Traitement retenu |
 |---|---|
 | Paiement en double confirmé | Remboursement intégral du doublon. |
-| Paiement capturé mais abonnement ou pack non livré à cause d'une erreur DEBS | Corriger la livraison ou rembourser intégralement si elle ne peut pas être corrigée rapidement. |
+| Paiement capturé mais abonnement non livré à cause d'une erreur DEBS | Corriger la livraison ou rembourser intégralement si elle ne peut pas être corrigée rapidement. |
 | Paiement non autorisé ou fraude confirmée | Bloquer les opérations à risque, coopérer avec le prestataire et traiter le remboursement selon son enquête et le droit applicable. |
-| Pack acheté, aucun crédit du lot consommé | Par défaut, pas de remboursement en argent : conversion en avoir ou crédits DEBS. Les droits légaux de remboursement restent applicables. |
-| Pack partiellement consommé | Calculer la part non consommée à partir du lot d'origine ; avoir ou crédits pour le reliquat selon les conditions publiées. Un remboursement en argent n'est possible que si la loi l'impose ou si DEBS l'autorise explicitement. |
-| Pack entièrement consommé | Pas de remboursement commercial automatique, sans préjudice des droits légaux ou d'une erreur imputable à DEBS. |
+| Produit numérique séparé acheté ultérieurement, aucun crédit du lot consommé | Si un tel produit est explicitement réintroduit et approuvé, pas de remboursement en argent par défaut : conversion en avoir ou crédits DEBS. Les droits légaux restent applicables. |
+| Produit numérique séparé partiellement consommé | Si un tel produit est explicitement réintroduit et approuvé, calculer le reliquat non consommé ; avoir ou crédits par défaut. Un remboursement en argent n'est possible que si la loi l'impose ou si DEBS l'autorise explicitement. |
+| Produit numérique séparé entièrement consommé | Pas de remboursement commercial automatique, sans préjudice des droits légaux ou d'une erreur imputable à DEBS. |
 | Abonnement annulé | Arrêt des renouvellements futurs ; pas de remboursement automatique de la période déjà utilisée. |
 | Interruption majeure imputable à DEBS | Le client choisit entre des crédits/avoirs compensatoires et un remboursement proportionnel, sous réserve des modalités publiées et du droit applicable. |
 | Remboursement exigé par la loi ou le prestataire | Appliquer la règle impérative, même si elle est plus favorable au client que la politique commerciale. |
 
 Règles complémentaires :
-- Pour un pack inutilisé, la conversion en avoir ou crédits DEBS est le traitement commercial par défaut. Le client ne doit pas recevoir un remboursement en argent par défaut.
-- L'avoir ou les crédits de remplacement doivent être clairement identifiés, liés à l'achat initial et non expirants lorsqu'ils remplacent des crédits achetés, sauf obligation légale contraire.
+- Pour un produit numérique séparé explicitement autorisé à l'avenir, la conversion en avoir ou crédits DEBS reste le traitement commercial par défaut pour la partie non consommée, sous réserve du droit applicable.
+- Les avoirs ou crédits de remplacement doivent être clairement identifiés, liés à l'opération initiale et non expirants, sauf obligation légale contraire.
 - En cas de panne majeure, le client choisit entre le crédit/avoir et le remboursement proportionnel. La méthode de calcul doit tenir compte de la durée et de l'impact de l'interruption, selon une formule publiée.
 - Le délai exact de réclamation, les exceptions et la méthode de calcul doivent être fixés après examen juridique dans les pays ciblés. Ne pas inventer un délai uniforme.
 - Les frais du prestataire ne doivent pas être déduits automatiquement d'un remboursement consommateur sans base légale et information préalable.
 - Un crédit déjà consommé ne doit pas être effacé silencieusement pour simuler un remboursement.
 - Tout remboursement ou avoir doit référencer le paiement initial et créer les écritures compensatoires nécessaires au ledger.
-- Si un remboursement ou avoir concerne des crédits achetés, invalider ou remplacer uniquement le reliquat du lot concerné, via une écriture compensatoire auditée. Ne jamais modifier les anciennes écritures.
-- Si un remboursement concerne un abonnement, recalculer les droits de période et les crédits attribués selon la décision validée, sans toucher aux crédits achetés indépendants.
+- Les crédits de compensation/avoirs sont ajoutés par une écriture compensatoire auditée. Ne jamais modifier les anciennes écritures.
+- Si un remboursement concerne un abonnement, recalculer les droits de période et les crédits attribués selon la décision validée, sans toucher aux crédits de compensation indépendants.
 
 ## 6. Chargebacks et litiges
 
@@ -97,15 +92,9 @@ Règles complémentaires :
 
 ## 8. Reçus, factures et support
 
-Chaque facture ou reçu doit présenter au minimum :
-- l'identité commerciale légalement requise ;
-- le numéro unique de document ;
-- la date, la devise, le détail du forfait ou pack, le montant et les taxes applicables ;
-- la référence de transaction du prestataire ;
-- le statut : payé, remboursé partiellement, remboursé ou en litige ;
-- les références des avoirs ou remboursements associés.
+Chaque facture ou reçu doit présenter l'identité commerciale légalement requise, un numéro unique, la date, la devise, le détail du forfait ou service, le montant et les taxes applicables, la référence de transaction, le statut et les références des avoirs/remboursements associés.
 
-Prévoir un canal de support accessible pour contester un débit, signaler un achat non livré, demander un remboursement ou signaler une fraude. Chaque demande reçoit un identifiant et un historique de traitement.
+Prévoir un canal de support accessible pour contester un débit, signaler un service non livré, demander un remboursement ou signaler une fraude. Chaque demande reçoit un identifiant et un historique de traitement.
 
 ## 9. Séquence technique obligatoire
 
@@ -114,7 +103,7 @@ Prévoir un canal de support accessible pour contester un débit, signaler un ac
 3. Paiement traité sur la page hébergée du prestataire.
 4. Webhook signé et vérifié, événement dédupliqué.
 5. Vérification du statut final et du montant attendu.
-6. Attribution unique du droit ou lot de crédits.
+6. Attribution unique de l'abonnement et du lot mensuel.
 7. Remboursement initié côté serveur auprès du prestataire, jamais depuis le navigateur.
 8. Webhook de remboursement rapproché au paiement d'origine.
 9. Écriture compensatoire append-only au ledger.
@@ -125,7 +114,7 @@ Prévoir un canal de support accessible pour contester un débit, signaler un ac
 - pays de commercialisation et statut juridique de l'entreprise ;
 - règles locales de rétractation et exceptions pour services numériques ;
 - délai de réclamation commercial et règles d'émission des avoirs ;
-- méthode de prorata pour packs partiellement consommés et interruptions ;
+- méthode de prorata et de calcul des interruptions ;
 - délai de grâce après échec de renouvellement ;
 - règles d'upgrade/downgrade et de prorata ;
 - taxes, facturation et mentions obligatoires ;

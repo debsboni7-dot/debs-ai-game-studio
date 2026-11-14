@@ -32,7 +32,7 @@ function assertTimestamp(value: number, field: string): void {
 
 /**
  * Evaluate access to subscription-only features at a given server timestamp.
- * Purchased credits are independent and are intentionally outside this result.
+ * Compensation/store credits are independent and are intentionally outside this result.
  */
 export function evaluateSubscriptionAccess(
   subscription: SubscriptionLifecycle,

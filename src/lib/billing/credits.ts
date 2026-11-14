@@ -9,15 +9,15 @@
 export interface CreditBalances {
   /** Subscription credits, including every unspent monthly rollover. */
   subscription: number;
-  /** Separately purchased credits. These never expire. */
-  purchased: number;
+  /** Non-subscription compensation/store credits. Standalone top-ups are disabled. */
+  compensation: number;
 }
 
 export interface CreditSpendResult {
   balances: CreditBalances;
   spent: {
     subscription: number;
-    purchased: number;
+    compensation: number;
   };
 }
 
@@ -41,7 +41,10 @@ function assertCreditAmount(value: number, field: string): void {
 
 function assertBalances(balances: CreditBalances): void {
   assertCreditAmount(balances.subscription, "subscription");
-  assertCreditAmount(balances.purchased, "purchased");
+  assertCreditAmount(balances.compensation, "compensation");
+  if (!Number.isSafeInteger(balances.subscription + balances.compensation)) {
+    throw new RangeError("Total credit balance exceeds the safe integer range.");
+  }
 }
 
 /**
@@ -55,17 +58,17 @@ export function addSubscriptionGrant(
   assertBalances(balances);
   assertCreditAmount(monthlyGrant, "monthlyGrant");
 
-  const subscription = balances.subscription + monthlyGrant;
-  if (!Number.isSafeInteger(subscription)) {
-    throw new RangeError("Subscription credit balance exceeds the safe integer range.");
-  }
-
-  return { subscription, purchased: balances.purchased };
+  const next = {
+    subscription: balances.subscription + monthlyGrant,
+    compensation: balances.compensation,
+  };
+  assertBalances(next);
+  return next;
 }
 
 /**
- * Spend subscription credits first, then purchased credits.
- * Purchased credits are untouched until the subscription balance is exhausted.
+ * Spend subscription credits first, then compensation/store credits.
+ * Compensation credits are not sold as standalone top-ups.
  */
 export function spendCredits(
   balances: CreditBalances,
@@ -78,18 +81,21 @@ export function spendCredits(
 
   const fromSubscription = Math.min(balances.subscription, amount);
   const remaining = amount - fromSubscription;
-  if (remaining > balances.purchased) {
+  if (remaining > balances.compensation) {
     throw new InsufficientCreditsError(amount, balances);
   }
 
+  const nextBalances = {
+    subscription: balances.subscription - fromSubscription,
+    compensation: balances.compensation - remaining,
+  };
+  assertBalances(nextBalances);
+
   return {
-    balances: {
-      subscription: balances.subscription - fromSubscription,
-      purchased: balances.purchased - remaining,
-    },
+    balances: nextBalances,
     spent: {
       subscription: fromSubscription,
-      purchased: remaining,
+      compensation: remaining,
     },
   };
 }

@@ -1,19 +1,20 @@
-# DEBS AI Studio — réservations de crédits
+# DEBS AI Studio: credit reservations
 
-Statut : règles métier pures et tests ajoutés ; aucune réservation persistante ou débit en production.
+## Product rules
 
-## Cycle de vie
+Reservations draw from subscription credits first, then compensation/store credits. Standalone credit purchases are disabled.
 
-`src/lib/billing/reservations.ts` complète les règles de solde de `credits.ts` :
+## Pure TypeScript model
 
-1. `reserveCredits` immobilise d'abord les crédits d'abonnement, puis les crédits achetés.
-2. `settleCreditReservation` consomme le coût réel dans cet ordre et restitue le reliquat dans ses compartiments d'origine.
-3. `releaseCreditReservation` restitue l'intégralité d'une réservation interrompue ou annulée.
+`src/lib/billing/reservations.ts` models reservation, settlement, and release arithmetic:
+1. `reserveCredits` holds subscription credits first, then compensation/store credits.
+2. `settleCreditReservation` consumes actual usage and returns unused credits to their original compartments.
+3. `releaseCreditReservation` returns the entire hold when a mission is canceled or interrupted.
 
-Une réservation ne peut être réglée ou libérée qu'une seule fois dans ce modèle d'état. Un coût réel supérieur au plafond réservé est rejeté. Les fonctions ne mutent pas leurs entrées.
+These functions are deterministic arithmetic helpers only. They do not provide persistence, concurrency control, idempotency across requests, or authorization.
 
-## Limite de sécurité
+## Persistent implementation
 
-Ces fonctions sont déterministes et testables, mais elles ne garantissent ni persistance, ni idempotence entre requêtes, ni sérialisation concurrente, ni autorisation. Deux processus indépendants ne doivent jamais utiliser leurs résultats en mémoire comme soldes de référence.
+The database-backed implementation is in `supabase/migrations/20261114203000_debs_transactional_credit_operations.sql`. It locks the wallet row, records exact lot allocations, uses idempotency keys, and exposes write operations only to `service_role`.
 
-Avant toute activation, les transitions doivent être exécutées dans une transaction serveur verrouillant le portefeuille et la réservation, avec une clé idempotente persistée, un ledger append-only, une authentification fiable, des contrôles RLS et une stratégie de réconciliation des missions abandonnées. Respecter `docs/SECURE_CREDIT_LEDGER_SPEC.md`.
+The development validation report records the tests run against the isolated Supabase development project. Multi-session concurrency stress tests and authenticated-JWT owner-isolation tests remain outstanding.
