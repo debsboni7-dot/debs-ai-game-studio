@@ -4,10 +4,24 @@ import { CREATOR_IDENTITY_REPLY } from "../brand";
 import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
-const DEBS_MODEL = process.env.DEBS_MODEL?.trim() || "qwen2.5:3b";
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+// Cloudflare Workers exposes project secrets through the request-scoped env binding.
+// Keep process.env as a fallback for local development and Node-based tests.
+// @ts-ignore cloudflare:workers is provided by the deployed Workers runtime.
+const cloudflareEnv = await import("cloudflare:workers")
+  .then((runtime) => runtime.env as Record<string, string | undefined>)
+  .catch(() => ({} as Record<string, string | undefined>));
+
+export function getServerEnv(name: string): string | undefined {
+  const processValue = process.env[name]?.trim();
+  if (processValue) return processValue;
+  const runtimeValue = cloudflareEnv[name]?.trim();
+  return runtimeValue || undefined;
+}
+
+const DEBS_MODEL = getServerEnv("DEBS_MODEL") || "qwen2.5:3b";
+const GEMINI_MODEL = getServerEnv("GEMINI_MODEL") || "gemini-2.5-flash";
 function getGeminiConfig() {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = getServerEnv("GEMINI_API_KEY");
   if (!apiKey) return null;
   return {
     label: "Gemini",
@@ -15,12 +29,12 @@ function getGeminiConfig() {
     apiKey,
     model: GEMINI_MODEL,
     apiMode: "chat" as const,
-    searchBaseURL: process.env.DEBS_INFERENCE_BASE_URL?.trim()?.replace(/\/+$/, ""),
-    searchApiKey: process.env.DEBS_INFERENCE_API_KEY?.trim(),
+    searchBaseURL: getServerEnv("DEBS_INFERENCE_BASE_URL")?.replace(/\/+$/, ""),
+    searchApiKey: getServerEnv("DEBS_INFERENCE_API_KEY"),
   };
 }
 function getDebsInferenceConfig() {
-  const baseURL = process.env.DEBS_INFERENCE_BASE_URL?.trim();
+  const baseURL = getServerEnv("DEBS_INFERENCE_BASE_URL");
   const apiKey = process.env.DEBS_INFERENCE_API_KEY?.trim();
   if (!baseURL || !apiKey) return null;
   return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const, searchBaseURL: baseURL.replace(/\/+$/, ""), searchApiKey: apiKey };
