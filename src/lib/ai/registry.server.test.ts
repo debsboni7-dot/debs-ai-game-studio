@@ -120,7 +120,7 @@ describe("DEBS self-hosted adapter", () => {
       geminiConfigured: false,
       lovableConfigured: true,
       debsConfigured: true,
-      fallbackProviders: ["DEBS Server"],
+      fallbackProviders: ["Lovable AI", "DEBS Server"],
     });
   });
   it("does not fall back after a managed Gateway denial and redacts its credential", async () => {
