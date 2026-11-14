@@ -75,7 +75,7 @@ This is a **transactional billing backend foundation**, not a production-ready p
 
 ## Application integration blocker
 
-The current `/api/chat-stream` route validates the chat payload but does not verify the incoming bearer token. The chat UI also permits continuing without an account. Therefore, the wallet must not yet be connected to chat charging. Before integration, the app needs an explicit account/guest policy and a server-side authentication gate. Billing must use a dedicated development Supabase URL and service-role secret, never the production project configuration.
+The account-only policy and a verified-email OTP flow have now been added to the application branch. The `/api/chat-stream` route validates the incoming bearer token with Supabase Auth and rejects users whose email is not confirmed. The chat UI obtains the session token for both locally-created and cloud-backed conversation IDs. This is the authentication gate foundation; authenticated-JWT row-isolation tests and end-to-end runtime verification remain required before wallet charging can be enabled. Billing must use a dedicated development Supabase URL and service-role secret, never the production project configuration.
 
 ## Safety gates
 
