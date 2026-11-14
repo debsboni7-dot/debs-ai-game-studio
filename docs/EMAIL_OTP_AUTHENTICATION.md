@@ -18,12 +18,12 @@ Apply these settings to the intended Supabase project before enabling the flow f
 - Enable email sign-in.
 - Require email confirmation.
 - Set the email OTP template to visibly include the numeric token placeholder `{{ .Token }}`. Do not rely only on a magic-link template containing `{{ .ConfirmationURL }}`.
-- Configure an appropriate OTP expiry (recommended: 10 minutes or less).
-- Keep the Auth email rate limits enabled and configure SMTP for production delivery and adequate throughput.
+- Configure an appropriate OTP expiry (recommended: 10 minutes or less, and never more than 24 hours). Supabase email OTPs are six-digit codes, so the verification screen accepts exactly six numeric digits.
+- Keep the Auth OTP rate limits enabled. Supabase applies a resend interval and expiry; keep those protections enabled and configure SMTP for production delivery and adequate throughput.
 - Set the allowed site URL and redirect URLs to the actual DEBS AI deployment domains.
 - Test signup, existing-user login, expired codes, wrong codes, resend cooldown/rate limits, and unverified-session rejection in the isolated development project.
 
-The repository code does not change hosted Auth email templates, SMTP credentials, or project-level Auth settings. Those are Supabase dashboard settings and must be verified separately. Do not place SMTP credentials in the repository or browser environment.
+The app uses Supabase's documented passwordless email flow: `signInWithOtp` to request a code, then `verifyOtp` with `type: "email"` to establish the session. The hosted Magic Link template must be changed to render `{{ .Token }}`. The repository code does not change hosted Auth email templates, SMTP credentials, or project-level Auth settings. Those are Supabase dashboard settings and must be verified separately. Do not place SMTP credentials in the repository or browser environment.
 
 ## Security notes
 
