@@ -29,7 +29,7 @@ describe("DEBS versioned usage metering", () => {
       nonCachedInputTokens: 800_000,
       cachedInputTokens: 200_000,
       outputTokens: 100_000,
-      credits: 2_400,
+      credits: 2_500,
     });
   });
 
