@@ -8,6 +8,8 @@ import { safeGatewayError } from "./gateway-error.server";
 
 beforeEach(() => {
   for (const name of [
+    "GEMINI_API_KEY",
+    "GEMINI_MODEL",
     "LOVABLE_API_KEY",
     "DEBS_INFERENCE_BASE_URL",
     "DEBS_INFERENCE_API_KEY",
@@ -75,6 +77,28 @@ describe("DEBS self-hosted adapter", () => {
     expect(state.call).toHaveBeenCalledTimes(1);
   });
 
+  it("prefers Gemini when the user Gemini API key is configured", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test-key");
+    const provider = resolveProvider();
+    if (!provider) throw new Error("Expected configured provider");
+    state.call.mockReturnValue(result("Hello from Gemini"));
+    await provider.complete(input);
+    expect(provider.label).toBe("Gemini");
+    expect(state.call.mock.calls[0]?.[1]).toEqual({
+      label: "Gemini",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      apiKey: "gemini-test-key",
+      model: "gemini-2.5-flash",
+      apiMode: "chat",
+    });
+    expect(getAIProviderStatus()).toMatchObject({
+      activeProvider: "Gemini",
+      model: "gemini-2.5-flash",
+      geminiConfigured: true,
+      lovableConfigured: false,
+    });
+  });
+
   it("prefers managed Lovable AI and reports its real configuration", async () => {
     vi.stubEnv("LOVABLE_API_KEY", "lovable-test-key");
     configuredProvider();
@@ -93,6 +117,7 @@ describe("DEBS self-hosted adapter", () => {
     expect(getAIProviderStatus()).toEqual({
       activeProvider: "Lovable AI",
       model: "openai/gpt-6-astra",
+      geminiConfigured: false,
       lovableConfigured: true,
       debsConfigured: true,
       fallbackProviders: ["DEBS Server"],
