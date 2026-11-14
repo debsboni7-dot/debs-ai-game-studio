@@ -54,9 +54,10 @@ describe("DEBS credit domain", () => {
     expect(balances).toEqual({ subscription: 100, compensation: 200 });
   });
 
-  it("rejects invalid amounts and unsafe integer balances", () => {
+  it("rejects invalid amounts and unsafe integer totals", () => {
     expect(() => spendCredits({ subscription: 10, compensation: 10 }, 0)).toThrow(RangeError);
     expect(() => spendCredits({ subscription: -1, compensation: 10 }, 1)).toThrow(RangeError);
     expect(() => addSubscriptionGrant({ subscription: Number.MAX_SAFE_INTEGER, compensation: 0 }, 1)).toThrow(RangeError);
+    expect(() => spendCredits({ subscription: Number.MAX_SAFE_INTEGER, compensation: 1 }, 1)).toThrow(RangeError);
   });
 });
