@@ -42,6 +42,9 @@ function assertCreditAmount(value: number, field: string): void {
 function assertBalances(balances: CreditBalances): void {
   assertCreditAmount(balances.subscription, "subscription");
   assertCreditAmount(balances.compensation, "compensation");
+  if (!Number.isSafeInteger(balances.subscription + balances.compensation)) {
+    throw new RangeError("Total credit balance exceeds the safe integer range.");
+  }
 }
 
 /**
@@ -55,12 +58,12 @@ export function addSubscriptionGrant(
   assertBalances(balances);
   assertCreditAmount(monthlyGrant, "monthlyGrant");
 
-  const subscription = balances.subscription + monthlyGrant;
-  if (!Number.isSafeInteger(subscription)) {
-    throw new RangeError("Subscription credit balance exceeds the safe integer range.");
-  }
-
-  return { subscription, compensation: balances.compensation };
+  const next = {
+    subscription: balances.subscription + monthlyGrant,
+    compensation: balances.compensation,
+  };
+  assertBalances(next);
+  return next;
 }
 
 /**
@@ -82,11 +85,14 @@ export function spendCredits(
     throw new InsufficientCreditsError(amount, balances);
   }
 
+  const nextBalances = {
+    subscription: balances.subscription - fromSubscription,
+    compensation: balances.compensation - remaining,
+  };
+  assertBalances(nextBalances);
+
   return {
-    balances: {
-      subscription: balances.subscription - fromSubscription,
-      compensation: balances.compensation - remaining,
-    },
+    balances: nextBalances,
     spent: {
       subscription: fromSubscription,
       compensation: remaining,
