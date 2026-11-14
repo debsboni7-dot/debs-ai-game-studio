@@ -88,12 +88,12 @@ describe("DEBS self-hosted adapter", () => {
       label: "Gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
       apiKey: "gemini-test-key",
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       apiMode: "chat",
     });
     expect(getAIProviderStatus()).toMatchObject({
       activeProvider: "Gemini",
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       geminiConfigured: true,
       lovableConfigured: false,
     });
