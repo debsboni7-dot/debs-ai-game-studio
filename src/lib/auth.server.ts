@@ -31,7 +31,7 @@ export async function verifyVerifiedEmailBearer(
   createAuthClient: AuthClientFactory,
 ): Promise<VerifiedEmailResult> {
   const authorization = request.headers.get("authorization");
-  const token = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? "";
   if (!token || token.split(".").length !== 3) {
     return { ok: false, status: 401, message: "Connexion requise." };
   }
