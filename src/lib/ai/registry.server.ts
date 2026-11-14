@@ -1,4 +1,4 @@
-import type { ChatActivityEvent, ChatTask, CodeModelProvider } from "./types";
+import type { ChatActivityEvent, ChatTask, CodeModelProvider, CodeModelRequest } from "./types";
 import { ACTIVE_MODEL_RELEASE } from "./model-release";
 import { CREATOR_IDENTITY_REPLY } from "../brand";
 import { createResponsesCall } from "./responses.server";
@@ -20,30 +20,26 @@ export function getServerEnv(name: string): string | undefined {
   return processValue || undefined;
 }
 
-const DEBS_MODEL = getServerEnv("DEBS_MODEL") || "qwen2.5:3b";
-const GEMINI_MODEL = getServerEnv("GEMINI_MODEL") || "gemini-2.5-flash";
-function getGeminiConfig() {
-  const apiKey = getServerEnv("GEMINI_API_KEY");
+function getLovableConfig() {
+  const apiKey = getServerEnv("LOVABLE_API_KEY");
   if (!apiKey) return null;
-  return {
-    label: "Gemini",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    apiKey,
-    model: GEMINI_MODEL,
-    apiMode: "chat" as const,
-    searchBaseURL: getServerEnv("DEBS_INFERENCE_BASE_URL")?.replace(/\/+$/, ""),
-    searchApiKey: getServerEnv("DEBS_INFERENCE_API_KEY"),
-  };
+  return { label: "Lovable AI", baseURL: "https://ai.gateway.lovable.dev/v1", apiKey, model: "openai/gpt-6-astra", apiMode: "responses" as const };
 }
 function getDebsInferenceConfig() {
   const baseURL = getServerEnv("DEBS_INFERENCE_BASE_URL");
   const apiKey = getServerEnv("DEBS_INFERENCE_API_KEY");
   if (!baseURL || !apiKey) return null;
-  return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: DEBS_MODEL, apiMode: "chat" as const, searchBaseURL: baseURL.replace(/\/+$/, ""), searchApiKey: apiKey };
+  return { label: "DEBS Server", baseURL: baseURL.replace(/\/+$/, ""), apiKey, model: getServerEnv("DEBS_MODEL") || "qwen2.5:3b", apiMode: "chat" as const, searchBaseURL: baseURL.replace(/\/+$/, ""), searchApiKey: apiKey };
 }
 function getActiveProvider() {
-  // Prefer the explicitly configured Gemini API key; retain the self-hosted provider as a fallback.
-  return getGeminiConfig() ?? getDebsInferenceConfig();
+  // Configuration fallback only; never retry a denied/failed Gateway call on another provider.
+  return getLovableConfig() ?? getDebsInferenceConfig();
+}
+export function getAIProviderStatus() {
+  const config = getActiveProvider();
+  const lovableConfigured = Boolean(getLovableConfig());
+  const debsConfigured = Boolean(getDebsInferenceConfig());
+  return { activeProvider: config?.label ?? "none", model: config?.model ?? null, lovableConfigured, debsConfigured, fallbackProviders: lovableConfigured && debsConfigured ? ["DEBS Server"] : [] };
 }
 
 /** Enable asset tools only when the user's latest message explicitly requests asset discovery/download/import. */
@@ -96,10 +92,10 @@ const modeInstructions: Record<ChatTask, string> = {
 };
 
 const debsProvider: CodeModelProvider = {
-  id: "debs-self-hosted", label: "DEBS Server", isConfigured: () => Boolean(getActiveProvider()),
+  id: "debs-ai", get label() { return getActiveProvider()?.label ?? "Lovable AI"; }, isConfigured: () => Boolean(getActiveProvider()),
   async complete(req, signal) {
     const providerConfig = getActiveProvider();
-    if (!providerConfig) throw new GatewayError("Le serveur DEBS n'est pas configuré. Configure DEBS_INFERENCE_BASE_URL et DEBS_INFERENCE_API_KEY côté serveur.");
+    if (!providerConfig) throw new GatewayError("Lovable AI n'est pas configuré : la clé gérée côté serveur est manquante.");
     const messages = req.messages.map((message) => {
       if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
       if (message.role === "user" && message.attachments?.length) return { role: "user" as const, content: [
@@ -143,7 +139,7 @@ const debsProvider: CodeModelProvider = {
       if (sawWebSearch) activity.unshift({ id: "web-search", connector: "Recherche Web", action: "Recherche de sources", status: "completed", summary: urls.size + " adresse(s) de site distincte(s) observée(s) dans les résultats.", urls: [...urls], durationMs: Date.now() - started });
       const response = await result.response;
       return { text, model: response.modelId, activity };
-    } catch (error) { throw safeGatewayError(error); }
+    } catch (error) { throw safeGatewayError(error, providerConfig.apiKey); }
   },
 };
 const adapters: CodeModelProvider[] = [debsProvider];
@@ -153,7 +149,7 @@ export function resolveProvider(): CodeModelProvider | null { return adapters.fi
 /** Raw NDJSON stream used by the chat UI to display text and confirmed tool activity as it happens. */
 export function streamChatResponse(req: CodeModelRequest, request: Request): Response {
   const providerConfig = getActiveProvider();
-  if (!providerConfig) return Response.json({ message: "Le serveur DEBS n'est pas configuré. Configure DEBS_INFERENCE_BASE_URL et DEBS_INFERENCE_API_KEY côté serveur." }, { status: 503 });
+  if (!providerConfig) return Response.json({ message: "Lovable AI n'est pas configuré : la clé gérée côté serveur est manquante." }, { status: 503 });
   const task = req.task ?? "chat";
   const messages = req.messages.map((message) => {
     if (message.role === "system") throw new GatewayError("Les instructions système ne sont pas acceptées dans l'historique.");
@@ -167,7 +163,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
   });
   const { result } = createResponsesCall(request, providerConfig, messages,
     `You are ${ACTIVE_MODEL_RELEASE.version}, the active DEBS model release and assistant engine of DEBS AI Studio. Identify yourself using the active release version when asked. You are running through ${providerConfig.label} using model ${providerConfig.model}. DEBS 1.1 is a product release, not an independently trained foundation model; never claim otherwise. If asked who created or developed you, answer exactly in substance: ${CREATOR_IDENTITY_REPLY} Do not invent additional founders, studios, or ownership claims. Answer in the user's language. Be precise and honest. For code tasks, provide implementation-ready code, explain integration points, and include tests. Never claim to have executed code, edited files, browsed websites, downloaded assets or connected tools unless the runtime confirms it. When the user asks you to create or provide a downloadable file, use create_chat_file and return its confirmed download_url as a Markdown link. When the user asks to download a public individual file into the conversation, use download_chat_file and return its confirmed download_url; do not require GitHub. Use import_game_assets only when the user explicitly asks to integrate assets into a GitHub project. A successful tool result is required before claiming a file is ready. ${modeInstructions[task]}`,
-    (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages) || requestsChatFileAction(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)), (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
+    (["search", "game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages) || requestsChatFileAction(req.messages)), ["code", "game-dev", "unity", "unreal", "godot", "blender", "threejs", "architect", "debug", "review", "test", "refactor", "performance"].includes(task) ? "high" : "medium", (["game-dev", "unity", "unreal", "godot", "blender", "threejs"].includes(task) || requestsAssetImport(req.messages)));
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -216,7 +212,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
         send({ type: "activity", event: completedModel });
         send({ type: "done", model, provider: providerConfig.label });
       } catch (error) {
-        const safe = safeGatewayError(error);
+        const safe = safeGatewayError(error, providerConfig.apiKey);
         const failed: ChatActivityEvent = { ...modelEvent, status: "failed", summary: "La génération a échoué : " + safe.message, durationMs: Date.now() - started };
         send({ type: "activity", event: failed });
         send({ type: "error", message: safe.message });
