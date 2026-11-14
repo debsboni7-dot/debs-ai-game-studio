@@ -25,7 +25,7 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 - **Moteur IA** : le routeur serveur utilise exclusivement DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Aucun fournisseur IA tiers n'est utilisé comme solution de secours. Tant que le serveur DEBS n'est pas hébergé et vérifié, la génération reste indisponible.
 - **Modes spécialisés** : discussion, code, développement de jeux, conception, débogage, revue, architecture, tests, sécurité, performance, API, DevOps et spécialités Unity, Unreal, Godot, Blender et Three.js.
 - **Recherche Web** : mode /search est présent, mais la recherche Web en direct n'est pas encore intégrée au moteur auto-hébergé ; DEBS ne doit pas inventer de sources.
-- **Comptes et historique cloud** : authentification Supabase par e-mail et mot de passe ; les conversations peuvent être synchronisées avec les tables conversations et chat_messages si les migrations correspondantes sont appliquées et que Supabase est correctement configuré. Sans compte, l’historique reste local à l’appareil.
+- **Comptes et historique cloud** : création de compte et connexion sans mot de passe par code OTP à six chiffres envoyé par e-mail. La vérification est obligatoire pour tous les forfaits, y compris Découverte. Le serveur vérifie indépendamment le jeton Supabase et la confirmation de l'adresse e-mail. Le cache local est isolé par identifiant de compte ; les conversations cloud nécessitent les migrations et le projet Supabase de déploiement correctement configurés.
 - **GitHub en lecture** : connexion par jeton personnel saisi dans l’écran Intégrations, vérification du compte, sélection du dépôt et import limité de fichiers en contexte de conversation. Le jeton de cette connexion reste en mémoire React et disparaît au rechargement.
 - **Agent GitHub serveur** : une Edge Function distincte peut inspecter un dépôt autorisé et le moteur de missions contient un flux de propositions sur branche et PR brouillon. Il nécessite les secrets Supabase documentés et son déploiement ; ne pas confondre cette capacité avec l’import GitHub en lecture.
 - **Génération 3D** : adaptateurs Meshy, Tripo et Rodin présents dans le code ; chaque fournisseur exige ses propres secrets serveur et une vérification réelle avant usage.
@@ -46,6 +46,14 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 | Exécution arbitraire de code | Non fournie ; aucun faux résultat d’exécution |
 
 Les connecteurs affichés dans l’écran Intégrations ne signifient pas automatiquement qu’un compte externe est connecté ou qu’un runner est installé.
+
+## Comptes, crédits et paiements
+- La connexion est obligatoire pour utiliser le chat, même avec le forfait gratuit. Le code de vérification e-mail est envoyé par Supabase Auth et sa validité est contrôlée par Supabase.
+- Le portefeuille persistant et les opérations transactionnelles ont été appliqués et testés uniquement dans le projet Supabase de développement isolé `debs-ai-billing-dev`.
+- Les crédits de compensation sont distincts des crédits d'abonnement. Aucun achat autonome de packs de crédits n'est proposé.
+- Le débit des crédits n'est pas encore relié au flux IA. Les tarifs de modèles doivent être configurés et validés avant toute facturation réelle.
+- Le paiement et le renouvellement des abonnements ne sont pas activés. Le schéma de production n'a pas été modifié.
+- La configuration du modèle d'e-mail OTP, du SMTP et des URL autorisées doit être vérifiée dans le projet Supabase qui servira réellement l'application.
 
 ## Sécurité et limites
 - Les secrets fournisseurs doivent rester côté serveur, jamais dans le chat ou le bundle navigateur.
