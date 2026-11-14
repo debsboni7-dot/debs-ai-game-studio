@@ -50,8 +50,24 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Nitro's Cloudflare Worker entrypoint receives secrets as the second fetch argument.
+      // TanStack's request context does not automatically expose that argument, so attach it
+      // before dispatching the request for getRequest() consumers such as getServerEnv().
+      const requestWithRuntime = request as Request & {
+        runtime?: { cloudflare?: { env?: Record<string, string | undefined> } };
+      };
+      Object.defineProperty(requestWithRuntime, "runtime", {
+        configurable: true,
+        value: {
+          ...requestWithRuntime.runtime,
+          cloudflare: {
+            ...requestWithRuntime.runtime?.cloudflare,
+            env: env as Record<string, string | undefined>,
+          },
+        },
+      });
       const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
+      const response = await handler.fetch(requestWithRuntime, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
