@@ -8,8 +8,9 @@ import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { GameArtifact } from "@/components/debs/game-artifact";
 import { AssetImportDialog } from "@/components/debs/asset-import-dialog";
-import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
-import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
+import { uid } from "@/lib/storage";
+import { titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
+import { useAccountThreads } from "@/lib/chat/account-threads";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
 import { takePendingAttachments } from "@/lib/chat/pending-attachments";
@@ -86,7 +87,7 @@ export const Route = createFileRoute("/chat/$threadId")({
 function ThreadPage() {
   const { threadId } = Route.useParams();
   const { draft } = Route.useSearch();
-  const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const [threads, setThreads, ready] = useAccountThreads();
   const [input, setInput] = useState("");
   useEffect(() => { if (draft) setInput(draft); }, [draft]);
   const [attachments, setAttachments] = useState<File[]>(() => takePendingAttachments());
