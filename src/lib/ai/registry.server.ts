@@ -22,6 +22,17 @@ export function getServerEnv(name: string): string | undefined {
   return processValue || undefined;
 }
 
+function getGeminiConfig() {
+  const apiKey = getServerEnv("GEMINI_API_KEY");
+  if (!apiKey) return null;
+  return {
+    label: "Gemini",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    apiKey,
+    model: getServerEnv("GEMINI_MODEL") || "gemini-2.5-flash",
+    apiMode: "chat" as const,
+  };
+}
 function getLovableConfig() {
   const apiKey = getServerEnv("LOVABLE_API_KEY");
   if (!apiKey) return null;
@@ -48,19 +59,25 @@ function getDebsInferenceConfig() {
   };
 }
 function getActiveProvider() {
-  // Configuration fallback only; never retry a denied/failed Gateway call on another provider.
-  return getLovableConfig() ?? getDebsInferenceConfig();
+  // Prefer the user's Gemini key; use managed Lovable AI only when Gemini is unavailable.
+  return getGeminiConfig() ?? getLovableConfig() ?? getDebsInferenceConfig();
 }
 export function getAIProviderStatus() {
   const config = getActiveProvider();
+  const geminiConfigured = Boolean(getGeminiConfig());
   const lovableConfigured = Boolean(getLovableConfig());
   const debsConfigured = Boolean(getDebsInferenceConfig());
+  const fallbacks = [
+    ...(lovableConfigured ? ["Lovable AI"] : []),
+    ...(debsConfigured ? ["DEBS Server"] : []),
+  ];
   return {
     activeProvider: config?.label ?? "none",
     model: config?.model ?? null,
+    geminiConfigured,
     lovableConfigured,
     debsConfigured,
-    fallbackProviders: lovableConfigured && debsConfigured ? ["DEBS Server"] : [],
+    fallbackProviders: fallbacks,
   };
 }
 
