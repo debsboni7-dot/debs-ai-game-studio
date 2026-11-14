@@ -93,7 +93,11 @@ export function resolveModelRateCard(
   if (matches.length > 1) {
     throw new Error(`Ambiguous DEBS rate cards for ${provider}/${model} at the requested time.`);
   }
-  return matches[0];
+  const selected = matches[0];
+  if (!selected) {
+    throw new Error("No active DEBS rate card was selected.");
+  }
+  return selected;
 }
 
 /**
