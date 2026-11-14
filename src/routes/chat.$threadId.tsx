@@ -124,19 +124,22 @@ function ThreadPage() {
 
     let cloudUserId: string | null = null;
     let accessToken: string | null = null;
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    accessToken = sessionData.session?.access_token ?? null;
+    if (sessionError || !accessToken || !sessionData.session?.user.email_confirmed_at) {
+      push({ id: uid(), kind: "notice", content: "Ta session a expiré ou ton adresse e-mail n'est pas vérifiée. Reconnecte-toi pour continuer.", createdAt: Date.now() });
+      return;
+    }
+
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(threadId)) {
       try {
-        const { data: auth } = await supabase.auth.getUser();
-        if (auth.user) {
-          cloudUserId = auth.user.id;
-          const { data: sessionData } = await supabase.auth.getSession();
-          accessToken = sessionData.session?.access_token ?? null;
-          const { error } = await supabase.from("chat_messages").insert({
-            conversation_id: threadId, user_id: auth.user.id, role: "user", content: parsed.prompt,
-          });
-          if (error) throw error;
-          await supabase.from("conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", threadId);
-        }
+        const authUser = sessionData.session.user;
+        cloudUserId = authUser.id;
+        const { error } = await supabase.from("chat_messages").insert({
+          conversation_id: threadId, user_id: authUser.id, role: "user", content: parsed.prompt,
+        });
+        if (error) throw error;
+        await supabase.from("conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", threadId);
       } catch {
         push({ id: uid(), kind: "notice", content: "La sauvegarde cloud du message a échoué. Le message reste conservé sur cet appareil.", createdAt: Date.now() });
       }
