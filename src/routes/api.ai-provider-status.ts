@@ -5,10 +5,9 @@ export const Route = createFileRoute("/api/ai-provider-status")({
   server: {
     handlers: {
       GET: async () => {
-        return Response.json(
-          getAIProviderStatus(),
-          { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } },
-        );
+        return Response.json(getAIProviderStatus(), {
+          headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+        });
       },
     },
   },
