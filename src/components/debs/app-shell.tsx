@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { Logo } from "./ui";
 import { uid } from "@/lib/storage";
-import type { Thread } from "@/lib/chat/threads";
 import { useAccountThreads } from "@/lib/chat/account-threads";
 import { supabase } from "@/integrations/supabase/client";
 import { IntegrationProvider } from "@/lib/integrations/context";
@@ -44,13 +43,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
           .order("updated_at", { ascending: false });
         if (active && !error && cloudRows?.length) {
-          setThreads(cloudRows.map((row) => ({
+          const cloudThreads = cloudRows.map((row) => ({
             id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
             messages: (row.chat_messages ?? []).map((message) => ({
               id: message.id, kind: message.role, content: message.content,
               createdAt: new Date(message.created_at).getTime(),
             })),
-          })));
+          }));
+          const cloudIds = new Set(cloudThreads.map((thread) => thread.id));
+          setThreads((current) => [...cloudThreads, ...current.filter((thread) => !cloudIds.has(thread.id))]);
         }
       }
     });
@@ -62,13 +63,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         .order("updated_at", { ascending: false })
         .then(({ data, error }) => {
           if (!active || error || !data?.length) return;
-          setThreads(data.map((row) => ({
+          const cloudThreads = data.map((row) => ({
             id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
             messages: (row.chat_messages ?? []).map((message) => ({
               id: message.id, kind: message.role, content: message.content,
               createdAt: new Date(message.created_at).getTime(),
             })),
-          })));
+          }));
+          const cloudIds = new Set(cloudThreads.map((thread) => thread.id));
+          setThreads((current) => [...cloudThreads, ...current.filter((thread) => !cloudIds.has(thread.id))]);
         });
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
