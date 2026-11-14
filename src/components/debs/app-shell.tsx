@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Clock3, GitBranch, LogIn, LogOut, Menu, MessageSquarePlus, PanelLeftClose,
+  Clock3, Coins, CreditCard, GitBranch, LogIn, LogOut, Menu, MessageSquarePlus, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, X,
 } from "lucide-react";
 import { Logo } from "./ui";
@@ -162,6 +162,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className={`mb-1 flex flex-col gap-1 ${collapsed && !isMobile ? "items-center" : ""}`}>
           <Link to="/integrations" onClick={() => setMobileOpen(false)} title="Outils et intégrations" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
             <GitBranch className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Outils et intégrations"}
+          </Link>
+          <Link to="/abonnement" onClick={() => setMobileOpen(false)} title="Abonnements" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
+            <Sparkles className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Abonnements"}
+          </Link>
+          <Link to="/credits" onClick={() => setMobileOpen(false)} title="Crédits" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
+            <Coins className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Crédits"}
+          </Link>
+          <Link to="/facturation" onClick={() => setMobileOpen(false)} title="Facturation" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
+            <CreditCard className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Facturation"}
           </Link>
           <Link to="/missions" onClick={() => setMobileOpen(false)} title="Missions autonomes" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
             <Clock3 className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Missions autonomes"}
