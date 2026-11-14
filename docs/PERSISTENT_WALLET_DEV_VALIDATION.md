@@ -19,35 +19,55 @@ Wallet migrations applied:
 - `20261114201000_debs_wallet_privilege_hardening.sql`
 - `20261114201500_debs_wallet_policy_and_indexes.sql`
 - `20261114202000_debs_wallet_provenance_guards.sql`
+- `20261114203000_debs_transactional_credit_operations.sql`
+- `20261114203100_debs_reservation_lot_security.sql`
+- `20261114203200_debs_reservation_lot_deny_client.sql`
 
-## Schema verification
+## Schema and privilege verification
 
-Created six wallet tables:
+Created:
 - `debs_wallets`
 - `debs_credit_lots`
 - `debs_credit_ledger`
 - `debs_credit_reservations`
+- `debs_credit_reservation_lots`
 - `debs_ai_usage_records`
 - `debs_payment_events`
 
 Verified:
-- RLS is enabled on all six tables.
-- Authenticated role has SELECT only on wallet-owned tables, with owner-scoped SELECT policies.
-- Authenticated and anon roles have no direct INSERT, UPDATE, DELETE, or TRUNCATE privileges on wallet tables.
-- Payment events have an explicit deny policy for anon and authenticated roles, and no client table privileges.
-- Service role can append ledger rows but cannot UPDATE, DELETE, or TRUNCATE the ledger.
-- An append-only trigger rejects ledger UPDATE and DELETE.
-- Service role cannot DELETE or TRUNCATE wallets, lots, reservations, or payment events.
-- Usage records cannot be updated, deleted, or truncated by service role.
+- RLS is enabled on all wallet tables.
+- Authenticated role has SELECT only on owner-scoped wallet views.
+- Browser roles have no direct write privileges on financial tables.
+- Payment events and reservation allocations have explicit deny policies for anon/authenticated and no client table privileges.
+- RPC execution is available to `service_role`, not authenticated users.
+- Ledger UPDATE/DELETE/TRUNCATE is blocked by privileges; an append-only trigger also rejects UPDATE/DELETE.
+- Service role cannot DELETE/TRUNCATE wallets, lots, reservations, payment events, reservation allocations, or usage records.
+- Usage records cannot be updated or deleted by service role.
+- Wallet owner/identity and credit-lot provenance are guarded by triggers.
 - Wallet foreign keys for ledger lots and reservation usage records have supporting indexes.
-- Triggers prevent wallet owner/identity changes and credit-lot provenance changes; a lot's remaining amount cannot increase.
+
+## Transactional test run
+
+A test script ran within a transaction and ended with ROLLBACK. Assertions passed for:
+- subscription and purchased credit grants;
+- idempotent subscription grant retry;
+- subscription-first reservation allocation;
+- settlement of actual usage and release of unused credits;
+- release of a pending reservation without changing balances;
+- idempotent settlement and release;
+- rejection of insufficient balances;
+- rejection of idempotency-key reuse with changed parameters;
+- rejection of ledger and credit-lot provenance mutation;
+- rejection of service-only grant RPC invocation by the authenticated role.
+
+A follow-up count query confirmed zero test rows remain in wallets, lots, ledger, reservations, reservation allocations, and usage records.
 
 ## Advisor results
 
-The Supabase security advisor no longer reports wallet-specific findings. Two remaining search-path warnings are on pre-existing baseline functions `touch_agent_work_session` and `debs_validate_memory_source_owner`. Remaining performance findings concern pre-existing tables/policies and unused indexes in this newly provisioned database.
+No wallet-specific security findings remain. Two search-path warnings concern pre-existing baseline functions `touch_agent_work_session` and `debs_validate_memory_source_owner`. Remaining performance findings concern pre-existing tables/policies and unused indexes in this newly provisioned database.
 
 ## Important limitation
 
-This validates schema installation, migration metadata, RLS configuration, table privileges, selected indexes, and trigger presence. It does **not** yet validate concurrent wallet transactions, RPC authorization, actual owner-to-owner isolation with authenticated JWTs, webhook verification, or credit accounting. Those tests require the transactional RPC phase and a dedicated integration test harness.
+The test run used a single database session. It does **not** prove concurrent-session race safety or complete authenticated-JWT owner isolation. Those tests remain required, along with webhook signature verification, payment reconciliation, and end-to-end app integration.
 
 No production schema or payment configuration was changed. Checkout remains disabled.
