@@ -236,19 +236,25 @@ export function createResponsesCall(
     toolChoice: "auto" as const,
     abortSignal: request.signal,
     maxRetries: 0,
-    providerOptions: {
-      openai: {
-        store: false,
-        ...(reasoning
-          ? {
-              forceReasoning: true,
-              reasoningEffort,
-              reasoningSummary: "auto",
-              include: ["reasoning.encrypted_content"],
-            }
-          : {}),
-      },
-    },
+    // Google’s OpenAI-compatible endpoint does not implement OpenAI Responses-only
+    // request options such as `store`. Keep those options on the Lovable Responses path only.
+    ...(config.apiMode === "chat"
+      ? {}
+      : {
+          providerOptions: {
+            openai: {
+              store: false,
+              ...(reasoning
+                ? {
+                    forceReasoning: true,
+                    reasoningEffort,
+                    reasoningSummary: "auto",
+                    include: ["reasoning.encrypted_content"],
+                  }
+                : {}),
+            },
+          },
+        }),
   });
   return {
     result,
