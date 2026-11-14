@@ -32,8 +32,8 @@ export const Route = createFileRoute("/api/chat-stream")({
             task: data.task,
           }, request);
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Requête invalide.";
-          return Response.json({ message }, { status: 400 });
+          const message = error instanceof Error ? error.message : "Erreur interne du serveur.";
+          return Response.json({ message }, { status: 500 });
         }
       },
     },
