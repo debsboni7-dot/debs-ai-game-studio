@@ -77,72 +77,35 @@ describe("DEBS self-hosted adapter", () => {
     expect(state.call).toHaveBeenCalledTimes(1);
   });
 
-  it("prefers Gemini when the user Gemini API key is configured", async () => {
+  it("never selects Gemini or Lovable even when their keys are configured", async () => {
     vi.stubEnv("GEMINI_API_KEY", "gemini-test-key");
-    const provider = resolveProvider();
-    if (!provider) throw new Error("Expected configured provider");
-    state.call.mockReturnValue(result("Hello from Gemini"));
-    await provider.complete(input);
-    expect(provider.label).toBe("Gemini");
-    expect(state.call.mock.calls[0]?.[1]).toEqual({
-      label: "Gemini",
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      apiKey: "gemini-test-key",
-      model: "gemini-3.8-flash",
-      apiMode: "chat",
-    });
-    expect(getAIProviderStatus()).toMatchObject({
-      activeProvider: "Gemini",
-      model: "gemini-3.8-flash",
-      geminiConfigured: true,
-      lovableConfigured: false,
-    });
-  });
-
-  it("prefers managed Lovable AI and reports its real configuration", async () => {
-    vi.stubEnv("LOVABLE_API_KEY", "lovable-test-key");
-    configuredProvider();
-    const provider = resolveProvider();
-    if (!provider) throw new Error("Expected configured provider");
-    state.call.mockReturnValue(result("Hello"));
-    await provider.complete(input);
-    expect(provider.label).toBe("Lovable AI");
-    expect(state.call.mock.calls[0]?.[1]).toEqual({
-      label: "Lovable AI",
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      apiKey: "lovable-test-key",
-      model: "openai/gpt-6-astra",
-      apiMode: "responses",
-    });
-    expect(getAIProviderStatus()).toEqual({
-      activeProvider: "Lovable AI",
-      model: "openai/gpt-6-astra",
-      geminiConfigured: false,
-      lovableConfigured: true,
-      debsConfigured: true,
-      fallbackProviders: ["Lovable AI", "DEBS Server"],
-    });
-  });
-  it("does not fall back after a managed Gateway denial and redacts its credential", async () => {
     vi.stubEnv("LOVABLE_API_KEY", "lovable-test-key");
     const provider = configuredProvider();
-    const error = new APICallError({
-      message: "SDK diagnostics",
-      url: "https://ai.gateway.lovable.dev/v1/responses",
-      requestBodyValues: {},
-      statusCode: 403,
-      responseBody: JSON.stringify({ message: "Denied lovable-test-key" }),
-      isRetryable: false,
+    state.call.mockReturnValue(result("Hello from DEBS"));
+    await provider.complete(input);
+    expect(provider.label).toBe("DEBS Self-hosted");
+    expect(state.call.mock.calls[0]?.[1]).toMatchObject({
+      label: "DEBS Self-hosted",
+      baseURL: "http://debs-server:8080/v1",
+      apiKey: "test-only-key",
+      model: "qwen2.5:3b",
+      apiMode: "chat",
     });
-    state.call.mockReturnValue(result("", error));
-    await expect(provider.complete(input)).rejects.toMatchObject({
-      status: 403,
-      message: "Denied [secret masqué]",
+    expect(JSON.stringify(state.call.mock.calls[0]?.[1])).not.toContain("generativelanguage.googleapis.com");
+    expect(JSON.stringify(state.call.mock.calls[0]?.[1])).not.toContain("ai.gateway.lovable.dev");
+    expect(getAIProviderStatus()).toEqual({
+      activeProvider: "DEBS Self-hosted",
+      model: "qwen2.5:3b",
+      geminiConfigured: false,
+      lovableConfigured: false,
+      debsConfigured: true,
+      fallbackProviders: [],
+      independentMode: true,
     });
     expect(state.call).toHaveBeenCalledTimes(1);
   });
   it("retains the existing self-hosted configuration fallback", () => {
-    expect(configuredProvider().label).toBe("DEBS Server");
+    expect(configuredProvider().label).toBe("DEBS Self-hosted");
   });
   it("keeps creator identity consistent in normal and streamed prompts", () => {
     configuredProvider();
@@ -202,7 +165,7 @@ describe("DEBS self-hosted adapter", () => {
     const response = streamChatResponse(input as never, new Request("https://debs.internal/chat"));
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({
-      message: "Lovable AI n'est pas configuré : la clé gérée côté serveur est manquante.",
+      message: "Le moteur DEBS auto-hébergé n'est pas configuré. Aucun fournisseur externe ne sera appelé.",
     });
     expect(state.call).not.toHaveBeenCalled();
   });
@@ -245,7 +208,7 @@ describe("DEBS self-hosted adapter", () => {
     expect(events.at(-1)).toEqual({
       type: "done",
       model: "qwen2.5:3b",
-      provider: "DEBS Server",
+      provider: "DEBS Self-hosted",
     });
   });
 
