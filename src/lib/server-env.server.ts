@@ -15,6 +15,6 @@ export function getServerEnv(name: string): string | undefined {
   } catch {
     // No active request context in local tests or non-request code.
   }
-  const processValue = process.env[name]?.trim();
+  const processValue = typeof process !== "undefined" ? process.env[name]?.trim() : undefined;
   return processValue || undefined;
 }
