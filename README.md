@@ -1,6 +1,6 @@
-# DEBS AI
+# DEBS AI Studio
 
-DEBS AI est un assistant IA mobile-first, en français, développé par **DEBS AI Studio** et créé par **Debs Boni**. Son premier modèle produit est **DEBS 1.1**.
+**DEBS AI Studio** développe **DEBS AI**, son assistant IA mobile-first en français et créé par **Debs Boni**. Son premier modèle produit est **DEBS 1.1**.
 
 L’application est conçue pour être utilisée depuis un navigateur Android : interface de conversation, historique, pièces jointes et outils de développement. Le numéro de version représente une version produit et ses capacités vérifiables ; DEBS 1.1 n’est pas un modèle de fondation entraîné indépendamment. Le dépôt commence maintenant la construction d’une pile d’inférence auto-hébergée DEBS, distincte des API de fournisseurs externes.
 
@@ -12,7 +12,7 @@ Le dossier `inference/` contient le premier serveur d'inférence auto-hébergé 
 - Le modèle bootstrap par défaut est `qwen2.5:3b`, téléchargé sur le volume du serveur.
 - Le routeur de chat de l'application utilise exclusivement ce serveur lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Sans ces variables, le chat renvoie une erreur explicite : aucun recours automatique à Gemini, ChatGPT, Claude ou Lovable.
 
-Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS. Il établit l'infrastructure d'exécution auto-hébergée nécessaire avant les étapes de données, entraînement/ajustement, évaluation et versions propres du modèle. Voir [inference/README.md](inference/README.md). Aucun serveur GPU n'est provisionné par le dépôt ; le déploiement réel exige une machine/VM avec RAM, stockage et idéalement GPU. La clé d'inférence reste exclusivement côté serveur.
+Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS. Il établit l'infrastructure d'exécution auto-hébergée nécessaire avant les étapes de données, entraînement/ajustement, évaluation et versions propres du modèle. Voir [inference/README.md](inference/README.md). Le guide de déploiement Oracle Cloud + DuckDNS + Caddy est disponible dans [docs/oracle-cloud-deployment.md](docs/oracle-cloud-deployment.md). Aucun GPU n'est provisionné ; la clé d'inférence reste exclusivement côté serveur.
 
 ## Interface
 - Interface claire sur fond blanc, avec contours lumineux rouges, adaptée aux petits écrans.

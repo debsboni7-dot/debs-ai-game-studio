@@ -47,10 +47,16 @@ jobs:
         env:
           DEBS_INFERENCE_API_KEY: ci-only-secret-that-is-long-enough-32
           SEARXNG_SECRET: ci-only-searxng-secret-that-is-long-enough
+          DEBS_DOMAIN: debs-ci.duckdns.org
+          DUCKDNS_SUBDOMAIN: debs-ci
+          DUCKDNS_TOKEN: ci-only-duckdns-token
         run: docker compose config --quiet
 
       - name: Build DEBS inference gateway image
         run: docker build --tag debs-inference:ci inference/gateway
+
+      - name: Validate DEBS deployment script syntax
+        run: bash -n scripts/oracle-bootstrap.sh
 
       - name: Validate DEBS inference and coding benchmark scripts
         run: python -m py_compile inference/app_smoke_test.py training/run_coding_eval.py
