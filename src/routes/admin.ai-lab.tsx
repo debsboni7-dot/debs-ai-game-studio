@@ -16,7 +16,7 @@ const statusLabel: Record<string,string> = {
   draft:"Brouillon", review:"À vérifier", approved:"Approuvé", queued:"En attente GPU",
   preparing:"Préparation", training:"Entraînement", evaluating:"Évaluation",
   awaiting_approval:"Validation requise", active:"Actif", archived:"Archivé",
-  rejected:"Refusé", failed:"Échec", cancelled:"Annulé",
+  rejected:"Refusé", approved:"Approuvé, non déployé", failed:"Échec", cancelled:"Annulé",
 };
 
 function AILabPage() {
@@ -126,10 +126,10 @@ function AILabPage() {
             <h2 className="font-semibold text-slate-900">État du modèle</h2>
             <div className="mt-4 rounded-xl bg-slate-50 p-4">
               <div className="text-xs text-slate-500">Version active</div>
-              <div className="mt-1 text-xl font-bold">{activeRelease?.version ?? "Aucune version DEBS publiée"}</div>
+              <div className="mt-1 text-xl font-bold">{activeRelease?.version ?? "Aucune version DEBS active"}</div>
               <div className="mt-2 text-xs text-slate-500">{activeRelease?.base_model ?? "Le runtime utilise encore son modèle bootstrap."}</div>
             </div>
-            <p className="mt-3 text-xs leading-5 text-slate-500">Une version candidate ne devient active qu'après évaluation et approbation humaine. Le modèle actif précédent est conservé dans le registre.</p>
+            <p className="mt-3 text-xs leading-5 text-slate-500">Une version candidate ne devient active qu'après évaluation et approbation humaine. Une version approuvée n'est pas encore déployée sur le serveur d'inférence. Le déploiement sera une étape séparée.</p>
           </section>
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 className="font-semibold text-slate-900">Derniers travaux</h2>
@@ -185,7 +185,7 @@ function AILabPage() {
 
         {tab === "models" && <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="font-semibold">Registre des modèles</h2>
-          <div className="mt-3 space-y-3">{data.releases.map((release)=><div key={release.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold">{release.version}</div><div className="text-xs text-slate-500">{release.base_model} · {statusLabel[release.status]??release.status}</div></div>{release.status==="awaiting_approval"&&<div className="flex gap-2"><button disabled={!!busy} onClick={()=>void run("approve-"+release.id,"approve_release",{release_id:release.id})} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white">Activer</button><button disabled={!!busy} onClick={()=>void run("reject-"+release.id,"reject_release",{release_id:release.id})} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Refuser</button></div>}</div><pre className="mt-2 overflow-x-auto rounded-lg bg-slate-50 p-2 text-[10px] text-slate-600">{JSON.stringify(release.metrics??{},null,2)}</pre></div>)}{!data.releases.length&&<p className="text-sm text-slate-500">Aucune version entraînée n'a encore été publiée.</p>}</div>
+          <div className="mt-3 space-y-3">{data.releases.map((release)=><div key={release.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold">{release.version}</div><div className="text-xs text-slate-500">{release.base_model} · {statusLabel[release.status]??release.status}</div></div>{release.status==="awaiting_approval"&&<div className="flex gap-2"><button disabled={!!busy} onClick={()=>void run("approve-"+release.id,"approve_release",{release_id:release.id})} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white">Approuver</button><button disabled={!!busy} onClick={()=>void run("reject-"+release.id,"reject_release",{release_id:release.id})} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Refuser</button></div>}</div><pre className="mt-2 overflow-x-auto rounded-lg bg-slate-50 p-2 text-[10px] text-slate-600">{JSON.stringify(release.metrics??{},null,2)}</pre></div>)}{!data.releases.length&&<p className="text-sm text-slate-500">Aucune version entraînée n'a encore été publiée.</p>}</div>
         </section>}
 
         {tab === "memory" && <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
