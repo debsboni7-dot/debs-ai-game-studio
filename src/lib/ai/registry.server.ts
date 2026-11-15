@@ -8,34 +8,12 @@ import { getServerEnv } from "../server-env.server";
 export { getServerEnv } from "../server-env.server";
 
 
-function getGeminiConfig() {
-  const apiKey = getServerEnv("GEMINI_API_KEY");
-  if (!apiKey) return null;
-  return {
-    label: "Gemini",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    apiKey,
-    model: "gemini-3.8-flash",
-    apiMode: "chat" as const,
-  };
-}
-function getLovableConfig() {
-  const apiKey = getServerEnv("LOVABLE_API_KEY");
-  if (!apiKey) return null;
-  return {
-    label: "Lovable AI",
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey,
-    model: "openai/gpt-6-astra",
-    apiMode: "responses" as const,
-  };
-}
 function getDebsInferenceConfig() {
   const baseURL = getServerEnv("DEBS_INFERENCE_BASE_URL");
   const apiKey = getServerEnv("DEBS_INFERENCE_API_KEY");
   if (!baseURL || !apiKey) return null;
   return {
-    label: "DEBS Server",
+    label: "DEBS Self-hosted",
     baseURL: baseURL.replace(/\/+$/, ""),
     apiKey,
     model: getServerEnv("DEBS_MODEL") || "qwen2.5:3b",
@@ -44,26 +22,26 @@ function getDebsInferenceConfig() {
     searchApiKey: apiKey,
   };
 }
+
+/**
+ * DEBS is intentionally the only chat-model provider.
+ * Missing configuration is an unavailable service, never a reason to call
+ * Gemini, Claude, OpenAI, Lovable AI, or another hosted model.
+ */
 function getActiveProvider() {
-  // Prefer the user's Gemini key; use managed Lovable AI only when Gemini is unavailable.
-  return getGeminiConfig() ?? getLovableConfig() ?? getDebsInferenceConfig();
+  return getDebsInferenceConfig();
 }
+
 export function getAIProviderStatus() {
   const config = getActiveProvider();
-  const geminiConfigured = Boolean(getGeminiConfig());
-  const lovableConfigured = Boolean(getLovableConfig());
-  const debsConfigured = Boolean(getDebsInferenceConfig());
-  const fallbacks = [
-    ...(lovableConfigured ? ["Lovable AI"] : []),
-    ...(debsConfigured ? ["DEBS Server"] : []),
-  ];
   return {
     activeProvider: config?.label ?? "none",
     model: config?.model ?? null,
-    geminiConfigured,
-    lovableConfigured,
-    debsConfigured,
-    fallbackProviders: fallbacks,
+    geminiConfigured: false,
+    lovableConfigured: false,
+    debsConfigured: Boolean(config),
+    fallbackProviders: [],
+    independentMode: true,
   };
 }
 
@@ -160,14 +138,14 @@ const modeInstructions: Record<ChatTask, string> = {
 const debsProvider: CodeModelProvider = {
   id: "debs-ai",
   get label() {
-    return getActiveProvider()?.label ?? "Lovable AI";
+    return getActiveProvider()?.label ?? "DEBS Self-hosted";
   },
   isConfigured: () => Boolean(getActiveProvider()),
   async complete(req, signal) {
     const providerConfig = getActiveProvider();
     if (!providerConfig)
       throw new GatewayError(
-        "Lovable AI n'est pas configuré : la clé gérée côté serveur est manquante.",
+        "Le moteur DEBS auto-hébergé n'est pas configuré. Aucun fournisseur externe ne sera appelé.",
       );
     const messages = req.messages.map((message) => {
       if (message.role === "system")
