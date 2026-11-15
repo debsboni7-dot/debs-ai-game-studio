@@ -81,7 +81,6 @@ def process_job(job: dict):
             config_path = workspace / "config.json"
             config_path.write_text(json.dumps(job.get("config") or {}), encoding="utf-8")
             output_dir = workspace / "output"
-            update_job(job_id, {"status": "evaluating", "heartbeat_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()})
             subprocess.run([
                 sys.executable, str(ROOT / "train.py"),
                 "--dataset-dir", str(dataset_dir),
@@ -90,6 +89,7 @@ def process_job(job: dict):
                 "--method", job.get("training_method", "qlora"),
                 "--config", str(config_path),
             ], check=True, timeout=int(os.getenv("DEBS_TRAINING_TIMEOUT_SECONDS", "21600")))
+            update_job(job_id, {"status": "evaluating", "heartbeat_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()})
             metrics = json.loads((output_dir / "metrics.json").read_text(encoding="utf-8"))
             dataset_manifest = json.loads((dataset_dir / "dataset-manifest.json").read_text(encoding="utf-8"))
             release_version = "debs-" + datetime.now(timezone.utc).strftime("%Y.%m.%d") + "-" + job_id.replace("-", "")[:8]
