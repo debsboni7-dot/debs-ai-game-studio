@@ -36,6 +36,7 @@ function AILabPage() {
   const [knowledgeConsent, setKnowledgeConsent] = useState("");
   const [sourceReference, setSourceReference] = useState("");
   const [modelLicenseReviewed, setModelLicenseReviewed] = useState(false);
+  const [trainingMethod, setTrainingMethod] = useState<"lora"|"qlora">("qlora");
 
   const api = useCallback(async (action?: string, payload: Record<string,unknown> = {}) => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -175,10 +176,10 @@ function AILabPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <label className="text-xs font-medium text-slate-600">Dataset<select value={datasetId} onChange={(e)=>setDatasetId(e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="">Choisir</option>{approvedDatasets.map((d)=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
               <label className="text-xs font-medium text-slate-600">Modèle de base<select className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" value="Qwen/Qwen2.5-3B-Instruct" disabled><option>Qwen/Qwen2.5-3B-Instruct</option></select></label>
-              <label className="text-xs font-medium text-slate-600">Méthode<select id="debs-training-method" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="qlora">QLoRA 4-bit</option><option value="lora">LoRA</option></select></label>
+              <label className="text-xs font-medium text-slate-600">Méthode<select value={trainingMethod} onChange={(e)=>setTrainingMethod(e.target.value as "lora"|"qlora")} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"><option value="qlora">QLoRA 4-bit</option><option value="lora">LoRA</option></select></label>
             </div>
             <label className="mt-4 flex items-start gap-2 text-xs leading-5 text-slate-600"><input type="checkbox" checked={modelLicenseReviewed} onChange={(e)=>setModelLicenseReviewed(e.target.checked)} className="mt-1"/> J'ai vérifié la licence et les conditions d'utilisation du modèle de base avant l'entraînement.</label>
-            <button disabled={!!busy||!modelLicenseReviewed||!datasetId||!approvedDatasets.some((d)=>d.id===datasetId)} onClick={()=>void run("queue","queue_training",{dataset_id:datasetId,base_model:"Qwen/Qwen2.5-3B-Instruct",training_method:(document.getElementById("debs-training-method") as HTMLSelectElement)?.value,epochs:1,model_license_reviewed:true})} className="mt-4 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy==="queue"?"Mise en file…":"Mettre en file l'entraînement"}</button>
+            <button disabled={!!busy||!modelLicenseReviewed||!datasetId||!approvedDatasets.some((d)=>d.id===datasetId)} onClick={()=>void run("queue","queue_training",{dataset_id:datasetId,base_model:"Qwen/Qwen2.5-3B-Instruct",training_method:trainingMethod,epochs:1,model_license_reviewed:true})} className="mt-4 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy==="queue"?"Mise en file…":"Mettre en file l'entraînement"}</button>
           </section>
           <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold">File d'entraînement</h2><div className="mt-3 space-y-2">{data.jobs.map((job)=><div key={job.id} className="rounded-xl bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">{job.base_model}</strong><span className="rounded-full bg-white px-2 py-1 text-xs">{statusLabel[job.status]??job.status}</span></div><div className="mt-1 text-xs text-slate-500">ID {job.id} · {job.training_method} · {new Date(job.created_at).toLocaleString("fr-FR")}</div>{job.error_message&&<p className="mt-2 text-xs text-red-700">{job.error_message}</p>}</div>)}{!data.jobs.length&&<p className="text-sm text-slate-500">Aucun travail dans la file.</p>}</div></section>
         </div>}
