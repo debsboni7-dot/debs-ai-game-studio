@@ -68,7 +68,7 @@ describe("DEBS self-hosted adapter", () => {
       baseURL: "http://debs-server:8080/v1",
       apiKey: "test-only-key",
       model: "qwen2.5:3b",
-      label: "DEBS Server",
+      label: "DEBS Self-hosted",
       apiMode: "chat",
       searchBaseURL: "http://debs-server:8080/v1",
       searchApiKey: "test-only-key",
