@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Activity, BrainCircuit, Check, CircleAlert, Database, FileJson, FlaskConical, Loader2, Plus, RefreshCw, Rocket, ShieldCheck, Upload, X } from "lucide-react";
+import { BrainCircuit, CircleAlert, Database, FileJson, FlaskConical, Loader2, Plus, RefreshCw, Rocket, ShieldCheck, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/ai-lab")({
@@ -15,7 +15,7 @@ const empty: LabData = { datasets: [], jobs: [], releases: [], knowledge: [], ev
 const statusLabel: Record<string,string> = {
   draft:"Brouillon", review:"À vérifier", approved:"Approuvé", queued:"En attente GPU",
   preparing:"Préparation", training:"Entraînement", evaluating:"Évaluation",
-  awaiting_approval:"Validation requise", active:"Actif", archived:"Archivé",
+  awaiting_approval:"Validation requise", approved:"Approuvé, non déployé", active:"Actif", archived:"Archivé",
   rejected:"Refusé", approved:"Approuvé, non déployé", failed:"Échec", cancelled:"Annulé",
 };
 
