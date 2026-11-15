@@ -13,7 +13,7 @@ async function requireAdmin(request: Request): Promise<AdminContext> {
   const key = getServerEnv("SUPABASE_PUBLISHABLE_KEY");
   const auth = await verifyVerifiedEmailBearer(request, url, key, createAuthClient);
   if (!auth.ok) return { response: Response.json({ message: auth.message }, { status: auth.status }) };
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") ?? "";
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   const client = createClient(url!, key!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
