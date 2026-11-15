@@ -25,7 +25,8 @@ HEADERS = {"apikey": SERVICE_KEY, "Authorization": "Bearer " + SERVICE_KEY, "Con
 ROOT = Path(__file__).resolve().parent
 
 def rest(method: str, path: str, **kwargs):
-    headers = {**HEADERS, **kwargs.pop("headers", {})}\n    response = requests.request(method, API + path, headers=headers, timeout=60, **kwargs)
+    headers = {**HEADERS, **kwargs.pop("headers", {})}
+    response = requests.request(method, API + path, headers=headers, timeout=60, **kwargs)
     response.raise_for_status()
     if not response.content:
         return None
