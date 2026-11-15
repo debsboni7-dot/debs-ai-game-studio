@@ -5,9 +5,9 @@ import re
 from pathlib import Path
 
 PII_PATTERNS = [
-    re.compile(r"(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b"),
-    re.compile(r"(?<!\\w)(?:\\+?\\d[ .()-]?){8,15}(?!\\w)"),
-    re.compile(r"(?i)\\b(?:sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,})\\b"),
+    re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"),
+    re.compile(r"(?<!\w)(?:\+?\d[ .()-]?){8,15}(?!\w)"),
+    re.compile(r"(?i)\b(?:sk-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,})\b"),
 ]
 
 def main() -> None:
@@ -32,7 +32,7 @@ def main() -> None:
             raise ValueError(f"Invalid example at line {line_number}")
         if item.get("pii_reviewed") is not True or item.get("consent_confirmed") is not True:
             raise ValueError(f"Missing PII review or consent confirmation at line {line_number}")
-        joined = prompt + "\\n" + answer
+        joined = prompt + "\n" + answer
         if any(pattern.search(joined) for pattern in PII_PATTERNS):
             rejected += 1
             continue
@@ -47,7 +47,7 @@ def main() -> None:
         raise ValueError("Train, validation and test partitions must each contain at least one example.")
     for split, items in rows.items():
         (target / f"{split}.jsonl").write_text(
-            "".join(json.dumps(item, ensure_ascii=False) + "\\n" for item in items), encoding="utf-8"
+            "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in items), encoding="utf-8"
         )
     manifest = {
         "schema_version": 1,
