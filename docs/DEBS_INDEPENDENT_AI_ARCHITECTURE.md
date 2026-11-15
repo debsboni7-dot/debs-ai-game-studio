@@ -93,3 +93,23 @@ L'apprentissage est une chaîne de versions, pas une modification autonome du mo
 ## Critères de vérité
 
 Ne jamais appeler le modèle bootstrap « modèle entraîné par DEBS ». Ne jamais annoncer l'apprentissage continu comme actif avant la livraison du pipeline et la preuve d'un entraînement validé. Le statut doit distinguer clairement : conçu, codé, configuré, déployé et vérifié en production.
+
+
+## Implémentation livrée dans le dépôt (15 novembre 2026)
+
+- API d'administration `/api/ai-lab`, réservée aux sessions e-mail vérifiées avec `app_metadata.debs_role=admin`.
+- Console mobile `/admin/ai-lab` pour créer des datasets, importer JSONL, confirmer les contrôles, placer des entraînements en file, consulter les jobs et examiner les versions candidates.
+- Tables de développement : `debs_ai_datasets`, `debs_ai_dataset_items`, `debs_ai_training_jobs`, `debs_ai_model_releases`, `debs_ai_training_events`, `debs_knowledge_documents`.
+- Fonction SQL atomique de réservation de job accessible uniquement au rôle `service_role`; promotion de version en état `approved` réservée aux administrateurs.
+- Worker GPU séparé, préparation des jeux de données, contrôle de consentement/PII, entraînement LoRA/QLoRA, métriques de validation et test, upload des adaptateurs/manifests dans R2.
+- Mémoire personnelle relue uniquement si la préférence existante de l'utilisateur est activée; connaissances partagées publiées recherchées en full-text. Les résultats sont traités comme des données non fiables.
+
+## État réel et limites
+
+Le schéma a été appliqué uniquement au projet Supabase de développement `debs-ai-billing-dev`. La production n'a pas été modifiée. Les migrations correspondantes sont dans `supabase/migrations/`.
+
+Le worker et le conteneur GPU sont prêts dans le dépôt, mais aucun serveur GPU payant, bucket R2, abonnement R2 ou secret n'a été provisionné. Aucun entraînement réel n'a été exécuté. Le compte de développement n'a pas encore de compte utilisateur auquel attribuer le claim admin.
+
+Le premier entraînement produit un adaptateur PEFT. L'approbation dans le registre n'active pas le modèle dans Ollama : la fusion/conversion du modèle, les tests de staging, le déploiement et le rollback restent une étape distincte.
+
+La mémoire actuelle utilise le full-text search PostgreSQL. Elle n'est pas encore une recherche vectorielle/embedding sémantique. Les conversations ne sont pas ingérées automatiquement pour l'entraînement ou la mémoire.
