@@ -5,8 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { setPendingAttachments } from "@/lib/chat/pending-attachments";
 import { CREATOR_CREDIT } from "@/lib/brand";
-import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
-import { seedThreads, type Thread } from "@/lib/chat/threads";
+import { uid } from "@/lib/storage";
+import { useAccountThreads } from "@/lib/chat/account-threads";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/chat/")({
@@ -31,7 +31,7 @@ const suggestions = [
 ];
 
 function ChatHome() {
-  const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const [threads, setThreads, ready] = useAccountThreads();
   const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -59,6 +59,8 @@ function ChatHome() {
       search: draft ? { draft } : {},
     });
   };
+
+  if (!ready) return <div className="flex flex-1 items-center justify-center"><span className="size-5 animate-spin rounded-full border-2 border-red-500 border-t-transparent" /></div>;
 
   return (
     <section className="flex min-h-[calc(100dvh-7rem)] flex-1 flex-col items-center justify-center px-1 pb-8">

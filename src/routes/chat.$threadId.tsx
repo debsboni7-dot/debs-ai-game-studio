@@ -8,8 +8,9 @@ import { Markdown } from "@/components/debs/markdown";
 import { VoiceAndFiles } from "@/components/debs/voice-and-files";
 import { GameArtifact } from "@/components/debs/game-artifact";
 import { AssetImportDialog } from "@/components/debs/asset-import-dialog";
-import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
-import { seedThreads, titleFrom, type ChatActivityEvent, type ChatMessage, type Thread } from "@/lib/chat/threads";
+import { uid } from "@/lib/storage";
+import { titleFrom, type ChatActivityEvent, type ChatMessage } from "@/lib/chat/threads";
+import { useAccountThreads } from "@/lib/chat/account-threads";
 import { useIntegrations } from "@/lib/integrations/context";
 import { supabase } from "@/integrations/supabase/client";
 import { takePendingAttachments } from "@/lib/chat/pending-attachments";
@@ -86,7 +87,7 @@ export const Route = createFileRoute("/chat/$threadId")({
 function ThreadPage() {
   const { threadId } = Route.useParams();
   const { draft } = Route.useSearch();
-  const [threads, setThreads, ready] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const [threads, setThreads, ready] = useAccountThreads();
   const [input, setInput] = useState("");
   useEffect(() => { if (draft) setInput(draft); }, [draft]);
   const [attachments, setAttachments] = useState<File[]>(() => takePendingAttachments());
@@ -124,19 +125,22 @@ function ThreadPage() {
 
     let cloudUserId: string | null = null;
     let accessToken: string | null = null;
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    accessToken = sessionData.session?.access_token ?? null;
+    if (sessionError || !accessToken || !sessionData.session?.user.email_confirmed_at) {
+      push({ id: uid(), kind: "notice", content: "Ta session a expiré ou ton adresse e-mail n'est pas vérifiée. Reconnecte-toi pour continuer.", createdAt: Date.now() });
+      return;
+    }
+
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(threadId)) {
       try {
-        const { data: auth } = await supabase.auth.getUser();
-        if (auth.user) {
-          cloudUserId = auth.user.id;
-          const { data: sessionData } = await supabase.auth.getSession();
-          accessToken = sessionData.session?.access_token ?? null;
-          const { error } = await supabase.from("chat_messages").insert({
-            conversation_id: threadId, user_id: auth.user.id, role: "user", content: parsed.prompt,
-          });
-          if (error) throw error;
-          await supabase.from("conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", threadId);
-        }
+        const authUser = sessionData.session.user;
+        cloudUserId = authUser.id;
+        const { error } = await supabase.from("chat_messages").insert({
+          conversation_id: threadId, user_id: authUser.id, role: "user", content: parsed.prompt,
+        });
+        if (error) throw error;
+        await supabase.from("conversations").update({ title: nextTitle, updated_at: new Date().toISOString() }).eq("id", threadId);
       } catch {
         push({ id: uid(), kind: "notice", content: "La sauvegarde cloud du message a échoué. Le message reste conservé sur cet appareil.", createdAt: Date.now() });
       }

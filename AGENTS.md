@@ -1,38 +1,34 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
+# Repository instructions
 
-## What Lovable manages
+## Git and deployment
+- GitHub is the source of truth for development. Do not rely on Lovable editor workflows or Lovable MCP actions.
+- Never rewrite published Git history. Do not force-push, amend, rebase, or squash commits that are already pushed.
+- Keep changes on feature branches and use pull requests. Do not merge a change merely because it was authored; verify the relevant CI checks first.
+- Do not claim a feature is deployed or operational unless the live environment has been checked.
 
-Rules outside this block are the project's own. Change the pieces below in
-Lovable, not by hand. With the [Lovable MCP](https://mcp.lovable.dev)
-connected, `send_message` asks Lovable to do it; otherwise ask the user to
-use the editor.
+## Database and migrations
+- Supabase is the intended backend for persistent account data.
+- Never apply schema changes directly to production as a development shortcut.
+- Before adding or changing executable files in `supabase/migrations/` or `drizzle/`, inspect the repository migration history and the remote project's applied migration history. Reconcile any divergence first.
+- Develop and test migrations against an isolated Supabase development database. A separate development project is acceptable; Supabase Branching may be used when the account plan supports it.
+- If no isolated database is available, keep SQL as a clearly labelled, non-executable design artifact under `docs/`. Do not send it to production.
+- Database writes that affect credits, payments, subscriptions, or entitlements must be transactional, idempotent, server-authorized, and covered by concurrency and RLS tests.
+- Never allow browser clients to directly set wallet balances or append authoritative payment/credit ledger entries.
+- Production schema deployment and payment activation require explicit user approval after tests and a rollback plan.
 
-- **Database.** Do not add or edit `supabase/migrations/` or `drizzle/`.
-  Ask Lovable to change the schema.
-- **Generated files.** Do not edit a file whose header says it is automatically
-  generated.
-- **AI gateway.** Keep model calls on Lovable's gateway, and keep
-  `LOVABLE_API_KEY` out of browser code.
-- **Connectors.** Lovable provides native connectors. `list_connectors` shows
-  which are enabled; `add_connector` only returns the dashboard link. When a
-  connector is enabled, calls go through the connector gateway and need
-  `LOVABLE_API_KEY`. When Lovable does not provide one, users can bring their
-  own key and store it in Secrets.
-- **Secrets.** Lovable manages them. Do not put secret values in the repo.
-<!-- LOVABLE:END -->
+## Generated files and secrets
+- Do not edit files whose headers identify them as automatically generated unless the generator workflow is understood and intentionally used.
+- Never commit API keys, service-role keys, payment secrets, access tokens, or other credentials.
+- Keep all privileged credentials server-side. Browser code must never receive service-role or provider secret keys.
 
-## Project rules
-- Model calls go only through `src/lib/ai/chat.functions.ts` + server-only adapters in `registry.server.ts`; never expose keys or fake AI output (label examples).
-- Integrations/tools live in `src/lib/integrations` separate from the model layer; write/execute actions require explicit user confirmation.
-- MVP persistence is browser localStorage via `usePersistentState` (`src/lib/storage.ts`) until accounts are added.
-- See docs/MVP.md for what is real vs. pending.
-- The chat adapter uses request-local native Gateway Responses streaming consumed server-side with retries disabled, preserving the existing final-only UI and plain-text history contract.
-- Prefer managed Lovable AI Responses for chat; retain the self-hosted provider only as a missing-configuration fallback, never after a failed request, to preserve existing installations without masking errors.
+## AI architecture
+- Model calls go only through `src/lib/ai/chat.functions.ts` and server-only adapters in `registry.server.ts`; never expose keys or fake AI output (label examples).
+- Do not make provider calls directly from browser code.
+- Do not silently fall back to another model after a provider request fails; surface a clear error. A fallback may be used only when the preferred provider is not configured, and that behavior must be explicit.
+- Preserve the existing final-only UI and plain-text history contract unless a change is deliberately designed and tested.
+
+## Integrations and product behavior
+- Integrations/tools live in `src/lib/integrations`, separate from the model layer.
+- Write/execute actions require explicit user confirmation.
+- See `docs/MVP.md` for what is real versus pending.
+- MVP persistence may use browser localStorage only for non-authoritative preferences or prototypes. Account, billing, payment, and credit state must use secure server-side persistence.

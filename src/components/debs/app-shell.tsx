@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Clock3, Coins, CreditCard, GitBranch, LogIn, LogOut, Menu, MessageSquarePlus, PanelLeftClose,
+  BrainCircuit, Clock3, Coins, CreditCard, GitBranch, LogIn, LogOut, Menu, MessageSquarePlus, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, X,
 } from "lucide-react";
 import { Logo } from "./ui";
-import { STORAGE_KEYS, uid, usePersistentState } from "@/lib/storage";
-import { seedThreads, type Thread } from "@/lib/chat/threads";
+import { uid } from "@/lib/storage";
+import { useAccountThreads } from "@/lib/chat/account-threads";
 import { supabase } from "@/integrations/supabase/client";
 import { IntegrationProvider } from "@/lib/integrations/context";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [threads, setThreads] = usePersistentState<Thread[]>(STORAGE_KEYS.threads, seedThreads);
+  const [threads, setThreads, , userId] = useAccountThreads();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [search, setSearch] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -33,45 +34,65 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      const user = data.session?.user;
-      setUserEmail(user?.email ?? null);
-      if (user) {
-        const { data: cloudRows, error } = await supabase
-          .from("conversations")
-          .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
-          .order("updated_at", { ascending: false });
-        if (active && !error && cloudRows?.length) {
-          setThreads(cloudRows.map((row) => ({
-            id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
-            messages: (row.chat_messages ?? []).map((message) => ({
-              id: message.id, kind: message.role, content: message.content,
-              createdAt: new Date(message.created_at).getTime(),
-            })),
-          })));
-        }
+    void supabase.auth.getUser().then(({ data }) => {
+      if (active) {
+        setUserEmail(data.user?.email ?? null);
+        setIsAdmin(data.user?.app_metadata?.debs_role === "admin");
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
-      if (!session) return;
-      void supabase.from("conversations")
-        .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
-        .order("updated_at", { ascending: false })
-        .then(({ data, error }) => {
-          if (!active || error || !data?.length) return;
-          setThreads(data.map((row) => ({
-            id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
-            messages: (row.chat_messages ?? []).map((message) => ({
-              id: message.id, kind: message.role, content: message.content,
-              createdAt: new Date(message.created_at).getTime(),
-            })),
-          })));
-        });
+      if (active) {
+        setUserEmail(session?.user.email ?? null);
+        setIsAdmin(session?.user.app_metadata?.debs_role === "admin");
+      }
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void supabase.from("conversations")
+      .select("id,title,updated_at,chat_messages(id,role,content,created_at)")
+      .order("updated_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!active || error || !data?.length) return;
+        const cloudThreads = data.map((row) => ({
+          id: row.id, title: row.title, updatedAt: new Date(row.updated_at).getTime(),
+          messages: (row.chat_messages ?? []).map((message) => ({
+            id: message.id, kind: message.role, content: message.content,
+            createdAt: new Date(message.created_at).getTime(),
+          })),
+        }));
+        const cloudIds = new Set(cloudThreads.map((thread) => thread.id));
+        setThreads((current) => [...cloudThreads, ...current.filter((thread) => !cloudIds.has(thread.id))]);
+      });
+    return () => { active = false; };
+  }, [userId, setThreads]);
+
+  useEffect(() => {
+    if (pathname === "/connexion" || pathname === "/verifier-email" || pathname.startsWith("/api/")) return;
+    let active = true;
+    const enforceAuthentication = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      if (!data.session) {
+        await navigate({ to: "/connexion", replace: true });
+        return;
+      }
+      if (!data.session.user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        await navigate({ to: "/connexion", replace: true });
+      }
+    };
+    void enforceAuthentication();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active && !session && pathname !== "/connexion" && pathname !== "/verifier-email") {
+        void navigate({ to: "/connexion", replace: true });
+      }
+    });
+    return () => { active = false; listener.subscription.unsubscribe(); };
+  }, [pathname, navigate]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -178,6 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link to="/parametres" onClick={() => setMobileOpen(false)} title="Paramètres" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-600 transition hover:bg-slate-100 hover:text-red-700">
             <Settings2 className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Paramètres"}
           </Link>
+          {isAdmin && <Link to="/admin/ai-lab" onClick={() => setMobileOpen(false)} title="Laboratoire IA" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold text-red-700 transition hover:bg-red-50 ${pathname === "/admin/ai-lab" ? "bg-red-50" : ""}`}><BrainCircuit className="size-[17px] shrink-0" /> {(!collapsed || isMobile) && "Laboratoire IA"}</Link>}
         </div>
         {userEmail ? (
           <div className={`mt-2 flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 ${collapsed && !isMobile ? "justify-center" : ""}`}>

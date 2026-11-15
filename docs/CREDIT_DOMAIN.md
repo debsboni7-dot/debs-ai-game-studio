@@ -1,19 +1,22 @@
 # DEBS AI Studio credit domain
 
-## Implemented as pure code
+## Product rules
 
-`src/lib/billing/credits.ts` defines deterministic rules for:
+- Subscription credits and compensation/store credits are tracked separately.
+- Every unused subscription credit rolls over in full.
+- A downgrade never removes or caps credits already accumulated.
+- Compensation/store credits do not expire, subject to applicable law.
+- Standalone credit purchases and top-up packs are not offered.
+- Spending consumes subscription credits first, then compensation/store credits.
 
-- Keeping subscription credits and separately purchased credits in distinct balances.
-- Adding each new subscription grant to the entire unspent subscription balance (full rollover).
-- Retaining accumulated credits when a user downgrades; no cap or reset is applied.
-- Spending subscription credits first, then purchased credits.
-- Rejecting invalid amounts, unsafe integers and insufficient balances without changing the input balances.
+## Pure TypeScript domain rules
 
-Purchased credits have no expiry field or automatic expiry operation.
+`src/lib/billing/credits.ts` implements deterministic arithmetic for adding subscription grants and spending across the two compartments. It is a pure module: it does not persist balances and must not be used as a client-side source of truth.
 
-## Important production boundary
+`src/lib/billing/reservations.ts` models reservation, settlement, and release arithmetic. It is also a pure module and is not a concurrency or authorization boundary.
 
-This is a pure domain module, not a wallet, database, ledger, payment system or client-side balance store. It does not create or persist user balances. Production use must be wrapped by authenticated server-side operations and a database transaction that writes an immutable ledger, prevents concurrent double-spending, and verifies payment webhooks before crediting purchases.
+## Persistent backend
 
-Database schema and migrations remain Lovable-managed under `AGENTS.md`; this change intentionally does not edit `supabase/migrations/` or `drizzle/`. Do not expose these pure functions as trusted client-side spending endpoints.
+The executable database schema and service-only transactional functions are in `supabase/migrations/`. The authoritative implementation status and test evidence are recorded in `docs/PERSISTENT_WALLET_IMPLEMENTATION_PLAN.md` and `docs/PERSISTENT_WALLET_DEV_VALIDATION.md`.
+
+The legacy database field `purchased_balance` is reserved exclusively for compensation/store credits. Do not label it as a balance available for purchase. All real spending must go through authenticated server-side transactions and the append-only ledger.

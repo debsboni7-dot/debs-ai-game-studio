@@ -1,0 +1,32 @@
+services:
+  debs-training-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: debs-ai-training-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DEBS_TRAINING_WORKER_ID: ${DEBS_TRAINING_WORKER_ID:-debs-gpu-worker-01}
+      DEBS_TRAINING_TIMEOUT_SECONDS: ${DEBS_TRAINING_TIMEOUT_SECONDS:-21600}
+      HF_HOME: /var/cache/huggingface
+      TOKENIZERS_PARALLELISM: "false"
+    volumes:
+      - huggingface_cache:/var/cache/huggingface
+      - training_work:/opt/debs-training/work
+    gpus: all
+    shm_size: "8gb"
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=4g
+    command: ["python", "worker.py", "--poll-seconds", "20"]
+
+volumes:
+  huggingface_cache:
+  training_work:

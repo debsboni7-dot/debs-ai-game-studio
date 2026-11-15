@@ -6,11 +6,11 @@ L’application est conçue pour être utilisée depuis un navigateur Android : 
 
 ## DEBS Self-hosted Inference (prototype)
 
-Le dossier `inference/` contient le premier serveur d'inférence auto-hébergé :
+Le dossier `inference/` contient le prototype du serveur d'inférence auto-hébergé :
 - Ollama exécute les poids du modèle sur le serveur contrôlé par DEBS.
 - Une passerelle FastAPI protège l'API compatible OpenAI avec une clé serveur.
 - Le modèle bootstrap par défaut est `qwen2.5:3b`, téléchargé sur le volume du serveur.
-- Le routeur de chat de l'application utilise exclusivement ce serveur lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Sans ces variables, le chat renvoie une erreur explicite : aucun recours automatique à Gemini, ChatGPT, Claude ou Lovable.
+- Le routeur applicatif sait actuellement sélectionner le premier fournisseur configuré dans cet ordre : Gemini, passerelle IA gérée historique, puis DEBS Server. Il ne bascule pas vers un autre fournisseur après l'échec d'une requête déjà commencée. Le retrait complet de la passerelle historique reste à effectuer si DEBS doit fonctionner exclusivement sur son infrastructure.
 
 Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS. Il établit l'infrastructure d'exécution auto-hébergée nécessaire avant les étapes de données, entraînement/ajustement, évaluation et versions propres du modèle. Voir [inference/README.md](inference/README.md). Aucun serveur GPU n'est provisionné par le dépôt ; le déploiement réel exige une machine/VM avec RAM, stockage et idéalement GPU. La clé d'inférence reste exclusivement côté serveur.
 
@@ -25,7 +25,7 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 - **Moteur IA** : le routeur serveur utilise exclusivement DEBS Self-hosted lorsque `DEBS_INFERENCE_BASE_URL` et `DEBS_INFERENCE_API_KEY` sont configurées. Aucun fournisseur IA tiers n'est utilisé comme solution de secours. Tant que le serveur DEBS n'est pas hébergé et vérifié, la génération reste indisponible.
 - **Modes spécialisés** : discussion, code, développement de jeux, conception, débogage, revue, architecture, tests, sécurité, performance, API, DevOps et spécialités Unity, Unreal, Godot, Blender et Three.js.
 - **Recherche Web** : mode /search est présent, mais la recherche Web en direct n'est pas encore intégrée au moteur auto-hébergé ; DEBS ne doit pas inventer de sources.
-- **Comptes et historique cloud** : authentification Supabase par e-mail et mot de passe ; les conversations peuvent être synchronisées avec les tables conversations et chat_messages si les migrations correspondantes sont appliquées et que Supabase est correctement configuré. Sans compte, l’historique reste local à l’appareil.
+- **Comptes et historique cloud** : création de compte et connexion sans mot de passe par code OTP à six chiffres envoyé par e-mail. La vérification est obligatoire pour tous les forfaits, y compris Découverte. Le serveur vérifie indépendamment le jeton Supabase et la confirmation de l'adresse e-mail. Le cache local est isolé par identifiant de compte ; les conversations cloud nécessitent les migrations et le projet Supabase de déploiement correctement configurés.
 - **GitHub en lecture** : connexion par jeton personnel saisi dans l’écran Intégrations, vérification du compte, sélection du dépôt et import limité de fichiers en contexte de conversation. Le jeton de cette connexion reste en mémoire React et disparaît au rechargement.
 - **Agent GitHub serveur** : une Edge Function distincte peut inspecter un dépôt autorisé et le moteur de missions contient un flux de propositions sur branche et PR brouillon. Il nécessite les secrets Supabase documentés et son déploiement ; ne pas confondre cette capacité avec l’import GitHub en lecture.
 - **Génération 3D** : adaptateurs Meshy, Tripo et Rodin présents dans le code ; chaque fournisseur exige ses propres secrets serveur et une vérification réelle avant usage.
@@ -47,12 +47,20 @@ Ce bootstrap ne constitue pas encore un modèle de fondation entraîné par DEBS
 
 Les connecteurs affichés dans l’écran Intégrations ne signifient pas automatiquement qu’un compte externe est connecté ou qu’un runner est installé.
 
+## Comptes, crédits et paiements
+- La connexion est obligatoire pour utiliser le chat, même avec le forfait gratuit. Le code de vérification e-mail est envoyé par Supabase Auth et sa validité est contrôlée par Supabase.
+- Le portefeuille persistant et les opérations transactionnelles ont été appliqués et testés uniquement dans le projet Supabase de développement isolé `debs-ai-billing-dev`.
+- Les crédits de compensation sont distincts des crédits d'abonnement. Aucun achat autonome de packs de crédits n'est proposé.
+- Le débit des crédits n'est pas encore relié au flux IA. Les tarifs de modèles doivent être configurés et validés avant toute facturation réelle.
+- Le paiement et le renouvellement des abonnements ne sont pas activés. Le schéma de production n'a pas été modifié.
+- La configuration du modèle d'e-mail OTP, du SMTP et des URL autorisées doit être vérifiée dans le projet Supabase qui servira réellement l'application.
+
 ## Sécurité et limites
 - Les secrets fournisseurs doivent rester côté serveur, jamais dans le chat ou le bundle navigateur.
 - Les fichiers de dépôt importés sont un instantané en lecture seule ; leur présence dans le contexte n’autorise aucune écriture GitHub.
 - Les écritures GitHub du worker sont prévues sur une branche dédiée et en PR brouillon ; aucune fusion automatique vers main.
 - Les actions de build/test ne sont considérées comme réussies que lorsqu’un runner renvoie des journaux réels.
-- DEBS 1.1 utilise exclusivement le serveur d'inférence auto-hébergé configuré. Le modèle bootstrap Qwen est open weights et n'est pas un modèle de fondation entraîné par DEBS AI Studio.
+- Le modèle bootstrap Qwen est open weights et n'est pas un modèle de fondation entraîné par DEBS AI Studio. Le serveur d'inférence auto-hébergé reste à déployer et à valider.
 
 ## Développement
 - Dépôt : https://github.com/debsboni7-dot/debs-ai-game-studio
