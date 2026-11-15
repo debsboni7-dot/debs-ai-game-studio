@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/chat-stream")({
             const message = error instanceof Error ? error.message : "Requête invalide.";
             return Response.json({ message }, { status: 400 });
           }
-          const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") ?? "";
+          const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
           const memoryClient = createClient(
             getServerEnv("SUPABASE_URL")!,
             getServerEnv("SUPABASE_PUBLISHABLE_KEY")!,
