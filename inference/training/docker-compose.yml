@@ -6,7 +6,6 @@ services:
     container_name: debs-ai-training-worker
     restart: unless-stopped
     env_file:
-      - ../.env
       - .env
     environment:
       DEBS_TRAINING_WORKER_ID: ${DEBS_TRAINING_WORKER_ID:-debs-gpu-worker-01}
