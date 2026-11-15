@@ -1,4 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import { getServerEnv } from "../server-env.server";
 import { streamText, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import {
@@ -96,8 +97,8 @@ export function createResponsesCall(
     source_url?: string | undefined;
   }) => {
     const authorization = request.headers.get("authorization");
-    const supabaseUrl = process.env['SUPABASE_URL']?.trim();
-    const anonKey = process.env['SUPABASE_ANON_KEY']?.trim();
+    const supabaseUrl = getServerEnv("SUPABASE_URL");
+    const anonKey = getServerEnv("SUPABASE_PUBLISHABLE_KEY") ?? getServerEnv("SUPABASE_ANON_KEY");
     if (!authorization || !supabaseUrl || !anonKey) {
       return {
         ok: false,
@@ -179,8 +180,8 @@ export function createResponsesCall(
         }),
         execute: async (input) => {
           const authorization = request.headers.get("authorization");
-          const supabaseUrl = process.env['SUPABASE_URL']?.trim();
-          const anonKey = process.env['SUPABASE_ANON_KEY']?.trim();
+          const supabaseUrl = getServerEnv("SUPABASE_URL");
+          const anonKey = getServerEnv("SUPABASE_PUBLISHABLE_KEY") ?? getServerEnv("SUPABASE_ANON_KEY");
           if (!authorization || !supabaseUrl || !anonKey)
             return {
               ok: false,
