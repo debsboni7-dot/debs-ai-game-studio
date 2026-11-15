@@ -106,7 +106,7 @@ export const Route = createFileRoute("/api/ai-lab")({
               dataset_id: datasetId, input_text: input, target_text: target, split,
               source_reference: String(item.source_reference ?? "").slice(0, 500),
               pii_reviewed: true, consent_confirmed: true,
-              content_sha256: await digest(input + "\\n" + target), created_by: userId,
+              content_sha256: await digest(input + "\n" + target), created_by: userId,
             });
           }
           const { error } = await client.from("debs_ai_dataset_items").upsert(rows, { onConflict: "dataset_id,content_sha256", ignoreDuplicates: true });
