@@ -73,8 +73,8 @@ def process_job(job: dict):
     stop_heartbeat = threading.Event()
     heartbeat = threading.Thread(target=heartbeat_loop, args=(job_id, stop_heartbeat), daemon=True)
     heartbeat.start()
-    event(job_id, "preparation_started", {"worker_id": WORKER_ID, "base_model": job["base_model"]})
     try:
+        event(job_id, "preparation_started", {"worker_id": WORKER_ID, "base_model": job["base_model"]})
         items = fetch_dataset(job["dataset_id"])
         if not items:
             raise RuntimeError("Dataset is empty.")
