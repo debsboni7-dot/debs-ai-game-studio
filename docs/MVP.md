@@ -2,7 +2,7 @@
 
 ## Ce qui fonctionne réellement
 - Navigation mobile-first : accueil, chat, atelier, studio, intégrations, réglages.
-- Chat : conversations multiples, cache local isolé par compte Supabase, rendu Markdown, coloration, bouton copier et états de chargement/erreur. Les requêtes passent par `/api/chat-stream`, qui exige un jeton Supabase valide et une adresse e-mail confirmée. Le routeur serveur sélectionne le premier fournisseur configuré selon sa priorité interne ; il ne relance pas automatiquement une requête auprès d'un autre fournisseur après un échec. Le fil « Exemple » est statique et étiqueté.
+- Chat : conversations multiples, cache local isolé par compte Supabase, rendu Markdown, coloration, bouton copier et états de chargement/erreur. Les requêtes passent par `/api/chat-stream`, qui exige un jeton Supabase valide et une adresse e-mail confirmée. Le routeur serveur utilise exclusivement DEBS Self-hosted. Si le runtime DEBS est absent ou échoue, la génération est indisponible : aucun appel à Gemini, Claude, OpenAI ou Lovable AI n'est effectué. Le fil « Exemple » est statique et étiqueté.
 - Atelier : fichiers de démo, créer / renommer / supprimer / éditer, aperçu coloré, export ZIP. Aucun code n'est exécuté.
 - Studio : formulaire → cahier des charges, structure et checklist générés par **modèle de document** (pas d'IA), notes, envoi de la structure vers l'atelier.
 - Intégrations : statuts « prêt à connecter / connecté / à développer ». Aucune connexion simulée (0 connectée).
