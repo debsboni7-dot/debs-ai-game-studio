@@ -103,7 +103,7 @@ def process_job(job: dict):
             }
             (output_dir / "release-manifest.json").write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
             artifact_uri = upload_artifacts(output_dir, "models/" + release_version)
-            release = rest("POST", "/debs_ai_model_releases", headers={**HEADERS, "Prefer": "return=representation"}, json={
+            release = rest("POST", "/debs_ai_model_releases", json={
                 "version": release_version, "base_model": job["base_model"], "training_job_id": job_id,
                 "artifact_uri": artifact_uri, "manifest": manifest, "metrics": metrics,
                 "status": "awaiting_approval", "created_by": job["requested_by"],
