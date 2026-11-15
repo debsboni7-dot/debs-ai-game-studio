@@ -25,7 +25,7 @@ HEADERS = {"apikey": SERVICE_KEY, "Authorization": "Bearer " + SERVICE_KEY, "Con
 ROOT = Path(__file__).resolve().parent
 
 def rest(method: str, path: str, **kwargs):
-    response = requests.request(method, API + path, headers=HEADERS, timeout=60, **kwargs)
+    headers = {**HEADERS, **kwargs.pop("headers", {})}\n    response = requests.request(method, API + path, headers=headers, timeout=60, **kwargs)
     response.raise_for_status()
     if not response.content:
         return None
@@ -103,7 +103,7 @@ def process_job(job: dict):
             }
             (output_dir / "release-manifest.json").write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
             artifact_uri = upload_artifacts(output_dir, "models/" + release_version)
-            release = rest("POST", "/debs_ai_model_releases", json={
+            release = rest("POST", "/debs_ai_model_releases", headers={"Prefer": "return=representation"}, json={
                 "version": release_version, "base_model": job["base_model"], "training_job_id": job_id,
                 "artifact_uri": artifact_uri, "manifest": manifest, "metrics": metrics,
                 "status": "awaiting_approval", "created_by": job["requested_by"],
