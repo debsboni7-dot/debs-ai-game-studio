@@ -60,7 +60,7 @@ def main() -> None:
     max_length = min(2048, max(256, int(config.get("max_seq_length", 1024))))
     def tokenize(batch):
         texts = [
-            "### User\\n" + prompt + "\\n\\n### Assistant\\n" + answer + tokenizer.eos_token
+            "### User\n" + prompt + "\n\n### Assistant\n" + answer + tokenizer.eos_token
             for prompt, answer in zip(batch["input"], batch["target"])
         ]
         return tokenizer(texts, truncation=True, max_length=max_length)
