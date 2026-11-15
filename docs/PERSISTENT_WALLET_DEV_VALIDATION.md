@@ -100,3 +100,12 @@ The live development policies for `conversations` and `chat_messages` were inspe
 - Message SELECT and DELETE require `user_id = auth.uid()`.
 - Message INSERT additionally requires the referenced conversation to belong to the same authenticated user.
 - These checks establish policy-level ownership rules, but do not replace a two-user authenticated integration test. No real test accounts or chat rows were created in the development database.
+
+
+## Account wallet provisioning (2026-11-15)
+
+Migration `20261115071804_debs_auto_create_wallet_for_auth_users` is applied to the isolated `debs-ai-billing-dev` project only. An `AFTER INSERT` trigger on `auth.users` calls the existing server-owned wallet initializer to create a zero-balance wallet. Existing Auth users are backfilled with zero-balance wallets. No credits are granted by this trigger. The trigger is enabled and its function is SECURITY DEFINER with a fixed search path; direct execution is revoked from public/anon/authenticated roles. The development project currently has zero Auth users and zero wallet rows, so a real signup-trigger test remains pending until SMTP/Auth OTP is configured.
+
+The shared server environment resolver now reads Cloudflare request-scoped secrets and guards the Node fallback. AI file and asset tool calls use the same resolver rather than reading `process.env` directly, which avoids missing Supabase credentials in the Cloudflare runtime.
+
+The development database currently has zero AI rate cards and zero plan-price rows. Wallet charging and subscription entitlements remain disabled until rates and prices are explicitly set and tested.
