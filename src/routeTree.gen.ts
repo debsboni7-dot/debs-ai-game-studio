@@ -106,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/ai-lab': typeof ApiAiLabRoute
   '/admin/ai-lab': typeof AdminAiLabRoute
   '/atelier': typeof AtelierRoute
   '/connexion': typeof ConnexionRoute
@@ -120,6 +121,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/api/ai-lab': typeof ApiAiLabRoute
   '/': typeof IndexRoute
   '/admin/ai-lab': typeof AdminAiLabRoute
   '/atelier': typeof AtelierRoute
@@ -144,6 +146,7 @@ export interface FileRouteTypes {
     | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/ai-lab'
     | '/api/ai-provider-status'
     | '/api/chat-stream'
     | '/chat/$threadId'
@@ -157,6 +160,7 @@ export interface FileRouteTypes {
     | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/ai-lab'
     | '/api/ai-provider-status'
     | '/api/chat-stream'
     | '/chat/$threadId'
@@ -170,6 +174,7 @@ export interface FileRouteTypes {
     | '/missions'
     | '/parametres'
     | '/studio'
+    | '/api/ai-lab'
     | '/api/ai-provider-status'
     | '/api/chat-stream'
     | '/chat/$threadId'
