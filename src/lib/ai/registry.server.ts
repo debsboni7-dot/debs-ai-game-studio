@@ -4,23 +4,9 @@ import { CREATOR_IDENTITY_REPLY } from "../brand";
 import { createResponsesCall } from "./responses.server";
 import { GatewayError, safeGatewayError } from "./gateway-error.server";
 
-// Cloudflare Workers exposes project secrets through the request-scoped env binding.
-// Keep process.env as a fallback for local development and Node-based tests.
-import { getRequest } from "@tanstack/react-start/server";
+import { getServerEnv } from "../server-env.server";
+export { getServerEnv } from "../server-env.server";
 
-export function getServerEnv(name: string): string | undefined {
-  try {
-    const request = getRequest() as Request & {
-      runtime?: { cloudflare?: { env?: Record<string, string | undefined> } };
-    };
-    const runtimeValue = request.runtime?.cloudflare?.env?.[name]?.trim();
-    if (runtimeValue) return runtimeValue;
-  } catch {
-    // No active request context in local tests or non-request code; use process.env below.
-  }
-  const processValue = process.env[name]?.trim();
-  return processValue || undefined;
-}
 
 function getGeminiConfig() {
   const apiKey = getServerEnv("GEMINI_API_KEY");
