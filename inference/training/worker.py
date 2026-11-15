@@ -5,6 +5,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,10 +58,22 @@ def upload_artifacts(directory: Path, prefix: str):
             client.upload_file(str(path), R2_BUCKET, key)
     return f"r2://{R2_BUCKET}/{prefix}"
 
+def heartbeat_loop(job_id: str, stop: threading.Event):
+    while not stop.wait(60):
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            update_job(job_id, {"heartbeat_at": now, "updated_at": now})
+        except Exception as exc:
+            print(f"Training heartbeat failed ({exc.__class__.__name__}).", file=sys.stderr)
+
 def process_job(job: dict):
     job_id = job["id"]
-    update_job(job_id, {"status": "training", "heartbeat_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()})
-    event(job_id, "training_started", {"worker_id": WORKER_ID, "base_model": job["base_model"]})
+    now = datetime.now(timezone.utc).isoformat()
+    update_job(job_id, {"status": "preparing", "heartbeat_at": now, "updated_at": now})
+    stop_heartbeat = threading.Event()
+    heartbeat = threading.Thread(target=heartbeat_loop, args=(job_id, stop_heartbeat), daemon=True)
+    heartbeat.start()
+    event(job_id, "preparation_started", {"worker_id": WORKER_ID, "base_model": job["base_model"]})
     try:
         items = fetch_dataset(job["dataset_id"])
         if not items:
@@ -82,6 +95,9 @@ def process_job(job: dict):
             config_path = workspace / "config.json"
             config_path.write_text(json.dumps(job.get("config") or {}), encoding="utf-8")
             output_dir = workspace / "output"
+            now = datetime.now(timezone.utc).isoformat()
+            update_job(job_id, {"status": "training", "heartbeat_at": now, "updated_at": now})
+            event(job_id, "training_started", {"worker_id": WORKER_ID, "base_model": job["base_model"]})
             subprocess.run([
                 sys.executable, str(ROOT / "train.py"),
                 "--dataset-dir", str(dataset_dir),
@@ -121,6 +137,9 @@ def process_job(job: dict):
         update_job(job_id, {"status": "failed", "error_message": message, "finished_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()})
         event(job_id, "training_failed", {"error": message})
         raise
+    finally:
+        stop_heartbeat.set()
+        heartbeat.join(timeout=5)
 
 def main():
     parser = argparse.ArgumentParser()
