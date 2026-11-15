@@ -1,0 +1,28 @@
+name: DEBS AI training pipeline checks
+
+on:
+  pull_request:
+    paths:
+      - "inference/training/**"
+      - ".github/workflows/debs-training-tests.yml"
+  push:
+    branches: ["main", "feat/persistent-credit-wallet-design"]
+    paths:
+      - "inference/training/**"
+      - ".github/workflows/debs-training-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  dataset-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile training scripts
+        run: python -m compileall -q inference/training
+      - name: Test dataset preparation and consent checks
+        run: python -m unittest discover -s inference/training -p "test_*.py" -v
