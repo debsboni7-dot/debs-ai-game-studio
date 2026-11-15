@@ -278,7 +278,7 @@ export function streamChatResponse(req: CodeModelRequest, request: Request): Res
   const providerConfig = getActiveProvider();
   if (!providerConfig)
     return Response.json(
-      { message: "Lovable AI n'est pas configuré : la clé gérée côté serveur est manquante." },
+      { message: "Le moteur DEBS auto-hébergé n'est pas configuré. Aucun fournisseur externe ne sera appelé." },
       { status: 503 },
     );
   const task = req.task ?? "chat";
