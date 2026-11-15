@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AtelierRouteImport } from './routes/atelier'
+import { Route as AdminAiLabRouteImport } from './routes/admin.ai-lab'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as MissionsRouteImport } from './routes/missions'
@@ -18,12 +19,18 @@ import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as ApiAiProviderStatusRouteImport } from './routes/api.ai-provider-status'
 import { Route as ApiChatStreamRouteImport } from './routes/api.chat-stream'
+import { Route as ApiAiLabRouteImport } from './routes/api.ai-lab'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatThreadIdRouteImport } from './routes/chat.$threadId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAiLabRoute = AdminAiLabRouteImport.update({
+  id: '/admin/ai-lab',
+  path: '/admin/ai-lab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AtelierRoute = AtelierRouteImport.update({
@@ -61,6 +68,11 @@ const ApiAiProviderStatusRoute = ApiAiProviderStatusRouteImport.update({
   path: '/api/ai-provider-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiLabRoute = ApiAiLabRouteImport.update({
+  id: '/api/ai-lab',
+  path: '/api/ai-lab',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatStreamRoute = ApiChatStreamRouteImport.update({
   id: '/api/chat-stream',
   path: '/api/chat-stream',
@@ -79,12 +91,14 @@ const ChatThreadIdRoute = ChatThreadIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/ai-lab': typeof AdminAiLabRoute
   '/atelier': typeof AtelierRoute
   '/connexion': typeof ConnexionRoute
   '/integrations': typeof IntegrationsRoute
   '/missions': typeof MissionsRoute
   '/parametres': typeof ParametresRoute
   '/studio': typeof StudioRoute
+  '/api/ai-lab': typeof ApiAiLabRoute
   '/api/ai-provider-status': typeof ApiAiProviderStatusRoute
   '/api/chat-stream': typeof ApiChatStreamRoute
   '/chat/$threadId': typeof ChatThreadIdRoute
@@ -92,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/ai-lab': typeof AdminAiLabRoute
   '/atelier': typeof AtelierRoute
   '/connexion': typeof ConnexionRoute
   '/integrations': typeof IntegrationsRoute
@@ -106,6 +121,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/ai-lab': typeof AdminAiLabRoute
   '/atelier': typeof AtelierRoute
   '/connexion': typeof ConnexionRoute
   '/integrations': typeof IntegrationsRoute
@@ -121,6 +137,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin/ai-lab'
     | '/atelier'
     | '/connexion'
     | '/integrations'
@@ -161,6 +178,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminAiLabRoute: typeof AdminAiLabRoute
   AtelierRoute: typeof AtelierRoute
   ConnexionRoute: typeof ConnexionRoute
   IntegrationsRoute: typeof IntegrationsRoute
@@ -180,6 +198,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai-lab': {
+      id: '/admin/ai-lab'
+      path: '/admin/ai-lab'
+      fullPath: '/admin/ai-lab'
+      preLoaderRoute: typeof AdminAiLabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/atelier': {
@@ -224,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai-lab': {
+      id: '/api/ai-lab'
+      path: '/api/ai-lab'
+      fullPath: '/api/ai-lab'
+      preLoaderRoute: typeof ApiAiLabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai-provider-status': {
       id: '/api/ai-provider-status'
       path: '/api/ai-provider-status'
@@ -257,12 +289,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminAiLabRoute: AdminAiLabRoute,
   AtelierRoute: AtelierRoute,
   ConnexionRoute: ConnexionRoute,
   IntegrationsRoute: IntegrationsRoute,
   MissionsRoute: MissionsRoute,
   ParametresRoute: ParametresRoute,
   StudioRoute: StudioRoute,
+  ApiAiLabRoute: ApiAiLabRoute,
   ApiAiProviderStatusRoute: ApiAiProviderStatusRoute,
   ApiChatStreamRoute: ApiChatStreamRoute,
   ChatThreadIdRoute: ChatThreadIdRoute,
