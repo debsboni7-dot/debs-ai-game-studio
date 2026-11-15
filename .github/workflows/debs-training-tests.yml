@@ -24,5 +24,11 @@ jobs:
           python-version: "3.11"
       - name: Compile training scripts
         run: python -m compileall -q inference/training
+      - name: Validate private GPU Compose manifests
+        run: |
+          cp inference/.env.example inference/.env
+          cp inference/training/.env.example inference/training/.env
+          docker compose -f inference/docker-compose.yml -f inference/docker-compose.gpu.yml config >/dev/null
+          docker compose -f inference/training/docker-compose.yml config >/dev/null
       - name: Test dataset preparation and consent checks
         run: python -m unittest discover -s inference/training -p "test_*.py" -v
