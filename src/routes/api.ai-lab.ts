@@ -133,6 +133,7 @@ export const Route = createFileRoute("/api/ai-lab")({
           const datasetId = String(body.dataset_id ?? "");
           const baseModel = String(body.base_model ?? "Qwen/Qwen2.5-3B-Instruct");
           const method = body.training_method === "lora" ? "lora" : "qlora";
+          if (body.model_license_reviewed !== true) return Response.json({ message: "Confirme d'abord la vérification de la licence du modèle de base." }, { status: 400 });
           const epochs = Math.max(1, Math.min(5, Number(body.epochs) || 1));
           if (baseModel !== "Qwen/Qwen2.5-3B-Instruct") {
             return Response.json({ message: "Le modèle de base autorisé pour ce premier pipeline est Qwen2.5-3B-Instruct." }, { status: 400 });
@@ -146,7 +147,7 @@ export const Route = createFileRoute("/api/ai-lab")({
           }
           const { data, error } = await client.from("debs_ai_training_jobs").insert({
             dataset_id: datasetId, base_model: baseModel, training_method: method,
-            config: { epochs, learning_rate: 0.0002, batch_size: 1, gradient_accumulation_steps: 8, lora_rank: 8, max_seq_length: 1024 },
+            config: { epochs, learning_rate: 0.0002, batch_size: 1, gradient_accumulation_steps: 8, lora_rank: 8, max_seq_length: 1024, model_license_reviewed: true },
             requested_by: userId,
           }).select("*").single();
           if (error) return Response.json({ message: "Mise en file impossible." }, { status: 400 });
