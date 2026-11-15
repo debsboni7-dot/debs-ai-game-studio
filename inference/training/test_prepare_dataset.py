@@ -39,6 +39,18 @@ class DatasetPreparationTests(unittest.TestCase):
         finally:
             temporary.cleanup()
 
+    def test_duplicate_examples_are_removed(self):
+        rows = self.valid_rows()
+        rows.append(dict(rows[0]))
+        temporary, result, target = self.run_prepare(rows)
+        try:
+            self.assertEqual(result.returncode, 0, result.stderr)
+            manifest = json.loads((target / "dataset-manifest.json").read_text())
+            self.assertEqual(manifest["unique_examples"], 3)
+            self.assertEqual(manifest["counts"]["train"], 1)
+        finally:
+            temporary.cleanup()
+
     def test_missing_partition_is_rejected(self):
         rows = self.valid_rows()[:2]
         temporary, result, _ = self.run_prepare(rows)
